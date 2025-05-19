@@ -1,4 +1,4 @@
-# GridPop Overload Blitz
+# GridPop
 
 A fast-paced grid-based puzzle game where you match and clear patterns to score points.
 

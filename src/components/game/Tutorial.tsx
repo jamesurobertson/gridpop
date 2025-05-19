@@ -13,7 +13,7 @@ const Tutorial = ({ onClose }: TutorialProps) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-20 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 my-8 shadow-lg">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">How to Play GridPop: Overload</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">How to Play GridPop</h2>
         
         <div className="space-y-4 text-gray-700 mb-6">
           <div>
