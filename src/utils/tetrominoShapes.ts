@@ -235,7 +235,11 @@ export const TETROMINO_SHAPES: { [key: string]: TetrominoShape } = {
 };
 
 // Helper function to get a random tetromino shape
-export const getRandomTetromino = (): TetrominoShape => {
+export const getRandomTetromino = (gridSize: number = 5): TetrominoShape => {
   const shapes = Object.values(TETROMINO_SHAPES);
-  return shapes[Math.floor(Math.random() * shapes.length)];
+  // Filter out the I piece for 4x4 grid
+  const availableShapes = gridSize === 4
+    ? shapes.filter(shape => shape.type !== 'I')
+    : shapes;
+  return availableShapes[Math.floor(Math.random() * availableShapes.length)];
 };

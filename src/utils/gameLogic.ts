@@ -389,7 +389,7 @@ export function formatHighScores(highScores: HighScore[]): { [key: string]: High
 
 // Function to get next tetromino for the game
 export const getNextTetromino = (gridSize: number = DEFAULT_GRID_SIZE): Tetromino => {
-  const shape = getRandomTetromino();
+  const shape = getRandomTetromino(gridSize);
   return createTetromino(shape, gridSize);
 };
 
