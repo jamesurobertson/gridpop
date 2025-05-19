@@ -11,7 +11,7 @@ export const TURNS_PER_LEVEL = 10;
 
 // Create an empty grid
 export const createEmptyGrid = (size: number = DEFAULT_GRID_SIZE): GridType => {
-  return Array(size).fill(0).map(() => 
+  return Array(size).fill(0).map(() =>
     Array(size).fill(0) as CellValue[]
   );
 };
@@ -20,7 +20,7 @@ export const createEmptyGrid = (size: number = DEFAULT_GRID_SIZE): GridType => {
 export const createTetromino = (shape: TetrominoShape, gridSize: number = DEFAULT_GRID_SIZE): Tetromino => {
   // Calculate starting position based on shape size
   const startX = Math.floor((gridSize - shape.rotations[0][0].length) / 2);
-  
+
   return {
     shape,
     position: { x: startX, y: 0 },
@@ -41,23 +41,23 @@ export const isValidPosition = (
 ): boolean => {
   const shape = getCurrentShape(tetromino);
   const gridSize = grid.length;
-  
+
   for (let y = 0; y < shape.length; y++) {
     for (let x = 0; x < shape[y].length; x++) {
       if (shape[y][x]) {
         const newX = position.x + x;
         const newY = position.y + y;
-        
+
         // Check boundaries
         if (
-          newX < 0 || 
-          newX >= gridSize || 
-          newY < 0 || 
+          newX < 0 ||
+          newX >= gridSize ||
+          newY < 0 ||
           newY >= gridSize
         ) {
           return false;
         }
-        
+
         // Check if adding to this cell would exceed MAX_CELL_VALUE
         if (grid[newY][newX] === MAX_CELL_VALUE) {
           return false;
@@ -65,7 +65,7 @@ export const isValidPosition = (
       }
     }
   }
-  
+
   return true;
 };
 
@@ -77,12 +77,12 @@ export const tryWallKick = (
 ): Position | null => {
   const originalRotation = tetromino.rotation;
   tetromino.rotation = newRotation;
-  
+
   // Try original position
   if (isValidPosition(grid, tetromino)) {
     return tetromino.position;
   }
-  
+
   // Enhanced wall kicks with more options including diagonal kicks
   const kicks = [
     // Cardinal directions - close
@@ -90,19 +90,19 @@ export const tryWallKick = (
     { x: 1, y: 0 },
     { x: 0, y: -1 },
     { x: 0, y: 1 },
-    
+
     // Cardinal directions - further
     { x: -2, y: 0 },
     { x: 2, y: 0 },
     { x: 0, y: -2 },
     { x: 0, y: 2 },
-    
+
     // Diagonal kicks - close
     { x: -1, y: -1 },
     { x: 1, y: -1 },
     { x: -1, y: 1 },
     { x: 1, y: 1 },
-    
+
     // Diagonal kicks - further
     { x: -2, y: -1 },
     { x: 2, y: -1 },
@@ -113,19 +113,19 @@ export const tryWallKick = (
     { x: -1, y: 2 },
     { x: 1, y: 2 },
   ];
-  
+
   // Try each kick position
   for (const kick of kicks) {
     const kickPosition = {
       x: tetromino.position.x + kick.x,
       y: tetromino.position.y + kick.y
     };
-    
+
     if (isValidPosition(grid, tetromino, kickPosition)) {
       return kickPosition;
     }
   }
-  
+
   // If no valid position found, revert rotation
   tetromino.rotation = originalRotation;
   return null;
@@ -139,17 +139,17 @@ export const placeTetromino = (
   const newGrid = grid.map(row => [...row]);
   const shape = getCurrentShape(tetromino);
   const gridSize = newGrid.length;
-  
+
   for (let y = 0; y < shape.length; y++) {
     for (let x = 0; x < shape[y].length; x++) {
       if (shape[y][x]) {
         const gridY = tetromino.position.y + y;
         const gridX = tetromino.position.x + x;
-        
+
         if (
-          gridY >= 0 && 
-          gridY < gridSize && 
-          gridX >= 0 && 
+          gridY >= 0 &&
+          gridY < gridSize &&
+          gridX >= 0 &&
           gridX < gridSize
         ) {
           // Increase cell value by 1
@@ -161,7 +161,7 @@ export const placeTetromino = (
       }
     }
   }
-  
+
   return newGrid;
 };
 
@@ -175,7 +175,7 @@ export const checkGridCleared = (grid: GridType): boolean => {
       }
     }
   }
-  
+
   return true;
 };
 
@@ -243,7 +243,7 @@ export const calculateLineClearScore = (
   let score = valueScores[clearValue] ? valueScores[clearValue] * totalLines : 0;
   if (bonusTable[totalLines]) score += bonusTable[totalLines];
   else if (totalLines >= 4) score += bonusTable[4];
-  
+
   // Add huge bonus for clearing the full grid
   if (hasFullGridClear) {
     score += 5000; // Huge bonus for clearing the full grid
@@ -254,7 +254,7 @@ export const calculateLineClearScore = (
 
 // Check for rows that can be cleared (all cells >= 4)
 export const checkRowsToClear = (grid: GridType): number[] => {
-  return grid.map((row, index) => 
+  return grid.map((row, index) =>
     row.every(cell => cell >= 4) ? index : -1
   ).filter(index => index !== -1);
 };
@@ -262,12 +262,12 @@ export const checkRowsToClear = (grid: GridType): number[] => {
 // Clear rows and return new grid
 export const clearRows = (grid: GridType, rowsToClear: number[]): GridType => {
   const newGrid = grid.map(row => [...row]);
-  
+
   for (const rowIndex of rowsToClear) {
     // Reset row to 0
     newGrid[rowIndex] = Array(grid.length).fill(0) as CellValue[];
   }
-  
+
   return newGrid;
 };
 
@@ -296,18 +296,18 @@ export const generateRandomValidPosition = (
   const gridSize = grid.length;
   const maxX = gridSize - shape[0].length;
   const maxY = gridSize - shape.length;
-  
+
   // Try random positions
   for (let attempts = 0; attempts < 50; attempts++) {
     const randomX = Math.floor(Math.random() * (maxX + 1));
     const randomY = Math.floor(Math.random() * (maxY + 1));
-    
+
     const position = { x: randomX, y: randomY };
     if (isValidPosition(grid, tetromino, position)) {
       return position;
     }
   }
-  
+
   // If no random position works, try systematically
   for (let y = 0; y <= maxY; y++) {
     for (let x = 0; x <= maxX; x++) {
@@ -317,7 +317,7 @@ export const generateRandomValidPosition = (
       }
     }
   }
-  
+
   return null; // No valid position found
 };
 
@@ -333,6 +333,9 @@ export const getCellColor = (value: CellValue): string => {
 
 // Update high scores
 export function updateHighScores(highScores: HighScore[], newScore: number, gridSize: 4 | 5, isTimed: boolean): HighScore[] {
+  // Don't save zero scores
+  if (newScore === 0) return highScores;
+
   const newHighScore: HighScore = {
     score: newScore,
     date: new Date().toISOString(),
@@ -340,18 +343,30 @@ export function updateHighScores(highScores: HighScore[], newScore: number, grid
     isTimed,
   };
 
-  const updatedScores = [...highScores, newHighScore]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10); // Keep top 10 scores
+  // Filter scores for the current game mode
+  const otherModeScores = highScores.filter(
+    s => s.gridSize !== gridSize || s.isTimed !== isTimed
+  );
 
-  return updatedScores;
+  // Get scores for current game mode
+  const currentModeScores = highScores.filter(
+    s => s.gridSize === gridSize && s.isTimed === isTimed
+  );
+
+  // Add new score and sort
+  const updatedModeScores = [...currentModeScores, newHighScore]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5); // Keep only top 5
+
+  // Combine with other mode scores
+  return [...otherModeScores, ...updatedModeScores];
 }
 
 export function getBestScore(highScores: HighScore[], gridSize: 4 | 5, isTimed: boolean): number {
   const relevantScores = highScores.filter(
     score => score.gridSize === gridSize && score.isTimed === isTimed
   );
-  
+
   if (relevantScores.length === 0) return 0;
   return Math.max(...relevantScores.map(score => score.score));
 }
@@ -401,7 +416,7 @@ export const loadGameSettings = (): { keyConfig: KeyConfig | null, gridSize: 4 |
   } catch (error) {
     console.error('Error loading game settings:', error);
   }
-  
+
   return {
     keyConfig: null,
     gridSize: DEFAULT_GRID_SIZE

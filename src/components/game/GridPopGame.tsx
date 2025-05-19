@@ -69,8 +69,8 @@ const initialState: GameState = {
   turnsPlayed: 0,
   timeRemaining: INITIAL_TIMER,
   showTutorial: false,
-  highScores: [],
-  bestScore: 0,
+  highScores: loadHighScores(),
+  bestScore: getBestScore(loadHighScores(), DEFAULT_GRID_SIZE, true),
   scoreAnimations: [],
   gameMode: "standard",
   keyConfig: loadKeyConfig(),
@@ -110,11 +110,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case "START_GAME": {
       const currentPiece = getNextTetromino(state.gridSize);
       const nextPiece = getNextTetromino(state.gridSize);
-      const startHighScores = action.highScores || state.highScores;
-      const startBestScore =
-        startHighScores.length > 0
-          ? Math.max(...startHighScores.map((score) => (typeof score === "number" ? score : score.score)))
-          : 0;
+      const startHighScores = loadHighScores();
+      const startBestScore = getBestScore(startHighScores, state.gridSize, state.isTimed);
 
       return {
         ...state,
@@ -122,11 +119,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         currentPiece,
         nextPiece,
         showTutorial: false,
-        highScores: startHighScores.map((score) =>
-          typeof score === "number"
-            ? { score, date: new Date().toISOString(), gridSize: DEFAULT_GRID_SIZE, isTimed: true }
-            : score
-        ),
+        highScores: startHighScores,
         bestScore: startBestScore,
         keyConfig: state.keyConfig,
         gameMode: "standard",
@@ -423,6 +416,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (action.size === state.gridSize) return state;
       saveGameSettings(state.keyConfig, action.size);
       localStorage.setItem("isTimed", state.isTimed.toString());
+      const highScores = loadHighScores();
+      const bestScore = getBestScore(highScores, action.size, state.isTimed);
       return {
         ...state,
         gridSize: action.size,
@@ -431,16 +426,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         nextPiece: null,
         heldPiece: null,
         hasStarted: false,
+        highScores,
+        bestScore,
       };
     }
 
     case "TOGGLE_TIMED_MODE": {
       saveGameSettings(state.keyConfig, state.gridSize);
       localStorage.setItem("isTimed", action.isTimed.toString());
+      const highScores = loadHighScores();
+      const bestScore = getBestScore(highScores, state.gridSize, action.isTimed);
       return {
         ...state,
         isTimed: action.isTimed,
         timeRemaining: action.isTimed ? getTimerForLevel(state.level) : Infinity,
+        highScores,
+        bestScore,
       };
     }
 
@@ -480,17 +481,7 @@ const GridPopGame: React.FC = () => {
     if (gridSize && gridSize !== state.gridSize) {
       dispatch({ type: "CHANGE_GRID_SIZE", size: gridSize });
     }
-
-    // Load high scores without starting the game
-    const highScores = loadHighScores();
-    dispatch({ type: "UPDATE_HIGH_SCORES", highScores });
   }, []);
-
-  // Update best score when grid size or timed mode changes
-  useEffect(() => {
-    const bestScore = getBestScore(state.highScores, state.gridSize, state.isTimed);
-    dispatch({ type: "UPDATE_HIGH_SCORES", highScores: state.highScores });
-  }, [state.gridSize, state.isTimed, state.highScores]);
 
   useEffect(() => {
     if (state.scoreAnimations.length > 0) {
@@ -659,93 +650,118 @@ const GridPopGame: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <div></div>
-        <Button
-          variant="outline"
-          onClick={() => setShowHighScores(true)}
-          className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50"
-        >
-          <Trophy size={16} className="text-yellow-400" />
-          <span className="font-bold">{state.bestScore}</span>
-          <span className="text-sm text-gray-500">
-            ({state.gridSize}x{state.gridSize} {state.isTimed ? "Timed" : "Untimed"})
-          </span>
-        </Button>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-8">
-        <div className="flex-shrink-0 flex justify-center">
-          <GameBoard
-            grid={state.grid}
-            currentPiece={state.hasStarted ? state.currentPiece : null}
-            scoreAnimations={state.scoreAnimations}
-            onPieceMove={handlePieceMove}
-            onPiecePlace={() => state.hasStarted && dispatch({ type: "PLACE_PIECE" })}
-            onPieceRotate={handlePieceRotate}
-            onPieceHold={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
-            gameOver={state.gameOver && state.showBoard}
-            hasStarted={state.hasStarted}
-            showOptionsMenu={state.showOptionsMenu}
-          />
+      {isMobile ? (
+        <div className="min-h-[80vh] flex flex-col items-center justify-center bg-white rounded-xl shadow-md p-8 text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Mobile Version Coming Soon!</h2>
+          <p className="text-gray-600 mb-6">
+            We're working on making GridPop perfect for mobile devices. For now, please enjoy the game on desktop.
+          </p>
+          <div className="text-sm text-gray-500">
+            <p>Check back soon for:</p>
+            <ul className="list-disc list-inside mt-2">
+              <li>Touch controls</li>
+              <li>Mobile-optimized layout</li>
+              <li>Better performance</li>
+            </ul>
+          </div>
         </div>
-
-        <div className="w-full lg:w-64 space-y-4">
-          <ScorePanel
-            score={state.score}
-            level={state.level}
-            timeRemaining={state.timeRemaining}
-            maxTime={getTimerForLevel(state.level)}
-            onTimeUp={() => dispatch({ type: "AUTO_PLACE" })}
-            isTimed={state.isTimed}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <PieceDisplay piece={state.nextPiece} label="Next" />
-            <PieceDisplay piece={state.heldPiece} label="Hold" />
+      ) : (
+        <>
+          <div className="flex justify-between items-center mb-4">
+            <div></div>
+            <Button
+              variant="outline"
+              onClick={() => setShowHighScores(true)}
+              className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50"
+            >
+              <Trophy size={16} className="text-yellow-400" />
+              <span className="font-bold">{state.bestScore}</span>
+              <span className="text-sm text-gray-500">
+                ({state.gridSize}x{state.gridSize} {state.isTimed ? "Timed" : "Untimed"})
+              </span>
+            </Button>
           </div>
 
-          <GameControls
-            onRotate={(direction) => dispatch({ type: "ROTATE_PIECE", direction })}
-            onHold={() => dispatch({ type: "HOLD_PIECE" })}
-            onPlace={() => dispatch({ type: "PLACE_PIECE" })}
-            onNewGame={handleNewGame}
-            onMove={handleDirectionalMove}
-            canHold={state.canHold}
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex-shrink-0 flex justify-center">
+              <GameBoard
+                grid={state.grid}
+                currentPiece={state.hasStarted ? state.currentPiece : null}
+                scoreAnimations={state.scoreAnimations}
+                onPieceMove={handlePieceMove}
+                onPiecePlace={() => state.hasStarted && dispatch({ type: "PLACE_PIECE" })}
+                onPieceRotate={handlePieceRotate}
+                onPieceHold={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
+                gameOver={state.gameOver && state.showBoard}
+                hasStarted={state.hasStarted}
+                showOptionsMenu={state.showOptionsMenu}
+              />
+            </div>
+
+            <div className="w-full lg:w-64 space-y-4">
+              <ScorePanel
+                score={state.score}
+                level={state.level}
+                timeRemaining={state.timeRemaining}
+                maxTime={getTimerForLevel(state.level)}
+                onTimeUp={() => dispatch({ type: "AUTO_PLACE" })}
+                isTimed={state.isTimed}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <PieceDisplay piece={state.nextPiece} label="Next" />
+                <PieceDisplay piece={state.heldPiece} label="Hold" />
+              </div>
+
+              <GameControls
+                onRotate={(direction) => dispatch({ type: "ROTATE_PIECE", direction })}
+                onHold={() => dispatch({ type: "HOLD_PIECE" })}
+                onPlace={() => dispatch({ type: "PLACE_PIECE" })}
+                onNewGame={handleNewGame}
+                onMove={handleDirectionalMove}
+                canHold={state.canHold}
+                keyConfig={state.keyConfig}
+                onOpenOptions={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
+              />
+            </div>
+          </div>
+
+          {state.gameOver && (
+            <GameOverModal
+              score={state.score}
+              level={state.level}
+              highScores={state.highScores}
+              onRestart={handleNewGame}
+              onViewBoard={() => dispatch({ type: "TOGGLE_SHOW_BOARD" })}
+              showBoard={state.showBoard}
+              gridSize={state.gridSize}
+              isTimed={state.isTimed}
+              onClose={() => {}}
+            />
+          )}
+
+          {state.showTutorial && <Tutorial onClose={() => dispatch({ type: "CLOSE_TUTORIAL" })} />}
+
+          <OptionsMenu
+            isOpen={state.showOptionsMenu}
+            onClose={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: false })}
+            onUpdateKeyConfig={handleUpdateKeyConfig}
             keyConfig={state.keyConfig}
-            onOpenOptions={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
+            onChangeGridSize={handleChangeGridSize}
+            currentGridSize={state.gridSize}
+            isTimed={state.isTimed}
+            onToggleTimed={handleToggleTimed}
           />
-        </div>
-      </div>
 
-      {state.gameOver && (
-        <GameOverModal
-          score={state.score}
-          level={state.level}
-          highScores={state.highScores}
-          onRestart={handleNewGame}
-          onViewBoard={() => dispatch({ type: "TOGGLE_SHOW_BOARD" })}
-          showBoard={state.showBoard}
-          gridSize={state.gridSize}
-          isTimed={state.isTimed}
-          onClose={() => {}}
-        />
+          <HighScoresModal 
+            isOpen={showHighScores} 
+            onClose={() => setShowHighScores(false)} 
+            highScores={loadHighScores()} 
+            gridSize={state.gridSize}
+            isTimed={state.isTimed}
+          />
+        </>
       )}
-
-      {state.showTutorial && <Tutorial onClose={() => dispatch({ type: "CLOSE_TUTORIAL" })} />}
-
-      <OptionsMenu
-        isOpen={state.showOptionsMenu}
-        onClose={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: false })}
-        onUpdateKeyConfig={handleUpdateKeyConfig}
-        keyConfig={state.keyConfig}
-        onChangeGridSize={handleChangeGridSize}
-        currentGridSize={state.gridSize}
-        isTimed={state.isTimed}
-        onToggleTimed={handleToggleTimed}
-      />
-
-      <HighScoresModal isOpen={showHighScores} onClose={() => setShowHighScores(false)} highScores={state.highScores} />
     </div>
   );
 };
