@@ -645,9 +645,7 @@ const GridPopGame: React.FC = () => {
 
   const handleToggleTimed = (isTimed: boolean) => {
     dispatch({ type: "TOGGLE_TIMED_MODE", isTimed });
-    if (state.hasStarted) {
-      dispatch({ type: "TICK_TIMER" });
-    }
+    dispatch({ type: "RESET_GAME" });
   };
 
   const handleGameOver = useCallback(() => {
