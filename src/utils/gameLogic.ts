@@ -235,18 +235,43 @@ export const clearRowsAndCols = (grid: GridType, rows: number[], cols: number[])
 export const calculateLineClearScore = (
   clearValue: CellValue,
   totalLines: number,
-  hasFullGridClear: boolean = false
+  hasFullGridClear: boolean = false,
+  level: number = 1
 ): number => {
-  const valueScores = { 1: 100, 2: 200, 3: 300, 4: 400, 5: 500, 6: 600, 7: 1000 };
-  const bonusTable = { 2: 500, 3: 1000, 4: 1500 };
+  // Quadratic scoring: n² × 100 for each cell value
+  const valueScores = { 1: 100, 2: 400, 3: 900, 4: 1600, 5: 2500, 6: 3600, 7: 4900 };
 
+  // Line bonuses are now based on the clear value
+  const getLineBonus = (lines: number, value: CellValue) => {
+    const baseBonus = value * value * 100; // Use the same quadratic scaling as the base score
+    switch (lines) {
+      case 2: return baseBonus * 2;  // 2x the base value
+      case 3: return baseBonus * 4;  // 4x the base value
+      case 4: return baseBonus * 8;  // 8x the base value
+      default: return 0;
+    }
+  };
+
+  // Calculate base score with quadratic values
   let score = valueScores[clearValue] ? valueScores[clearValue] * totalLines : 0;
-  if (bonusTable[totalLines]) score += bonusTable[totalLines];
-  else if (totalLines >= 4) score += bonusTable[4];
+  const lineBonus = getLineBonus(totalLines, clearValue);
+  const fullGridBonus = hasFullGridClear ? 5000 : 0;
+
+  // Log the scoring breakdown
+  console.log(`\n=== Score Calculation ===`);
+  console.log(`Cleared ${totalLines} lines of value ${clearValue}`);
+  console.log(`Base Score: ${valueScores[clearValue]} × ${totalLines} = ${score}`);
+  console.log(`Line Bonus: ${clearValue}² × 100 × ${totalLines === 2 ? '2' : totalLines === 3 ? '4' : totalLines === 4 ? '8' : '0'} = ${lineBonus}`);
+  if (hasFullGridClear) console.log(`Full Grid Bonus: +5000`);
+  console.log(`Total Score: ${score + lineBonus + fullGridBonus}`);
+  console.log(`======================\n`);
+
+  // Add line bonus based on clear value
+  score += lineBonus;
 
   // Add huge bonus for clearing the full grid
   if (hasFullGridClear) {
-    score += 5000; // Huge bonus for clearing the full grid
+    score += fullGridBonus;
   }
 
   return score;

@@ -172,20 +172,29 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           });
         } catch {}
 
-        rows.forEach((y) => {
-          scoreAnimations.push({
-            value: clearValue * 100,
-            position: { x: state.gridSize / 2, y },
-            id: animationCounter++,
-          });
-        });
+        // Calculate the base score for each line clear
+        const baseScore = clearValue * clearValue * 100;
+        
+        // Calculate line bonus based on clear value
+        const getLineBonus = (lines: number, value: CellValue) => {
+          const baseBonus = value * value * 100;
+          switch (lines) {
+            case 2: return baseBonus * 2;  // 2x the base value
+            case 3: return baseBonus * 4;  // 4x the base value
+            case 4: return baseBonus * 8;  // 8x the base value
+            default: return 0;
+          }
+        };
+        
+        // Calculate total score for this clear
+        const totalScore = Math.floor(baseScore * linesCleared + getLineBonus(linesCleared, clearValue));
 
-        cols.forEach((x) => {
-          scoreAnimations.push({
-            value: clearValue * 100,
-            position: { x, y: state.gridSize / 2 },
-            id: animationCounter++,
-          });
+        // Show the total score animation
+        scoreAnimations.push({
+          value: totalScore,
+          position: { x: state.gridSize / 2, y: state.gridSize / 2 },
+          id: animationCounter++,
+          clearValue: clearValue
         });
 
         clearedGrid = clearRowsAndCols(placedGrid, rows, cols);
@@ -198,6 +207,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             value: 5000,
             position: { x: state.gridSize / 2, y: state.gridSize / 2 },
             id: animationCounter++,
+            clearValue: 7 // Use 7 for the special full grid clear animation
           });
 
           try {
@@ -209,7 +219,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       if (clearValue > 0) {
-        scoreGain = Math.floor(calculateLineClearScore(clearValue, linesCleared, hasFullGridClear));
+        scoreGain = Math.floor(calculateLineClearScore(clearValue, linesCleared, hasFullGridClear, state.level));
       }
 
       const newScore = state.score + scoreGain;

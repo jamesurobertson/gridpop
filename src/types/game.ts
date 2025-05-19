@@ -38,6 +38,7 @@ export interface ScoreAnimation {
   value: number;
   position: Position;
   id: number;
+  clearValue: CellValue;
 }
 
 export interface HighScore {

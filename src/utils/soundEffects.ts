@@ -24,7 +24,7 @@ export const toggleMute = (): boolean => {
 
 export const playSound = (sound: keyof typeof SOUND_EFFECTS): void => {
   if (isMuted) return;
-  
+
   const audio = SOUND_EFFECTS[sound];
   if (audio) {
     audio.currentTime = 0;

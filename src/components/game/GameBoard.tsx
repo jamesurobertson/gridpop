@@ -184,8 +184,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
     <div className="relative w-[500px] h-[500px] mx-auto select-none focus:outline-none">
       {/* Score animations */}
       {scoreAnimations.map((anim) => {
-        // Get the cell visual based on the value to match colors
-        const { textColor } = getCellVisual(anim.value / 100);
+        // Get the cell visual based on the clear value
+        const { textColor } = getCellVisual(anim.clearValue);
 
         return (
           <div

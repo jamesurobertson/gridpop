@@ -54,12 +54,12 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="bg-white max-w-md">
+      <DialogContent className="bg-white max-w-md" aria-describedby="game-over-description">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">Game Over!</DialogTitle>
         </DialogHeader>
 
-        <div className="text-center mb-6">
+        <div id="game-over-description" className="text-center mb-6">
           <p className="text-xl mb-2">Final Score: {score}</p>
           <p className="text-gray-600">Level Reached: {level}</p>
         </div>
