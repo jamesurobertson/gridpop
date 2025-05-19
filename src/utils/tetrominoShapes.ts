@@ -1,4 +1,3 @@
-
 import { TetrominoShape } from "@/types/game";
 
 // Define all tetromino shapes with their rotations
@@ -182,6 +181,54 @@ export const TETROMINO_SHAPES: { [key: string]: TetrominoShape } = {
         [false, true, false],
         [false, true, false],
         [true, true, false]
+      ]
+    ]
+  },
+  I3: {
+    type: 'I3',
+    color: '#5BA3D9', // Sky Blue
+    rotations: [
+      [
+        [false, false, false],
+        [true, true, true],
+        [false, false, false]
+      ],
+      [
+        [false, true, false],
+        [false, true, false],
+        [false, true, false]
+      ],
+      [
+        [false, false, false],
+        [true, true, true],
+        [false, false, false]
+      ],
+      [
+        [false, true, false],
+        [false, true, false],
+        [false, true, false]
+      ]
+    ]
+  },
+  LJ2: {
+    type: 'LJ2',
+    color: '#D48F82', // Coral
+    rotations: [
+      [
+        [true, true],
+        [true, false]
+      ],
+      [
+        [true, true],
+        [false, true]
+      ],
+      [
+        [false, true],
+        [true, true]
+      ],
+      [
+        [true, false],
+        [true, true]
       ]
     ]
   }

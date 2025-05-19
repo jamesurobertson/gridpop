@@ -38,6 +38,8 @@ const PieceDisplay = ({ piece, label }: PieceDisplayProps) => {
                   Z: "#C25C5C", // Red text
                   L: "#D48F82", // Coral text
                   J: "#5BA3D9", // Sky Blue text
+                  I3: "#5BA3D9", // Sky Blue text
+                  LJ2: "#D48F82", // Coral text
                 };
 
                 return (

@@ -2,7 +2,7 @@
 export type CellValue = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type GridType = CellValue[][];
 
-export type TetrominoType = 'I' | 'O' | 'T' | 'S' | 'Z' | 'L' | 'J';
+export type TetrominoType = 'I' | 'O' | 'T' | 'S' | 'Z' | 'L' | 'J' | 'I3' | 'LJ2';
 
 export interface TetrominoShape {
   type: TetrominoType;
