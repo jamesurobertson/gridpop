@@ -598,6 +598,11 @@ const GridPopGame: React.FC = () => {
       const key = e.key.toLowerCase();
       const { rotate, drop, hold, moveLeft, moveRight, moveUp, moveDown, rotateCounter } = state.keyConfig;
 
+      // Prevent default for arrow keys to stop page scrolling
+      if (["arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+        e.preventDefault();
+      }
+
       // Skip empty key bindings
       if (key === rotate?.toLowerCase() && rotate) {
         handlePieceRotate("clockwise");
