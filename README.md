@@ -2,6 +2,9 @@
 
 A fast-paced grid-based puzzle game where you match and clear patterns to score points.
 
+![image](https://github.com/user-attachments/assets/ac52f872-cefb-47a9-b108-43441dd9f7f1)
+
+
 ## Getting Started
 
 1. Clone the repository
