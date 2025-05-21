@@ -813,6 +813,7 @@ const GridPopGame: React.FC = () => {
               gridSize={state.gridSize}
               isTimed={state.isTimed}
               onClose={() => {}}
+              linesCleared={state.linesCleared}
             />
           )}
 
