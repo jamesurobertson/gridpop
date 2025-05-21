@@ -12,7 +12,7 @@ export function loadHighScores(): HighScore[] {
   return [];
 }
 
-export function saveHighScore(score: number, gridSize: 4 | 5, isTimed: boolean): HighScore[] {
+export function saveHighScore(score: number, gridSize: 4 | 5, isTimed: boolean, linesCleared: number): HighScore[] {
   // Don't save zero scores
   if (score === 0) return loadHighScores();
 
@@ -22,6 +22,7 @@ export function saveHighScore(score: number, gridSize: 4 | 5, isTimed: boolean):
     date: new Date().toISOString(),
     gridSize,
     isTimed,
+    linesCleared,
   };
 
   // Filter scores for the current game mode

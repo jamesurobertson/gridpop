@@ -46,6 +46,7 @@ export interface HighScore {
   date: string;
   gridSize: 4 | 5;
   isTimed: boolean;
+  linesCleared: number;
 }
 
 export interface GameSettings {
@@ -75,6 +76,8 @@ export interface GameState {
   isTimed: boolean;
   hasStarted: boolean;
   showOptionsMenu: boolean;
+  nextQueue: Tetromino[];
+  linesCleared: number;
 }
 
 export type GameAction =

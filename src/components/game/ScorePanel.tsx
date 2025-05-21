@@ -4,18 +4,23 @@ import { Timer } from "lucide-react";
 interface ScorePanelProps {
   score: number;
   level: number;
+  linesCleared: number;
   timeRemaining: number;
   maxTime: number;
   onTimeUp: () => void;
   isTimed: boolean;
 }
 
-const ScorePanel: React.FC<ScorePanelProps> = ({ score, level, timeRemaining, maxTime, onTimeUp, isTimed }) => {
+const ScorePanel: React.FC<ScorePanelProps> = ({ score, level, linesCleared, timeRemaining, maxTime, onTimeUp, isTimed }) => {
   return (
     <div className="bg-white rounded-lg p-4 space-y-4">
       <div className="flex justify-between items-center">
         <div className="text-2xl font-bold">{score}</div>
         <div className="text-sm text-gray-500">Level {level}</div>
+      </div>
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-gray-500">Lines Cleared</div>
+        <div className="text-lg font-bold text-blue-700">{linesCleared}</div>
       </div>
 
       {isTimed && (

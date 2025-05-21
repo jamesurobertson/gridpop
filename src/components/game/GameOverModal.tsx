@@ -62,6 +62,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
         <div id="game-over-description" className="text-center mb-6">
           <p className="text-xl mb-2">Final Score: {score}</p>
           <p className="text-gray-600">Level Reached: {level}</p>
+          <p className="text-blue-700 font-bold">Lines Cleared: {highScores?.[0]?.linesCleared ?? 0}</p>
         </div>
 
         <div className="space-y-4">

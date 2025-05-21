@@ -1,71 +1,70 @@
-import React from "react";
+import React, { useEffect, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { KeyConfig } from "@/types/game";
+import { useGameState } from "@/hooks/useGameState";
 
 interface GameControlsProps {
-  onRotate: (direction: "clockwise" | "counterclockwise") => void;
-  onHold: () => void;
-  onPlace: () => void;
+  onPieceMove?: (e: React.MouseEvent | React.TouchEvent | React.KeyboardEvent) => void;
   onNewGame: () => void;
-  onMove: (direction: "left" | "right" | "up" | "down") => void;
-  canHold: boolean;
-  keyConfig: KeyConfig;
   onOpenOptions: () => void;
 }
 
-const GameControls: React.FC<GameControlsProps> = ({
-  onRotate,
-  onHold,
-  onPlace,
+export const GameControls: React.FC<GameControlsProps> = ({
+  onPieceMove,
   onNewGame,
-  onMove,
-  canHold,
-  keyConfig,
   onOpenOptions,
 }) => {
+  const {
+    state,
+    movePiece,
+    rotatePiece,
+    holdPiece,
+    placePiece,
+  } = useGameState();
+
   const isMobile = useIsMobile();
 
-  // Add keyboard controls for desktop
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key;
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (state.gameOver || !state.hasStarted || state.showOptionsMenu) return;
 
-      if (key === keyConfig.rotate) {
-        onRotate("clockwise");
-        event.preventDefault();
-      } else if (key === keyConfig.rotateCounter) {
-        onRotate("counterclockwise");
-        event.preventDefault();
-      } else if (key === keyConfig.drop) {
-        onPlace();
-        event.preventDefault();
-      } else if (key === keyConfig.hold) {
-        onHold();
-        event.preventDefault();
-      } else if (key === "p") {
-        onNewGame();
-        event.preventDefault();
-      } else if (key === keyConfig.moveLeft && onMove) {
-        onMove("left");
-        event.preventDefault();
-      } else if (key === keyConfig.moveRight && onMove) {
-        onMove("right");
-        event.preventDefault();
-      } else if (key === keyConfig.moveUp && onMove) {
-        onMove("up");
-        event.preventDefault();
-      } else if (key === keyConfig.moveDown && onMove) {
-        onMove("down");
-        event.preventDefault();
-      }
-    };
+    const key = e.key.toLowerCase();
+    const keyConfig = state.keyConfig;
 
+    switch (key) {
+      case keyConfig.moveLeft:
+        movePiece("left");
+        break;
+      case keyConfig.moveRight:
+        movePiece("right");
+        break;
+      case keyConfig.moveDown:
+        movePiece("down");
+        break;
+      case keyConfig.moveUp:
+        movePiece("up");
+        break;
+      case keyConfig.rotate:
+        rotatePiece("clockwise");
+        break;
+      case keyConfig.rotateCounter:
+        rotatePiece("counterclockwise");
+        break;
+      case keyConfig.hold:
+        holdPiece();
+        break;
+      case keyConfig.drop:
+        placePiece();
+        break;
+    }
+  }, [state.gameOver, state.hasStarted, state.showOptionsMenu, state.keyConfig, movePiece, rotatePiece, holdPiece, placePiece]);
+
+  useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onRotate, onHold, onPlace, onNewGame, onMove, keyConfig]);
+  }, [handleKeyDown]);
 
   const getKeyDisplayName = (key: string): string => {
     if (key === " ") return "Space";
@@ -97,21 +96,21 @@ const GameControls: React.FC<GameControlsProps> = ({
         <div className="grid grid-cols-2 gap-1 text-xs">
           <div>
             <p>
-              <span className="font-bold">Rotate:</span> {getKeyDisplayName(keyConfig.rotate)},{" "}
-              {getKeyDisplayName(keyConfig.rotateCounter)}
+              <span className="font-bold">Rotate:</span> {getKeyDisplayName(state.keyConfig.rotate)},{" "}
+              {getKeyDisplayName(state.keyConfig.rotateCounter)}
             </p>
             <p>
-              <span className="font-bold">Hold:</span> {getKeyDisplayName(keyConfig.hold)}
+              <span className="font-bold">Hold:</span> {getKeyDisplayName(state.keyConfig.hold)}
             </p>
           </div>
           <div>
             <p>
-              <span className="font-bold">Move:</span> {getKeyDisplayName(keyConfig.moveUp)}/
-              {getKeyDisplayName(keyConfig.moveDown)}/{getKeyDisplayName(keyConfig.moveLeft)}/
-              {getKeyDisplayName(keyConfig.moveRight)}
+              <span className="font-bold">Move:</span> {getKeyDisplayName(state.keyConfig.moveUp)}/
+              {getKeyDisplayName(state.keyConfig.moveDown)}/{getKeyDisplayName(state.keyConfig.moveLeft)}/
+              {getKeyDisplayName(state.keyConfig.moveRight)}
             </p>
             <p>
-              <span className="font-bold">Drop:</span> {getKeyDisplayName(keyConfig.drop)}
+              <span className="font-bold">Drop:</span> {getKeyDisplayName(state.keyConfig.drop)}
             </p>
           </div>
         </div>

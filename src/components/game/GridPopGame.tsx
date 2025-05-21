@@ -41,10 +41,11 @@ import {
   GameMode,
   HighScore,
 } from "@/types/game";
-import { Trophy, Eye, EyeOff } from "lucide-react";
+import { Trophy, Eye, EyeOff, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import HighScoresModal from "./HighScoresModal";
 import { loadHighScores, saveHighScore } from "@/utils/highScores";
+import { playSound, SOUND_EFFECTS } from "@/utils/soundEffects";
 
 const DEFAULT_KEY_CONFIG: KeyConfig = {
   rotate: "d",
@@ -79,6 +80,8 @@ const initialState: GameState = {
   isTimed: loadIsTimed(),
   hasStarted: false,
   showOptionsMenu: false,
+  nextQueue: [],
+  linesCleared: 0,
 };
 
 let animationCounter = 0;
@@ -134,6 +137,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         canHold: true,
         heldPiece: null,
         scoreAnimations: [],
+        nextQueue: [nextPiece, getNextTetromino(state.gridSize), getNextTetromino(state.gridSize), getNextTetromino(state.gridSize)],
+        linesCleared: 0,
       };
     }
 
@@ -145,7 +150,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.gameOver || !state.currentPiece || !state.hasStarted || state.showOptionsMenu) return state;
 
       try {
-        import("@/utils/soundEffects").then((sounds) => sounds.playSound("place")).catch(() => {});
+        playSound("place");
       } catch (e) {}
 
       const placedGrid = placeTetromino(state.grid, state.currentPiece);
@@ -166,10 +171,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         try {
-          import("@/utils/soundEffects").then((sounds) => {
-            if (effectType === "super") sounds.playSound("superClear");
-            else sounds.playSound("clear");
-          });
+          playSound(effectType === "super" ? "superClear" : "clear");
         } catch {}
 
         // Calculate the base score for each line clear
@@ -211,9 +213,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           });
 
           try {
-            import("@/utils/soundEffects").then((sounds) => {
-              sounds.playSound("superClear");
-            });
+            playSound("superClear");
           } catch {}
         }
       }
@@ -227,7 +227,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       if (isGameOver) {
         try {
-          import("@/utils/soundEffects").then((sounds) => sounds.playSound("gameOver")).catch(() => {});
+          playSound("gameOver");
         } catch {}
       }
 
@@ -243,15 +243,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           date: new Date().toISOString(),
           gridSize: state.gridSize,
           isTimed: state.isTimed,
+          linesCleared: state.linesCleared,
         };
         const currentHighScores: HighScore[] = Array.isArray(state.highScores)
           ? state.highScores.map((score) =>
               typeof score === "number"
-                ? { score, date: new Date().toISOString(), gridSize: DEFAULT_GRID_SIZE, isTimed: true }
+                ? { score, date: new Date().toISOString(), gridSize: DEFAULT_GRID_SIZE, isTimed: true, linesCleared: 0 }
                 : (score as HighScore)
             )
           : [];
-        updatedHighScores = updateHighScores(currentHighScores, newHighScore.score, state.gridSize, state.isTimed);
+        updatedHighScores = updateHighScores(currentHighScores, newHighScore.score, state.gridSize, state.isTimed, state.linesCleared);
         updatedBestScore = getBestScore(updatedHighScores, state.gridSize, state.isTimed);
         localStorage.setItem("gridpop-high-scores", JSON.stringify(updatedHighScores));
       }
@@ -261,8 +262,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         grid: clearedGrid,
-        currentPiece: state.nextPiece,
-        nextPiece: getNextTetromino(state.gridSize),
+        currentPiece: state.nextQueue[0],
+        nextQueue: [...state.nextQueue.slice(1), getNextTetromino(state.gridSize)],
         canHold: true,
         score: newScore,
         bestScore: updatedBestScore,
@@ -272,11 +273,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         gameOver: isGameOver,
         highScores: updatedHighScores,
         scoreAnimations,
+        linesCleared: state.linesCleared + linesCleared,
       };
     }
 
     case "ROTATE_PIECE": {
       if (state.gameOver || !state.currentPiece || !state.hasStarted || state.showOptionsMenu) return state;
+      playSound("rotate");
 
       const currentRotation = state.currentPiece.rotation;
       const direction = action.direction === "clockwise" ? 1 : -1;
@@ -324,9 +327,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!state.heldPiece) {
         return {
           ...state,
-          currentPiece: state.nextPiece,
+          currentPiece: state.nextQueue[0],
           heldPiece: state.currentPiece,
-          nextPiece: getNextTetromino(state.gridSize),
+          nextQueue: [...state.nextQueue.slice(1), state.nextQueue[0]],
           canHold: false,
         };
       }
@@ -432,10 +435,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         gridSize: action.size,
         grid: createEmptyGrid(action.size),
+        timeRemaining: state.isTimed ? getTimerForLevel(1) : Infinity,
         currentPiece: null,
         nextPiece: null,
         heldPiece: null,
         hasStarted: false,
+        nextQueue: [],
         highScores,
         bestScore,
       };
@@ -446,10 +451,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       localStorage.setItem("isTimed", action.isTimed.toString());
       const highScores = loadHighScores();
       const bestScore = getBestScore(highScores, state.gridSize, action.isTimed);
+      console.log(state)
       return {
         ...state,
         isTimed: action.isTimed,
-        timeRemaining: action.isTimed ? getTimerForLevel(state.level) : Infinity,
+        timeRemaining: action.isTimed ? getTimerForLevel(1) : Infinity,
+        currentPiece: null,
+        nextQueue: [],
+
+        nextPiece: null,
+        heldPiece: null,
+        hasStarted: false,
         highScores,
         bestScore,
       };
@@ -480,6 +492,16 @@ const GridPopGame: React.FC = () => {
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [showHighScores, setShowHighScores] = useState(false);
   const isMobile = useIsMobile();
+
+  // Preload sounds when component mounts
+  useEffect(() => {
+    // Preload all sounds
+    Object.values(SOUND_EFFECTS).forEach(audio => {
+      if (audio instanceof HTMLAudioElement) {
+        audio.load();
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const { keyConfig, gridSize } = loadGameSettings();
@@ -593,15 +615,15 @@ const GridPopGame: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent default for arrow keys and spacebar to stop page scrolling
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+        e.preventDefault();
+      }
+
       if (state.showOptionsMenu || !state.hasStarted || state.gameOver) return;
 
       const key = e.key.toLowerCase();
       const { rotate, drop, hold, moveLeft, moveRight, moveUp, moveDown, rotateCounter } = state.keyConfig;
-
-      // Prevent default for arrow keys to stop page scrolling
-      if (["arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
-        e.preventDefault();
-      }
 
       // Skip empty key bindings
       if (key === rotate?.toLowerCase() && rotate) {
@@ -650,16 +672,15 @@ const GridPopGame: React.FC = () => {
 
   const handleToggleTimed = (isTimed: boolean) => {
     dispatch({ type: "TOGGLE_TIMED_MODE", isTimed });
-    dispatch({ type: "RESET_GAME" });
   };
 
   const handleGameOver = useCallback(() => {
     if (state.score > 0) {
-      const updatedHighScores = saveHighScore(state.score, state.gridSize, state.isTimed);
+      const updatedHighScores = saveHighScore(state.score, state.gridSize, state.isTimed, state.linesCleared);
       dispatch({ type: "UPDATE_HIGH_SCORES", highScores: updatedHighScores });
     }
     dispatch({ type: "RESET_GAME" });
-  }, [state.score, state.gridSize, state.isTimed]);
+  }, [state.score, state.gridSize, state.isTimed, state.linesCleared]);
 
   return (
     <div className="max-w-6xl mx-auto p-4">
@@ -695,8 +716,59 @@ const GridPopGame: React.FC = () => {
             </Button>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-shrink-0 flex justify-center">
+          <div className="flex flex-row justify-center items-center w-full relative" style={{ minHeight: '500px' }}>
+            {/* Hold box (top left) */}
+            <div className="flex flex-col items-center mr-8" style={{ width: '100px' }}>
+                <span className="text-gray-500 text-base font-bold mb-2">Hold</span>
+              <div className="w-[100px] h-[100px] bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center mb-2">
+                <div className="w-full h-full p-2">
+                  <PieceDisplay piece={state.heldPiece} label="" size="large" />
+                </div>
+              </div>
+              {/* Score/Lines panel at bottom left, aligned with board */}
+              <div className="flex-col items-center h-[400px] w-full">
+                <div className="w-full bg-white bg-opacity-90 rounded-xl shadow p-2 mt-auto flex flex-col text-xs font-bold text-gray-700">
+                  <div className="mb-2">Score<br /><span className="text-lg text-black">{state.score}</span></div>
+                  <div className="mb-2">Lines<br /><span className="text-lg text-black">{state.linesCleared}</span></div>
+                  {state.isTimed && (
+                    <div className="w-full">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center">
+                          <Timer size={16} className="mr-1" />
+                          <span>Time</span>
+                        </div>
+                        <span>{Math.ceil(state.timeRemaining)}s</span>
+                      </div>
+                      <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
+                        <div
+                          style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
+                          className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
+                            state.timeRemaining < 3 ? "bg-red-500" : "bg-blue-500"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 mt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
+                    className="flex-1 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800"
+                  >
+                    Options
+                  </Button>
+                  <Button 
+                    onClick={handleNewGame} 
+                    className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
+                  >
+                    New Game
+                  </Button>
+                </div>
+              </div>
+            </div>
+            {/* Board center */}
+            <div className="relative">
               <GameBoard
                 grid={state.grid}
                 currentPiece={state.hasStarted ? state.currentPiece : null}
@@ -710,32 +782,23 @@ const GridPopGame: React.FC = () => {
                 showOptionsMenu={state.showOptionsMenu}
               />
             </div>
-
-            <div className="w-full lg:w-64 space-y-4">
-              <ScorePanel
-                score={state.score}
-                level={state.level}
-                timeRemaining={state.timeRemaining}
-                maxTime={getTimerForLevel(state.level)}
-                onTimeUp={() => dispatch({ type: "AUTO_PLACE" })}
-                isTimed={state.isTimed}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <PieceDisplay piece={state.nextPiece} label="Next" />
-                <PieceDisplay piece={state.heldPiece} label="Hold" />
+            {/* Next queue (top right) */}
+            <div className="flex flex-col items-center ml-8" style={{ width: '100px' }}>
+              <span className="text-gray-500 text-base font-bold mb-2">Next</span>
+              <div className="w-[100px] h-[400px] bg-white border-2 border-gray-200 rounded-xl flex flex-col items-center justify-between py-2">
+                  {state.nextQueue.length === 0 && [1, 2, 3, 4].map((piece, i) => {
+                    return (
+                      <div key={i} className="mb-2 last:mb-0 flex justify-center w-full px-2">
+                        <PieceDisplay piece={null} label="" size="large" />
+                      </div>
+                    )
+                  })}
+                {state.nextQueue.map((piece, i) => (
+                  <div key={i} className="mb-2 last:mb-0 flex justify-center w-full px-2">
+                    <PieceDisplay piece={piece} label="" size="large" />
+                  </div>
+                ))}
               </div>
-
-              <GameControls
-                onRotate={(direction) => dispatch({ type: "ROTATE_PIECE", direction })}
-                onHold={() => dispatch({ type: "HOLD_PIECE" })}
-                onPlace={() => dispatch({ type: "PLACE_PIECE" })}
-                onNewGame={handleNewGame}
-                onMove={handleDirectionalMove}
-                canHold={state.canHold}
-                keyConfig={state.keyConfig}
-                onOpenOptions={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
-              />
             </div>
           </div>
 

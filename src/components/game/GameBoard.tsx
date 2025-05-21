@@ -214,7 +214,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
       <div
         tabIndex={0}
         ref={boardRef}
-        className="grid gap-3 w-full h-full p-4 bg-white rounded-xl shadow-md outline-none"
+        className="grid gap-3 x h-full p-4 bg-white rounded-xl shadow-md outline-none"
         style={{
           gridTemplateRows: `repeat(${grid.length}, 1fr)`,
           gridTemplateColumns: `repeat(${grid.length}, 1fr)`,

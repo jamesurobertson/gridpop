@@ -57,9 +57,14 @@ const HighScoresModal: React.FC<HighScoresModalProps> = ({ isOpen, onClose, high
           <div className="bg-gray-50 rounded-lg p-4">
             {categorizedScores[selectedCategory]?.length > 0 ? (
               <div className="space-y-2">
+                <div className="flex justify-between items-center p-3 rounded-lg bg-white font-bold border-b border-gray-200">
+                  <span className="w-24 text-center">Score</span>
+                  <span className="w-16 text-center">Lines</span>
+                  <span className="w-28 text-center">Date</span>
+                </div>
                 {categorizedScores[selectedCategory].map((score, index) => (
                   <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-white">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 w-24 justify-center">
                       <span
                         className={`w-6 h-6 flex items-center justify-center rounded-full ${
                           index === 0
@@ -73,9 +78,10 @@ const HighScoresModal: React.FC<HighScoresModalProps> = ({ isOpen, onClose, high
                       >
                         <span className="text-sm font-medium text-white">{index + 1}</span>
                       </span>
-                      <span className="font-medium">{score.score.toLocaleString()}</span>
+                      <span className="font-medium text-center">{score.score.toLocaleString()}</span>
                     </div>
-                    <span className="text-sm text-gray-500">{formatDate(score.date)}</span>
+                    <span className="w-16 text-center text-sm font-medium text-blue-700">{score.linesCleared ?? 0}</span>
+                    <span className="w-28 text-center text-sm text-gray-500">{formatDate(score.date)}</span>
                   </div>
                 ))}
               </div>

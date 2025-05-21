@@ -1,13 +1,13 @@
-
 // Sound effect utility
 
 // List of sound effects
-const SOUND_EFFECTS = {
+export const SOUND_EFFECTS = {
   place: new Audio("/sounds/place.wav"),
   clear: new Audio("/sounds/clear.wav"),
   superClear: new Audio("/sounds/super_clear.wav"),
   gameOver: new Audio("/sounds/game_over.wav"),
-};
+  rotate: new Audio("/sounds/rotate.mp3"),
+} as const;
 
 // Initialize audio settings
 Object.values(SOUND_EFFECTS).forEach((audio) => {

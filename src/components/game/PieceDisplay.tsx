@@ -6,26 +6,27 @@ import { cn } from "@/lib/utils";
 interface PieceDisplayProps {
   piece: Tetromino | null;
   label: string;
+  size: string;
 }
 
-const PieceDisplay = ({ piece, label }: PieceDisplayProps) => {
+const PieceDisplay = ({ piece, label, size }: PieceDisplayProps) => {
   // Calculate size based on piece shape
-  const size = piece ? Math.max(getCurrentShape(piece).length, getCurrentShape(piece)[0].length) : 2;
+  const sizeNum = piece ? Math.max(getCurrentShape(piece).length, getCurrentShape(piece)[0].length) : 2;
 
   return (
-    <div className="flex flex-col items-center p-3 bg-white rounded-xl shadow-md">
-      <h3 className="text-gray-500 text-sm font-medium mb-2">{label}</h3>
+    <div className="flex flex-col items-center w-full">
+      {label && <h3 className="text-gray-500 text-sm font-medium mb-2">{label}</h3>}
       <div
         className="grid gap-1 w-full aspect-square"
         style={{
-          gridTemplateRows: `repeat(${size}, 1fr)`,
-          gridTemplateColumns: `repeat(${size}, 1fr)`,
+          gridTemplateRows: `repeat(${sizeNum}, 1fr)`,
+          gridTemplateColumns: `repeat(${sizeNum}, 1fr)`,
         }}
       >
         {piece
           ? // Render piece preview with darker color matching the text colors
-            [...Array(size)].map((_, y) =>
-              [...Array(size)].map((_, x) => {
+            [...Array(sizeNum)].map((_, y) =>
+              [...Array(sizeNum)].map((_, x) => {
                 const shape = getCurrentShape(piece);
                 const isFilled = y < shape.length && x < shape[0].length && shape[y][x];
 
@@ -52,7 +53,7 @@ const PieceDisplay = ({ piece, label }: PieceDisplayProps) => {
               })
             )
           : // Empty placeholder
-            [...Array(size * size)].map((_, i) => (
+            [...Array(sizeNum * sizeNum)].map((_, i) => (
               <div key={i} className="w-full aspect-square bg-neutral-100 rounded-sm" />
             ))}
       </div>

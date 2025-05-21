@@ -357,7 +357,7 @@ export const getCellColor = (value: CellValue): string => {
 };
 
 // Update high scores
-export function updateHighScores(highScores: HighScore[], newScore: number, gridSize: 4 | 5, isTimed: boolean): HighScore[] {
+export function updateHighScores(highScores: HighScore[], newScore: number, gridSize: 4 | 5, isTimed: boolean, linesCleared: number): HighScore[] {
   // Don't save zero scores
   if (newScore === 0) return highScores;
 
@@ -366,6 +366,7 @@ export function updateHighScores(highScores: HighScore[], newScore: number, grid
     date: new Date().toISOString(),
     gridSize,
     isTimed,
+    linesCleared,
   };
 
   // Filter scores for the current game mode
