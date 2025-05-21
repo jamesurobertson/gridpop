@@ -186,7 +186,7 @@ export const TETROMINO_SHAPES: { [key: string]: TetrominoShape } = {
   },
   I3: {
     type: 'I3',
-    color: '#5BA3D9', // Sky Blue
+    color: '#4A4A4A', // Sky Blue
     rotations: [
       [
         [false, false, false],
@@ -212,7 +212,7 @@ export const TETROMINO_SHAPES: { [key: string]: TetrominoShape } = {
   },
   LJ2: {
     type: 'LJ2',
-    color: '#D48F82', // Coral
+    color: '#E18FB8', // pastel pink
     rotations: [
       [
         [true, true],

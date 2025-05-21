@@ -783,7 +783,7 @@ const GridPopGame: React.FC = () => {
               />
             </div>
             {/* Next queue (top right) */}
-            <div className="flex flex-col items-center ml-8" style={{ width: '100px' }}>
+            <div className="flex flex-col self-start ml-8" style={{ width: '100px' }}>
               <span className="text-gray-500 text-base font-bold mb-2">Next</span>
               <div className="w-[100px] h-[400px] bg-white border-2 border-gray-200 rounded-xl flex flex-col items-center justify-between py-2">
                   {state.nextQueue.length === 0 && [1, 2, 3, 4].map((piece, i) => {
