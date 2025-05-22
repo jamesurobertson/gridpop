@@ -2,7 +2,6 @@ import React, { useEffect, useReducer, useState, useCallback } from "react";
 import GameBoard from "./GameBoard";
 import PieceDisplay from "./PieceDisplay";
 import GameOverModal from "./GameOverModal";
-import Tutorial from "./Tutorial";
 import OptionsMenu from "./OptionsMenu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -803,7 +802,6 @@ const GridPopGame: React.FC = () => {
             />
           )}
 
-          {state.showTutorial && <Tutorial onClose={() => dispatch({ type: "CLOSE_TUTORIAL" })} />}
 
           <OptionsMenu
             isOpen={state.showOptionsMenu}
