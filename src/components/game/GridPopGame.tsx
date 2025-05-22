@@ -1,12 +1,8 @@
 import React, { useEffect, useReducer, useState, useCallback } from "react";
 import GameBoard from "./GameBoard";
-import ScorePanel from "./ScorePanel";
 import PieceDisplay from "./PieceDisplay";
-import GameControls from "./GameControls";
 import GameOverModal from "./GameOverModal";
 import Tutorial from "./Tutorial";
-import KeyConfigPanel from "./KeyConfigPanel";
-import GameModeSelector from "./GameModeSelector";
 import OptionsMenu from "./OptionsMenu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -30,22 +26,11 @@ import {
   loadGameSettings,
   DEFAULT_GRID_SIZE,
 } from "@/utils/gameLogic";
-import {
-  CellValue,
-  GridType,
-  Position,
-  Tetromino,
-  GameState,
-  GameAction,
-  KeyConfig,
-  GameMode,
-  HighScore,
-} from "@/types/game";
-import { Trophy, Eye, EyeOff, Timer } from "lucide-react";
+import { CellValue, Position, GameState, GameAction, KeyConfig, HighScore } from "@/types/game";
+import { Trophy, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import HighScoresModal from "./HighScoresModal";
 import { loadHighScores, saveHighScore } from "@/utils/highScores";
-import { playSound, SOUND_EFFECTS } from "@/utils/soundEffects";
 
 const DEFAULT_KEY_CONFIG: KeyConfig = {
   rotate: "d",
@@ -137,7 +122,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         canHold: true,
         heldPiece: null,
         scoreAnimations: [],
-        nextQueue: [nextPiece, getNextTetromino(state.gridSize), getNextTetromino(state.gridSize), getNextTetromino(state.gridSize)],
+        nextQueue: [
+          nextPiece,
+          getNextTetromino(state.gridSize),
+          getNextTetromino(state.gridSize),
+          getNextTetromino(state.gridSize),
+        ],
         linesCleared: 0,
       };
     }
@@ -150,7 +140,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.gameOver || !state.currentPiece || !state.hasStarted || state.showOptionsMenu) return state;
 
       try {
-        playSound("place");
       } catch (e) {}
 
       const placedGrid = placeTetromino(state.grid, state.currentPiece);
@@ -170,24 +159,24 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           effectType = "super";
         }
 
-        try {
-          playSound(effectType === "super" ? "superClear" : "clear");
-        } catch {}
-
         // Calculate the base score for each line clear
         const baseScore = clearValue * clearValue * 100;
-        
+
         // Calculate line bonus based on clear value
         const getLineBonus = (lines: number, value: CellValue) => {
           const baseBonus = value * value * 100;
           switch (lines) {
-            case 2: return baseBonus * 2;  // 2x the base value
-            case 3: return baseBonus * 4;  // 4x the base value
-            case 4: return baseBonus * 8;  // 8x the base value
-            default: return 0;
+            case 2:
+              return baseBonus * 2; // 2x the base value
+            case 3:
+              return baseBonus * 4; // 4x the base value
+            case 4:
+              return baseBonus * 8; // 8x the base value
+            default:
+              return 0;
           }
         };
-        
+
         // Calculate total score for this clear
         const totalScore = Math.floor(baseScore * linesCleared + getLineBonus(linesCleared, clearValue));
 
@@ -196,7 +185,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           value: totalScore,
           position: { x: state.gridSize / 2, y: state.gridSize / 2 },
           id: animationCounter++,
-          clearValue: clearValue
+          clearValue: clearValue,
         });
 
         clearedGrid = clearRowsAndCols(placedGrid, rows, cols);
@@ -209,12 +198,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             value: 5000,
             position: { x: state.gridSize / 2, y: state.gridSize / 2 },
             id: animationCounter++,
-            clearValue: 7 // Use 7 for the special full grid clear animation
+            clearValue: 7, // Use 7 for the special full grid clear animation
           });
-
-          try {
-            playSound("superClear");
-          } catch {}
         }
       }
 
@@ -224,12 +209,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       const newScore = state.score + scoreGain;
       const isGameOver = checkGameOver(clearedGrid);
-
-      if (isGameOver) {
-        try {
-          playSound("gameOver");
-        } catch {}
-      }
 
       const turnsPlayed = state.turnsPlayed + 1;
       const level = Math.floor(turnsPlayed / TURNS_PER_LEVEL) + 1;
@@ -252,7 +231,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 : (score as HighScore)
             )
           : [];
-        updatedHighScores = updateHighScores(currentHighScores, newHighScore.score, state.gridSize, state.isTimed, state.linesCleared);
+        updatedHighScores = updateHighScores(
+          currentHighScores,
+          newHighScore.score,
+          state.gridSize,
+          state.isTimed,
+          state.linesCleared
+        );
         updatedBestScore = getBestScore(updatedHighScores, state.gridSize, state.isTimed);
         localStorage.setItem("gridpop-high-scores", JSON.stringify(updatedHighScores));
       }
@@ -279,7 +264,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "ROTATE_PIECE": {
       if (state.gameOver || !state.currentPiece || !state.hasStarted || state.showOptionsMenu) return state;
-      playSound("rotate");
 
       const currentRotation = state.currentPiece.rotation;
       const direction = action.direction === "clockwise" ? 1 : -1;
@@ -451,7 +435,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       localStorage.setItem("isTimed", action.isTimed.toString());
       const highScores = loadHighScores();
       const bestScore = getBestScore(highScores, state.gridSize, action.isTimed);
-      console.log(state)
+      console.log(state);
       return {
         ...state,
         isTimed: action.isTimed,
@@ -492,16 +476,6 @@ const GridPopGame: React.FC = () => {
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [showHighScores, setShowHighScores] = useState(false);
   const isMobile = useIsMobile();
-
-  // Preload sounds when component mounts
-  useEffect(() => {
-    // Preload all sounds
-    Object.values(SOUND_EFFECTS).forEach(audio => {
-      if (audio instanceof HTMLAudioElement) {
-        audio.load();
-      }
-    });
-  }, []);
 
   useEffect(() => {
     const { keyConfig, gridSize } = loadGameSettings();
@@ -716,10 +690,10 @@ const GridPopGame: React.FC = () => {
             </Button>
           </div>
 
-          <div className="flex flex-row justify-center items-center w-full relative" style={{ minHeight: '500px' }}>
+          <div className="flex flex-row justify-center items-center w-full relative" style={{ minHeight: "500px" }}>
             {/* Hold box (top left) */}
-            <div className="flex flex-col items-center mr-8" style={{ width: '100px' }}>
-                <span className="text-gray-500 text-base font-bold mb-2">Hold</span>
+            <div className="flex flex-col items-center mr-8" style={{ width: "100px" }}>
+              <span className="text-gray-500 text-base font-bold mb-2">Hold</span>
               <div className="w-[100px] h-[100px] bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center mb-2">
                 <div className="w-full h-full p-2">
                   <PieceDisplay piece={state.heldPiece} label="" size="large" />
@@ -728,9 +702,21 @@ const GridPopGame: React.FC = () => {
               {/* Score/Lines panel at bottom left, aligned with board */}
               <div className="flex-col items-center h-[400px] w-full">
                 <div className="w-full bg-white bg-opacity-90 rounded-xl shadow p-2 mt-auto flex flex-col text-xs font-bold text-gray-700">
-                  <div className="mb-2">Score<br /><span className="text-lg text-black">{state.score}</span></div>
-                  <div className="mb-2">Level<br /><span className="text-lg text-black">{state.level}</span></div>
-                  <div className="mb-2">Lines<br /><span className="text-lg text-black">{state.linesCleared}</span></div>
+                  <div className="mb-2">
+                    Score
+                    <br />
+                    <span className="text-lg text-black">{state.score}</span>
+                  </div>
+                  <div className="mb-2">
+                    Level
+                    <br />
+                    <span className="text-lg text-black">{state.level}</span>
+                  </div>
+                  <div className="mb-2">
+                    Lines
+                    <br />
+                    <span className="text-lg text-black">{state.linesCleared}</span>
+                  </div>
                   {state.isTimed && (
                     <div className="w-full">
                       <div className="flex items-center justify-between mb-1">
@@ -759,10 +745,7 @@ const GridPopGame: React.FC = () => {
                   >
                     Options
                   </Button>
-                  <Button 
-                    onClick={handleNewGame} 
-                    className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
-                  >
+                  <Button onClick={handleNewGame} className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] text-white">
                     New Game
                   </Button>
                 </div>
@@ -784,15 +767,16 @@ const GridPopGame: React.FC = () => {
               />
             </div>
             {/* Next queue (top right) */}
-            <div className="flex flex-col self-start ml-8" style={{ width: '100px' }}>
+            <div className="flex flex-col self-start ml-8" style={{ width: "100px" }}>
               <span className="text-gray-500 text-base font-bold mb-2">Next</span>
               <div className="w-[100px] h-[400px] bg-white border-2 border-gray-200 rounded-xl flex flex-col items-center justify-between py-2">
-                  {state.nextQueue.length === 0 && [1, 2, 3, 4].map((piece, i) => {
+                {state.nextQueue.length === 0 &&
+                  [1, 2, 3, 4].map((piece, i) => {
                     return (
                       <div key={i} className="mb-2 last:mb-0 flex justify-center w-full px-2">
                         <PieceDisplay piece={null} label="" size="large" />
                       </div>
-                    )
+                    );
                   })}
                 {state.nextQueue.map((piece, i) => (
                   <div key={i} className="mb-2 last:mb-0 flex justify-center w-full px-2">
@@ -831,10 +815,10 @@ const GridPopGame: React.FC = () => {
             onToggleTimed={handleToggleTimed}
           />
 
-          <HighScoresModal 
-            isOpen={showHighScores} 
-            onClose={() => setShowHighScores(false)} 
-            highScores={loadHighScores()} 
+          <HighScoresModal
+            isOpen={showHighScores}
+            onClose={() => setShowHighScores(false)}
+            highScores={loadHighScores()}
             gridSize={state.gridSize}
             isTimed={state.isTimed}
           />

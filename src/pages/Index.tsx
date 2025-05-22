@@ -1,5 +1,3 @@
-import React from "react";
-
 import GridPopGame from "@/components/game/GridPopGame";
 const Index = () => {
   return (

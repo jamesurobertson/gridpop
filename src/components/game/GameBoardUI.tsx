@@ -1,13 +1,11 @@
-import React from 'react';
-import { GameState } from '@/types/game';
-import { Cell } from './Cell';
-import PieceDisplay from './PieceDisplay';
-import ScorePanel from './ScorePanel';
-import GameControls from './GameControls';
-import Timer from './Timer';
-import { getTimerForLevel } from '@/utils/gameLogic';
+import React from "react";
+import { Cell } from "./Cell";
+import PieceDisplay from "./PieceDisplay";
+import ScorePanel from "./ScorePanel";
+import GameControls from "./GameControls";
+import Timer from "./Timer";
+import { getTimerForLevel } from "@/utils/gameLogic";
 import { useGameState } from "@/hooks/useGameState";
-import { Position } from "@/types/game";
 
 interface GameBoardUIProps {
   onPieceMove?: (e: React.MouseEvent | React.TouchEvent | React.KeyboardEvent) => void;
@@ -19,15 +17,7 @@ interface GameBoardUIProps {
   boardRef: React.RefObject<HTMLDivElement>;
 }
 
-export const GameBoardUI: React.FC<GameBoardUIProps> = ({
-  onPieceMove,
-  onPieceRotate,
-  onPieceDrop,
-  onPieceHold,
-  onNewGame,
-  onOpenOptions,
-  boardRef,
-}) => {
+export const GameBoardUI: React.FC<GameBoardUIProps> = ({ onPieceMove, onNewGame, onOpenOptions, boardRef }) => {
   const { state } = useGameState();
   const {
     grid,
@@ -41,8 +31,6 @@ export const GameBoardUI: React.FC<GameBoardUIProps> = ({
     scoreAnimations,
     linesCleared,
     isTimed,
-    keyConfig,
-    canHold,
   } = state;
 
   const renderCell = (x: number, y: number) => {
@@ -55,12 +43,7 @@ export const GameBoardUI: React.FC<GameBoardUIProps> = ({
       const pieceX = position.x;
       const pieceY = position.y;
 
-      if (
-        x >= pieceX &&
-        x < pieceX + rotatedShape[0].length &&
-        y >= pieceY &&
-        y < pieceY + rotatedShape.length
-      ) {
+      if (x >= pieceX && x < pieceX + rotatedShape[0].length && y >= pieceY && y < pieceY + rotatedShape.length) {
         const shapeValue = rotatedShape[y - pieceY][x - pieceX];
         if (shapeValue > 0) {
           value = shapeValue;
@@ -69,20 +52,7 @@ export const GameBoardUI: React.FC<GameBoardUIProps> = ({
       }
     }
 
-    return (
-      <Cell
-        key={`${x}-${y}`}
-        value={value}
-        isCurrentPiece={isCurrentPiece}
-        position={{ x, y }}
-      />
-    );
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (onPieceMove) {
-      onPieceMove(e);
-    }
+    return <Cell key={`${x}-${y}`} value={value} isCurrentPiece={isCurrentPiece} />;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -96,9 +66,9 @@ export const GameBoardUI: React.FC<GameBoardUIProps> = ({
       <div className="flex gap-8">
         <div className="flex flex-col gap-4">
           <PieceDisplay piece={heldPiece} label="Hold" size="w-24" />
-          <ScorePanel 
-            score={score} 
-            level={level} 
+          <ScorePanel
+            score={score}
+            level={level}
             linesCleared={linesCleared}
             timeRemaining={timeRemaining}
             maxTime={state.isTimed ? getTimerForLevel(level) : 0}
@@ -106,8 +76,8 @@ export const GameBoardUI: React.FC<GameBoardUIProps> = ({
             isTimed={isTimed}
           />
           {state.isTimed && (
-            <Timer 
-              timeRemaining={timeRemaining} 
+            <Timer
+              timeRemaining={timeRemaining}
               maxTime={getTimerForLevel(level)}
               onTimeUp={() => {}}
               isPaused={!state.hasStarted}
@@ -122,12 +92,9 @@ export const GameBoardUI: React.FC<GameBoardUIProps> = ({
             gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${gridSize}, minmax(0, 1fr))`,
           }}
-          onMouseMove={handleMouseMove}
           onTouchMove={handleTouchMove}
         >
-          {Array.from({ length: gridSize }, (_, y) =>
-            Array.from({ length: gridSize }, (_, x) => renderCell(x, y))
-          )}
+          {Array.from({ length: gridSize }, (_, y) => Array.from({ length: gridSize }, (_, x) => renderCell(x, y)))}
           {scoreAnimations.map((animation) => (
             <div
               key={animation.id}
@@ -135,7 +102,7 @@ export const GameBoardUI: React.FC<GameBoardUIProps> = ({
               style={{
                 left: `${(animation.position.x / gridSize) * 100}%`,
                 top: `${(animation.position.y / gridSize) * 100}%`,
-                transform: 'translate(-50%, -50%)',
+                transform: "translate(-50%, -50%)",
               }}
             >
               +{animation.value}
@@ -145,18 +112,9 @@ export const GameBoardUI: React.FC<GameBoardUIProps> = ({
 
         <div className="flex flex-col gap-4">
           <PieceDisplay piece={nextPiece} label="Next" size="w-24" />
-          <GameControls
-            onRotate={onPieceRotate}
-            onHold={onPieceHold}
-            onPlace={onPieceDrop}
-            onNewGame={onNewGame}
-            onMove={(direction) => onPieceMove({ key: direction } as React.KeyboardEvent)}
-            canHold={canHold}
-            keyConfig={keyConfig}
-            onOpenOptions={onOpenOptions}
-          />
+          <GameControls onNewGame={onNewGame} onOpenOptions={onOpenOptions} />
         </div>
       </div>
     </div>
   );
-}; 
+};

@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
-import { CellValue, GridType, Tetromino, ScoreAnimation, Position, TetrominoShape } from "@/types/game";
+import React, { useRef, useState } from "react";
+import { GridType, Tetromino, ScoreAnimation, Position } from "@/types/game";
 import { getCellVisual } from "@/utils/gameCellVisuals";
 import { cn } from "@/lib/utils";
-import { DEFAULT_GRID_SIZE, isValidPosition } from "@/utils/gameLogic";
+import { isValidPosition } from "@/utils/gameLogic";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const CELL_SIZE = 50;
@@ -37,148 +37,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
 }: GameBoardProps) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
-  const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
-  const [lastTapTime, setLastTapTime] = useState<number>(0);
-
-  // Handle right-click for rotating on desktop
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (onPieceRotate && !gameOver && !showOptionsMenu) {
-      onPieceRotate("clockwise");
-    }
-  };
-
-  // Handle touch start event
-  const handleTouchStart = (e: React.TouchEvent) => {
-    // Prevent default to stop page pull-down
-    e.preventDefault();
-
-    if (gameOver || showOptionsMenu) return;
-
-    const touch = e.touches[0];
-    setTouchStartX(touch.clientX);
-    setTouchStartY(touch.clientY);
-    setTouchStartTime(Date.now());
-  };
-
-  // Handle touch move for dragging the piece
-  const handleTouchMove = (e: React.TouchEvent) => {
-    // Prevent default to stop page pull-down
-    e.preventDefault();
-
-    if (gameOver || !onPieceMove || showOptionsMenu) return;
-    onPieceMove(e, boardRef);
-  };
-
-  // Handle touch end for gestures
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    // Prevent default to stop page pull-down
-    e.preventDefault();
-
-    if (gameOver || showOptionsMenu) return;
-
-    const touchEndTime = Date.now();
-    const touchEndX = e.changedTouches[0].clientX;
-
-    // Check for swipe gesture (for rotation)
-    if (touchStartX !== null && touchStartTime !== null) {
-      const touchDuration = touchEndTime - touchStartTime;
-      const touchDistance = touchEndX - touchStartX;
-
-      // If it's a quick swipe (less than 300ms) and has significant horizontal movement
-      if (touchDuration < 300 && Math.abs(touchDistance) > 30) {
-        if (onPieceRotate) {
-          // Swipe left = counterclockwise, Swipe right = clockwise
-          onPieceRotate(touchDistance < 0 ? "counterclockwise" : "clockwise");
-
-          // Reset touch tracking
-          setTouchStartX(null);
-          setTouchStartY(null);
-          setTouchStartTime(null);
-          return;
-        }
-      }
-    }
-
-    // Check for tap vs double-tap
-    const currentTime = Date.now();
-    const timeSinceLastTap = currentTime - lastTapTime;
-
-    if (timeSinceLastTap < 300) {
-      // This is a double-tap, use for hold
-      if (onPieceHold) {
-        onPieceHold();
-      }
-      setLastTapTime(0); // Reset the tap timer
-    } else {
-      // This is a single tap (for now)
-      setLastTapTime(currentTime);
-
-      // Use a small timeout to differentiate between single tap and potential double tap
-      setTimeout(() => {
-        const timePassed = Date.now() - currentTime;
-        if (timePassed > 250 && timePassed < 350 && lastTapTime === currentTime) {
-          // This was a single tap, so place the piece
-          if (onPiecePlace) {
-            onPiecePlace();
-          }
-        }
-      }, 300);
-    }
-
-    // Reset touch tracking
-    setTouchStartX(null);
-    setTouchStartY(null);
-    setTouchStartTime(null);
-  };
-
-  const getGhostPosition = (): Position | null => {
-    if (!currentPiece) return null;
-
-    let ghostY = currentPiece.position.y;
-    while (isValidPosition(grid, { ...currentPiece, position: { x: currentPiece.position.x, y: ghostY + 1 } })) {
-      ghostY++;
-    }
-
-    return { x: currentPiece.position.x, y: ghostY };
-  };
-
-  const renderGhostPiece = () => {
-    if (!currentPiece || gameOver || !hasStarted) return null;
-
-    const ghostPosition = getGhostPosition();
-    if (!ghostPosition) return null;
-
-    return (
-      <div
-        className="absolute pointer-events-none opacity-50"
-        style={{
-          left: `${ghostPosition.x * CELL_SIZE}px`,
-          top: `${ghostPosition.y * CELL_SIZE}px`,
-        }}
-      >
-        {currentPiece.shape.rotations[currentPiece.rotation].map((row, y) =>
-          row.map((cell, x) =>
-            cell ? (
-              <div
-                key={`ghost-${y}-${x}`}
-                className="absolute border-2 border-white"
-                style={{
-                  width: `${CELL_SIZE}px`,
-                  height: `${CELL_SIZE}px`,
-                  left: `${x * CELL_SIZE}px`,
-                  top: `${y * CELL_SIZE}px`,
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                }}
-              />
-            ) : null
-          )
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="relative w-[500px] h-[500px] mx-auto select-none focus:outline-none">
@@ -219,10 +77,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
           gridTemplateRows: `repeat(${grid.length}, 1fr)`,
           gridTemplateColumns: `repeat(${grid.length}, 1fr)`,
         }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onContextMenu={handleContextMenu}
       >
         {grid.map((row, y) =>
           row.map((cell, x) => {

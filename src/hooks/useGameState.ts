@@ -22,7 +22,6 @@ import {
   DEFAULT_GRID_SIZE,
 } from '@/utils/gameLogic';
 import { loadHighScores, saveHighScore } from '@/utils/highScores';
-import { playSound, SOUND_EFFECTS } from '@/utils/soundEffects';
 
 const DEFAULT_KEY_CONFIG: KeyConfig = {
   rotate: "d",
@@ -122,9 +121,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case "PLACE_PIECE": {
       if (state.gameOver || !state.currentPiece || !state.hasStarted || state.showOptionsMenu) return state;
 
-      try {
-        playSound("place");
-      } catch (e) { }
 
       const placedGrid = placeTetromino(state.grid, state.currentPiece);
       const { rows, cols, clearValue } = checkLinesToClear(placedGrid);
@@ -143,9 +139,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           effectType = "super";
         }
 
-        try {
-          playSound(effectType === "super" ? "superClear" : "clear");
-        } catch { }
 
         const baseScore = clearValue * clearValue * 100;
 
@@ -179,9 +172,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             clearValue: 7
           });
 
-          try {
-            playSound("superClear");
-          } catch { }
         }
       }
 
@@ -192,11 +182,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const newScore = state.score + scoreGain;
       const isGameOver = checkGameOver(clearedGrid);
 
-      if (isGameOver) {
-        try {
-          playSound("gameOver");
-        } catch { }
-      }
 
       const turnsPlayed = state.turnsPlayed + 1;
       const level = Math.floor(turnsPlayed / TURNS_PER_LEVEL) + 1;

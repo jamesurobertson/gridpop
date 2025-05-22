@@ -1,4 +1,3 @@
-import React from "react";
 import { Tetromino } from "@/types/game";
 import { getCurrentShape } from "@/utils/gameLogic";
 import { cn } from "@/lib/utils";

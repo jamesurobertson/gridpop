@@ -1,12 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { KeyConfig } from "@/types/game";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Keyboard } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 
 const DEFAULT_CONFIG: KeyConfig = {
@@ -28,33 +22,11 @@ interface KeyConfigPanelProps {
 
 const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdateConfig, standalone = true }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [configType, setConfigType] = useState<"default" | "custom">("default");
   const [editingKey, setEditingKey] = useState<keyof KeyConfig | null>(null);
-  const customFormRef = useRef<HTMLFormElement>(null);
 
   const form = useForm<KeyConfig>({
     defaultValues: currentConfig,
   });
-
-  // Update form when current config changes
-  useEffect(() => {
-    form.reset(currentConfig);
-
-    // Determine config type based on current config
-    if (JSON.stringify(currentConfig) === JSON.stringify(DEFAULT_CONFIG)) {
-      setConfigType("default");
-    } else {
-      setConfigType("custom");
-    }
-  }, [currentConfig, form]);
-
-  const handleConfigTypeChange = (value: "default" | "custom") => {
-    setConfigType(value);
-
-    if (value === "default") {
-      onUpdateConfig(DEFAULT_CONFIG);
-    }
-  };
 
   const handleKeyCapture = (event: React.KeyboardEvent, keyName: keyof KeyConfig) => {
     event.preventDefault();
@@ -84,22 +56,6 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
     if (key === "ArrowDown") return "↓";
     return key.toUpperCase();
   };
-
-  const handleSubmitCustomConfig = (data: KeyConfig) => {
-    onUpdateConfig(data);
-    setIsDialogOpen(false);
-  };
-
-  const keyFields: Array<{ name: keyof KeyConfig; label: string }> = [
-    { name: "moveLeft", label: "Move Left" },
-    { name: "moveRight", label: "Move Right" },
-    { name: "moveUp", label: "Move Up" },
-    { name: "moveDown", label: "Move Down" },
-    { name: "rotate", label: "Rotate Clockwise" },
-    { name: "rotateCounter", label: "Rotate Counter-clockwise" },
-    { name: "drop", label: "Drop Piece" },
-    { name: "hold", label: "Hold Piece" },
-  ];
 
   const renderKeyConfigContent = () => {
     return (
@@ -222,15 +178,6 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
 
   return (
     <>
-      {/* <Button 
-        variant="outline" 
-        onClick={() => setIsDialogOpen(true)}
-        className="w-full border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 flex items-center justify-center"
-      >
-        <Keyboard size={16} className="mr-2" />
-        Controls
-      </Button> */}
-
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>

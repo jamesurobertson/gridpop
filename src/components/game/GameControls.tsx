@@ -1,63 +1,68 @@
 import React, { useEffect, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
-import { KeyConfig } from "@/types/game";
 import { useGameState } from "@/hooks/useGameState";
 
 interface GameControlsProps {
-  onPieceMove?: (e: React.MouseEvent | React.TouchEvent | React.KeyboardEvent) => void;
+  // onPieceMove?: (e: React.MouseEvent | React.TouchEvent | React.KeyboardEvent) => void;
   onNewGame: () => void;
   onOpenOptions: () => void;
 }
 
 export const GameControls: React.FC<GameControlsProps> = ({
-  onPieceMove,
+  // onPieceMove,
   onNewGame,
   onOpenOptions,
 }) => {
-  const {
-    state,
-    movePiece,
-    rotatePiece,
-    holdPiece,
-    placePiece,
-  } = useGameState();
+  const { state, movePiece, rotatePiece, holdPiece, placePiece } = useGameState();
 
   const isMobile = useIsMobile();
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (state.gameOver || !state.hasStarted || state.showOptionsMenu) return;
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (state.gameOver || !state.hasStarted || state.showOptionsMenu) return;
 
-    const key = e.key.toLowerCase();
-    const keyConfig = state.keyConfig;
+      const key = e.key.toLowerCase();
+      const keyConfig = state.keyConfig;
 
-    switch (key) {
-      case keyConfig.moveLeft:
-        movePiece("left");
-        break;
-      case keyConfig.moveRight:
-        movePiece("right");
-        break;
-      case keyConfig.moveDown:
-        movePiece("down");
-        break;
-      case keyConfig.moveUp:
-        movePiece("up");
-        break;
-      case keyConfig.rotate:
-        rotatePiece("clockwise");
-        break;
-      case keyConfig.rotateCounter:
-        rotatePiece("counterclockwise");
-        break;
-      case keyConfig.hold:
-        holdPiece();
-        break;
-      case keyConfig.drop:
-        placePiece();
-        break;
-    }
-  }, [state.gameOver, state.hasStarted, state.showOptionsMenu, state.keyConfig, movePiece, rotatePiece, holdPiece, placePiece]);
+      switch (key) {
+        case keyConfig.moveLeft:
+          movePiece("left");
+          break;
+        case keyConfig.moveRight:
+          movePiece("right");
+          break;
+        case keyConfig.moveDown:
+          movePiece("down");
+          break;
+        case keyConfig.moveUp:
+          movePiece("up");
+          break;
+        case keyConfig.rotate:
+          rotatePiece("clockwise");
+          break;
+        case keyConfig.rotateCounter:
+          rotatePiece("counterclockwise");
+          break;
+        case keyConfig.hold:
+          holdPiece();
+          break;
+        case keyConfig.drop:
+          placePiece();
+          break;
+      }
+    },
+    [
+      state.gameOver,
+      state.hasStarted,
+      state.showOptionsMenu,
+      state.keyConfig,
+      movePiece,
+      rotatePiece,
+      holdPiece,
+      placePiece,
+    ]
+  );
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);

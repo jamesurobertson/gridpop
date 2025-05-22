@@ -1,5 +1,5 @@
 import { CellValue, GridType, Position, Tetromino, TetrominoShape, KeyConfig, HighScore } from "@/types/game";
-import { TETROMINO_SHAPES, getRandomTetromino } from "./tetrominoShapes";
+import { getRandomTetromino } from "./tetrominoShapes";
 
 // Constants
 export const DEFAULT_GRID_SIZE = 4;
