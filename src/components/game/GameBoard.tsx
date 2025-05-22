@@ -1,11 +1,8 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { GridType, Tetromino, ScoreAnimation, Position } from "@/types/game";
 import { getCellVisual } from "@/utils/gameCellVisuals";
 import { cn } from "@/lib/utils";
-import { isValidPosition } from "@/utils/gameLogic";
 import { useIsMobile } from "@/hooks/use-mobile";
-
-const CELL_SIZE = 50;
 
 interface GameBoardProps {
   grid: GridType;
@@ -23,18 +20,7 @@ interface GameBoardProps {
   showOptionsMenu: boolean;
 }
 
-const GameBoard: React.FC<GameBoardProps> = ({
-  grid,
-  currentPiece,
-  scoreAnimations,
-  onPieceMove,
-  onPiecePlace,
-  onPieceRotate,
-  onPieceHold,
-  gameOver,
-  hasStarted,
-  showOptionsMenu,
-}: GameBoardProps) => {
+const GameBoard: React.FC<GameBoardProps> = ({ grid, currentPiece, scoreAnimations, gameOver }: GameBoardProps) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -140,7 +126,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
               >
                 {cellContent}
 
-                {/* Ghost piece outline with -4px inset from edge (changed from 2px) */}
                 {isPieceCell && (
                   <div
                     className="absolute rounded-lg pointer-events-none"

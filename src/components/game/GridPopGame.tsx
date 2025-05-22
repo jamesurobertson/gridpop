@@ -631,7 +631,8 @@ const GridPopGame: React.FC = () => {
     dispatch,
   ]);
 
-  const handleNewGame = () => {
+  const handleNewGame = (e) => {
+    e.target.blur();
     dispatch({ type: "RESET_GAME" });
     dispatch({ type: "START_GAME" });
   };

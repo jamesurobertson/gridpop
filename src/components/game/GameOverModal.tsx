@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { HighScore } from "@/types/game";
@@ -34,10 +34,6 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   const categorizedScores = formatHighScores(highScores);
   const defaultCategory = `${gridSize}x${gridSize} ${isTimed ? "Timed" : "Untimed"}`;
   const [selectedCategory, setSelectedCategory] = useState(defaultCategory);
-
-  useEffect(() => {
-    setSelectedCategory(defaultCategory);
-  }, [gridSize, isTimed]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
