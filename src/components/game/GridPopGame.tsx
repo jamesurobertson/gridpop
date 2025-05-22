@@ -729,6 +729,7 @@ const GridPopGame: React.FC = () => {
               <div className="flex-col items-center h-[400px] w-full">
                 <div className="w-full bg-white bg-opacity-90 rounded-xl shadow p-2 mt-auto flex flex-col text-xs font-bold text-gray-700">
                   <div className="mb-2">Score<br /><span className="text-lg text-black">{state.score}</span></div>
+                  <div className="mb-2">Level<br /><span className="text-lg text-black">{state.level}</span></div>
                   <div className="mb-2">Lines<br /><span className="text-lg text-black">{state.linesCleared}</span></div>
                   {state.isTimed && (
                     <div className="w-full">
