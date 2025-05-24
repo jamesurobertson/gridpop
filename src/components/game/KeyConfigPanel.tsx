@@ -24,9 +24,16 @@ interface KeyConfigPanelProps {
   currentConfig: KeyConfig;
   onUpdateConfig: (config: Partial<KeyConfig>) => void;
   standalone?: boolean;
+  emptyKeys?: string[];
+  attemptedClose?: boolean;
 }
 
-const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdateConfig }) => {
+const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({
+  currentConfig,
+  onUpdateConfig,
+  emptyKeys,
+  attemptedClose,
+}) => {
   const [editingKey, setEditingKey] = useState<keyof KeyConfig | null>(null);
   const [movementPreset, setMovementPreset] = useState<"arrows" | "wasd" | null>(null);
   const editingRef = useRef<HTMLDivElement>(null);
@@ -115,12 +122,14 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
   };
 
   // Button style for consistent height
-  const keyBtnClass = (isEditing: boolean) =>
+  const keyBtnClass = (isEditing: boolean, isEmpty: boolean) =>
     `min-w-[48px] min-h-[44px] flex items-center justify-center px-2 py-1 rounded-lg text-center font-semibold border transition-all outline-none focus:ring-2 focus:ring-blue-400
     shadow-[0_1.5px_6px_0_rgba(0,0,0,0.07)] hover:shadow-md active:shadow-inner
     ` +
     (isEditing
       ? "bg-blue-100 border-blue-500 text-blue-700"
+      : isEmpty
+      ? "bg-white border-red-500 text-red-600 animate-pulse"
       : "bg-white border-gray-300 hover:bg-gray-100 text-gray-800");
 
   return (
@@ -150,7 +159,7 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
             <div></div>
             <button
               data-keybinding-btn
-              className={keyBtnClass(editingKey === "moveUp")}
+              className={keyBtnClass(editingKey === "moveUp", attemptedClose && emptyKeys?.includes("moveUp"))}
               tabIndex={0}
               onClick={() => setEditingKey(editingKey === "moveUp" ? null : "moveUp")}
               onKeyDown={(e) => editingKey === "moveUp" && handleKeyCapture(e, "moveUp")}
@@ -166,7 +175,7 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
             <div></div>
             <button
               data-keybinding-btn
-              className={keyBtnClass(editingKey === "moveLeft")}
+              className={keyBtnClass(editingKey === "moveLeft", attemptedClose && emptyKeys?.includes("moveLeft"))}
               tabIndex={0}
               onClick={() => setEditingKey(editingKey === "moveLeft" ? null : "moveLeft")}
               onKeyDown={(e) => editingKey === "moveLeft" && handleKeyCapture(e, "moveLeft")}
@@ -181,7 +190,7 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
             </button>
             <button
               data-keybinding-btn
-              className={keyBtnClass(editingKey === "moveDown")}
+              className={keyBtnClass(editingKey === "moveDown", attemptedClose && emptyKeys?.includes("moveDown"))}
               tabIndex={0}
               onClick={() => setEditingKey(editingKey === "moveDown" ? null : "moveDown")}
               onKeyDown={(e) => editingKey === "moveDown" && handleKeyCapture(e, "moveDown")}
@@ -196,7 +205,7 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
             </button>
             <button
               data-keybinding-btn
-              className={keyBtnClass(editingKey === "moveRight")}
+              className={keyBtnClass(editingKey === "moveRight", attemptedClose && emptyKeys?.includes("moveRight"))}
               tabIndex={0}
               onClick={() => setEditingKey(editingKey === "moveRight" ? null : "moveRight")}
               onKeyDown={(e) => editingKey === "moveRight" && handleKeyCapture(e, "moveRight")}
@@ -223,7 +232,10 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
             <div className="flex gap-2">
               <button
                 data-keybinding-btn
-                className={keyBtnClass(editingKey === "rotateCounter")}
+                className={keyBtnClass(
+                  editingKey === "rotateCounter",
+                  attemptedClose && emptyKeys?.includes("rotateCounter")
+                )}
                 tabIndex={0}
                 onClick={() => setEditingKey(editingKey === "rotateCounter" ? null : "rotateCounter")}
                 onKeyDown={(e) => editingKey === "rotateCounter" && handleKeyCapture(e, "rotateCounter")}
@@ -239,7 +251,7 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
               </button>
               <button
                 data-keybinding-btn
-                className={keyBtnClass(editingKey === "rotate")}
+                className={keyBtnClass(editingKey === "rotate", attemptedClose && emptyKeys?.includes("rotate"))}
                 tabIndex={0}
                 onClick={() => setEditingKey(editingKey === "rotate" ? null : "rotate")}
                 onKeyDown={(e) => editingKey === "rotate" && handleKeyCapture(e, "rotate")}
@@ -260,7 +272,7 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
             <span className="flex-1 font-medium text-gray-700">Drop</span>
             <button
               data-keybinding-btn
-              className={keyBtnClass(editingKey === "drop")}
+              className={keyBtnClass(editingKey === "drop", attemptedClose && emptyKeys?.includes("drop"))}
               tabIndex={0}
               onClick={() => setEditingKey(editingKey === "drop" ? null : "drop")}
               onKeyDown={(e) => editingKey === "drop" && handleKeyCapture(e, "drop")}
@@ -279,7 +291,7 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({ currentConfig, onUpdate
             <span className="flex-1 font-medium text-gray-700">Hold</span>
             <button
               data-keybinding-btn
-              className={keyBtnClass(editingKey === "hold")}
+              className={keyBtnClass(editingKey === "hold", attemptedClose && emptyKeys?.includes("hold"))}
               tabIndex={0}
               onClick={() => setEditingKey(editingKey === "hold" ? null : "hold")}
               onKeyDown={(e) => editingKey === "hold" && handleKeyCapture(e, "hold")}

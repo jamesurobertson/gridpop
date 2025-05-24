@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import KeyConfigPanel from "./KeyConfigPanel";
@@ -28,8 +28,29 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
   isTimed,
   onToggleTimed,
 }) => {
+  const [attemptedClose, setAttemptedClose] = useState(false);
+
+  // List of all keybinding fields
+  const keyFields = ["moveUp", "moveDown", "moveLeft", "moveRight", "rotate", "rotateCounter", "drop", "hold"];
+  const emptyKeys = keyFields.filter((k) => !keyConfig[k]);
+
+  // Custom close handler
+  const handleClose = () => {
+    if (emptyKeys.length > 0) {
+      setAttemptedClose(true);
+      return;
+    }
+    setAttemptedClose(false);
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) handleClose();
+      }}
+    >
       <DialogContent className="bg-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center">Game Options</DialogTitle>
@@ -39,7 +60,13 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
           <div>
             <h3 className="text-lg font-medium mb-2">Controls</h3>
             <p className="text-sm text-gray-500 mb-2">Click on a key field and press any key to configure</p>
-            <KeyConfigPanel currentConfig={keyConfig} onUpdateConfig={onUpdateKeyConfig} standalone={false} />
+            <KeyConfigPanel
+              currentConfig={keyConfig}
+              onUpdateConfig={onUpdateKeyConfig}
+              standalone={false}
+              emptyKeys={emptyKeys}
+              attemptedClose={attemptedClose}
+            />
           </div>
 
           <div>
@@ -81,7 +108,7 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
         </div>
 
         <div className="flex justify-end mt-4">
-          <Button onClick={onClose} variant="outline">
+          <Button onClick={handleClose} variant="outline">
             Close
           </Button>
         </div>
