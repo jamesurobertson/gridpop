@@ -802,7 +802,6 @@ const GridPopGame: React.FC = () => {
             />
           )}
 
-
           <OptionsMenu
             isOpen={state.showOptionsMenu}
             onClose={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: false })}

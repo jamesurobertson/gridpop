@@ -90,15 +90,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ grid, currentPiece, scoreAnimatio
                 }
               }
             }
-            const { backgroundColor, text, textColor, effects } = getCellVisual(cell);
-            const effectClasses = [
-              effects.includes("pulse") && "animate-pulse",
-              effects.includes("glow") && "ring-1 ring-opacity-50 shadow-sm",
-              effects.includes("shake") && "animate-[game-over_0.3s_ease-in-out]",
-              effects.includes("flash") && "animate-super-clear",
-            ]
-              .filter(Boolean)
-              .join(" ");
+            const { backgroundColor, text, textColor } = getCellVisual(cell);
 
             // Content styling based on the mockup
             const cellContent =
@@ -114,10 +106,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ grid, currentPiece, scoreAnimatio
             return (
               <div
                 key={`${x}-${y}`}
-                className={cn(
-                  "aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center",
-                  effectClasses
-                )}
+                className={
+                  "aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center"
+                }
                 style={{
                   backgroundColor: backgroundColor,
                   boxShadow: cell > 0 ? "inset 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(255,255,255,0.1)" : undefined,
@@ -134,7 +125,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ grid, currentPiece, scoreAnimatio
                       right: "-4px",
                       bottom: "-4px",
                       left: "-4px",
-                      border: "2px solid",
+                      border: "3px solid",
                       borderColor: "neutral-700",
                       backgroundColor: "transparent",
                     }}

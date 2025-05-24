@@ -10,7 +10,7 @@ interface PieceDisplayProps {
 
 const PieceDisplay = ({ piece, label, size }: PieceDisplayProps) => {
   // Calculate size based on piece shape
-  const sizeNum = piece ? Math.max(getCurrentShape(piece).length, getCurrentShape(piece)[0].length) : 2;
+  const sizeNum = 3;
 
   return (
     <div className="flex flex-col items-center w-full">
