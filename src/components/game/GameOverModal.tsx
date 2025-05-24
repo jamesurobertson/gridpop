@@ -81,16 +81,24 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 
           <div className="bg-gray-50 rounded-lg p-4">
             {categorizedScores[selectedCategory].length > 0 ? (
-              <div className="space-y-2">
-                {categorizedScores[selectedCategory].map((score, index) => (
+              <div>
+                {/* Header Row */}
+                <div className="grid grid-cols-12 px-2 pb-2 text-xs text-gray-500 font-semibold border-b border-gray-200">
+                  <div className="col-span-2">Rank</div>
+                  <div className="col-span-4">Score</div>
+                  <div className="col-span-3 text-center">Lines</div>
+                  <div className="col-span-3 text-right">Date</div>
+                </div>
+                {categorizedScores[selectedCategory].map((score, index, arr) => (
                   <div
                     key={index}
-                    className={`flex justify-between items-center p-3 rounded-lg transition-colors
-                      ${score.score === score.score ? "bg-blue-50 border border-blue-100" : "bg-white"}`}
+                    className={`grid grid-cols-12 items-center px-2 py-2 text-sm ${
+                      index < arr.length - 1 ? "border-b border-gray-200" : ""
+                    }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="col-span-2 flex items-center gap-2">
                       <span
-                        className={`w-6 h-6 flex items-center justify-center rounded-full
+                        className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold
                         ${
                           index === 0
                             ? "bg-yellow-400"
@@ -101,13 +109,14 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
                             : "bg-gray-200"
                         }`}
                       >
-                        <span className={`text-sm font-medium ${index > 2 ? "text-gray-700" : "text-white"}`}>
-                          {index + 1}
-                        </span>
+                        <span className={index > 2 ? "text-gray-700" : "text-white"}>{index + 1}</span>
                       </span>
-                      <span className="font-medium">{score.score.toLocaleString()}</span>
                     </div>
-                    <span className="text-sm text-gray-500">{formatDate(score.date)}</span>
+                    <div className="col-span-4 font-medium">{score.score.toLocaleString()}</div>
+                    <div className="col-span-3 text-center text-xs text-blue-700 font-semibold">
+                      {score.linesCleared ?? "-"}
+                    </div>
+                    <div className="col-span-3 text-right text-xs text-gray-500">{formatDate(score.date)}</div>
                   </div>
                 ))}
               </div>
