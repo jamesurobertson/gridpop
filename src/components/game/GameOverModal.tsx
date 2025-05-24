@@ -51,7 +51,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="bg-white max-w-md" aria-describedby="game-over-description">
+      <DialogContent className="bg-white max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">Game Over!</DialogTitle>
         </DialogHeader>
@@ -126,7 +126,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 mt-6">
+        <div className="flex flex-col gap-2 mt-6 sticky bottom-0 bg-white pt-2">
           <Button onClick={onRestart} className="bg-blue-600 hover:bg-blue-700">
             Play Again
           </Button>

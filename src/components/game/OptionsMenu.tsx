@@ -51,12 +51,33 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
         if (!open) handleClose();
       }}
     >
-      <DialogContent className="bg-white sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="bg-white sm:max-w-md max-h-[90vh] overflow-y-auto p-0">
+        <DialogHeader className="sticky top-0 bg-white z-10 px-6 py-4 border-b shadow-sm">
           <DialogTitle className="text-center">Game Options</DialogTitle>
+          <button
+            onClick={handleClose}
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+            <span className="sr-only">Close</span>
+          </button>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 px-6 py-4">
           <div>
             <h3 className="text-lg font-medium mb-2">Controls</h3>
             <p className="text-sm text-gray-500 mb-2">Click on a key field and press any key to configure</p>
@@ -72,7 +93,7 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
           <div>
             <h3 className="text-lg font-medium mb-2">Grid Size</h3>
             <p className="text-sm text-gray-500 mb-2">
-              Choose the size of the game grid. Note: Changing will reset your current game.
+              Choose the size of the game grid.
             </p>
             <div className="flex gap-3 mt-3">
               <Button
@@ -107,10 +128,12 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end mt-4">
-          <Button onClick={handleClose} variant="outline">
-            Close
-          </Button>
+        <div className="sticky bottom-0 bg-white border-t shadow-sm px-6 py-4">
+          <div className="flex justify-end">
+            <Button onClick={handleClose} variant="outline" size="sm">
+              Close
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
