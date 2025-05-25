@@ -705,25 +705,28 @@ const GridPopGame: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => setShowHighScores(true)}
-                className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 px-2 py-1 text-xs"
+                className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 px-3 py-2 text-sm"
               >
-                <Trophy size={14} className="text-yellow-400" />
+                <Trophy size={16} className="text-yellow-400" />
                 <span className="font-bold text-base">{state.bestScore}</span>
               </Button>
-              <div className="flex gap-1">
+              <div className="flex gap-2">
                 <Button
                   variant="outline"
                   onClick={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
-                  className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 px-2 py-1 text-xs"
+                  className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 px-4 py-2 text-sm min-w-[80px]"
                 >
                   Options
                 </Button>
-                <Button onClick={handleNewGame} className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-2 py-1 text-xs">
-                  New
+                <Button 
+                  onClick={handleNewGame} 
+                  className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-4 py-2 text-sm min-w-[80px]"
+                >
+                  New Game
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-1 text-center mt-2">
+            <div className="grid grid-cols-3 gap-1 text-center mt-3">
               <div>
                 <div className="text-xs text-gray-500">Score</div>
                 <div className="text-lg font-bold">{state.score}</div>
@@ -738,15 +741,15 @@ const GridPopGame: React.FC = () => {
               </div>
             </div>
             {state.isTimed && (
-              <div className="mt-2">
+              <div className="mt-3">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center">
-                    <Timer size={14} className="mr-1" />
-                    <span className="text-xs">Time</span>
+                    <Timer size={16} className="mr-1" />
+                    <span className="text-sm">Time</span>
                   </div>
-                  <span className="text-xs">{Math.ceil(state.timeRemaining)}s</span>
+                  <span className="text-sm">{Math.ceil(state.timeRemaining)}s</span>
                 </div>
-                <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
+                <div className="overflow-hidden h-2.5 text-xs flex rounded bg-gray-200">
                   <div
                     style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
                     className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${

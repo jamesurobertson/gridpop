@@ -8,7 +8,7 @@ const Index = () => {
         <GridPopGame />
       </main>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 bg-white rounded-lg shadow-sm border border-gray-200 my-6 mt-[20vh] sm:mt-6">
+      <div className="max-w-3xl mx-auto px-4 py-6 bg-white rounded-lg shadow-sm border border-gray-200 my-6">
         <h2 className="text-xl font-bold text-center mb-4">How to Play</h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-3">
@@ -19,7 +19,6 @@ const Index = () => {
               <li>When any cell reaches value 7, game over!</li>
               <li>When all cells in a row or column have the same value (1-6), the row or column clears.</li>
               <li>Clear multiple rows/columns at once for bonus points!</li>
-              <li>Clearing the entire grid gives a huge 5000 point bonus.</li>
             </ul>
           </div>
 
