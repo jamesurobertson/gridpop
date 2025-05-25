@@ -32,20 +32,14 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const boardRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
-  const [lastDrag, setLastDrag] = useState<{ x: number; y: number } | null>(null);
   const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
-  const [totalDelta, setTotalDelta] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [gestureType, setGestureType] = useState<"idle" | "drag">("idle");
   const [actionTaken, setActionTaken] = useState(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     e.preventDefault();
     const touch = e.touches[0];
     setTouchStart({ x: touch.clientX, y: touch.clientY });
-    setLastDrag({ x: touch.clientX, y: touch.clientY });
     setTouchStartTime(Date.now());
-    setTotalDelta({ x: 0, y: 0 });
-    setGestureType("idle");
     setActionTaken(false);
   };
 
@@ -75,24 +69,20 @@ const GameBoard: React.FC<GameBoardProps> = ({
       if (deltaX > threshold) {
         onPieceMove("right");
         setTouchStart({ x: touch.clientX, y: touchStart.y });
-        setGestureType("drag");
         setActionTaken(true);
       } else if (deltaX < -threshold) {
         onPieceMove("left");
         setTouchStart({ x: touch.clientX, y: touchStart.y });
-        setGestureType("drag");
         setActionTaken(true);
       }
     } else {
       if (deltaY > threshold) {
         onPieceMove("down");
         setTouchStart({ x: touchStart.x, y: touch.clientY });
-        setGestureType("drag");
         setActionTaken(true);
       } else if (deltaY < -threshold) {
         onPieceMove("up");
         setTouchStart({ x: touchStart.x, y: touch.clientY });
-        setGestureType("drag");
         setActionTaken(true);
       }
     }
@@ -128,10 +118,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
       }
     }
     setTouchStart(null);
-    setLastDrag(null);
     setTouchStartTime(null);
-    setTotalDelta({ x: 0, y: 0 });
-    setGestureType("idle");
     setActionTaken(false);
   };
 
