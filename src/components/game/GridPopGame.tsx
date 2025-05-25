@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState, useCallback } from "react";
+import React, { useEffect, useReducer, useState, useCallback, useRef } from "react";
 import GameBoard from "./GameBoard";
 import PieceDisplay from "./PieceDisplay";
 import GameOverModal from "./GameOverModal";
@@ -465,9 +465,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
 const GridPopGame: React.FC = () => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
-  const [showModeSelector, setShowModeSelector] = useState(false);
   const [showHighScores, setShowHighScores] = useState(false);
   const isMobile = useIsMobile();
+  const scorePanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const { keyConfig, gridSize } = loadGameSettings();
@@ -657,6 +657,18 @@ const GridPopGame: React.FC = () => {
     dispatch({ type: "RESET_GAME" });
   }, [state.score, state.gridSize, state.isTimed, state.linesCleared]);
 
+  useEffect(() => {
+    if (!isMobile || !scorePanelRef.current) return;
+    const el = scorePanelRef.current;
+    const preventScroll = (e: TouchEvent) => {
+      e.preventDefault();
+    };
+    el.addEventListener("touchmove", preventScroll, { passive: false });
+    return () => {
+      el.removeEventListener("touchmove", preventScroll);
+    };
+  }, [isMobile]);
+
   return (
     <div className="max-w-6xl mx-auto p-4">
       {isMobile ? (
@@ -700,9 +712,10 @@ const GridPopGame: React.FC = () => {
           </div>
 
           {/* Mobile Score Panel below board */}
-          <div className="w-full max-w-[340px] mt-3 mb-3">
+          <div className="w-full max-w-[340px] mb-3">
             {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-2 text-center mb-3 bg-white rounded-xl p-2.5 shadow-sm">
+            <div ref={scorePanelRef} className="pt-3 -mt-3">
+            <div className=" mt-3 grid grid-cols-3 gap-2 text-center mb-3 bg-white rounded-xl p-2.5 shadow-sm">
               <div>
                 <div className="text-xs text-gray-500 font-medium">Score</div>
                 <div className="text-lg font-bold text-gray-800">{state.score}</div>
@@ -715,6 +728,7 @@ const GridPopGame: React.FC = () => {
                 <div className="text-xs text-gray-500 font-medium">Lines</div>
                 <div className="text-lg font-bold text-gray-800">{state.linesCleared}</div>
               </div>
+            </div>
             </div>
 
             {/* Timer */}
