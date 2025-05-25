@@ -78,12 +78,14 @@ export interface GameState {
   showOptionsMenu: boolean;
   nextQueue: Tetromino[];
   linesCleared: number;
+  pendingClear: boolean;
 }
 
 export type GameAction =
   | { type: "START_GAME"; highScores?: HighScore[] }
   | { type: "START_GAME_WITH_MODE"; mode: GameMode }
   | { type: "PLACE_PIECE" }
+  | { type: "CLEAR_LINES" }
   | { type: "ROTATE_PIECE"; direction: "clockwise" | "counterclockwise" }
   | { type: "MOVE_PIECE"; position: Position }
   | { type: "HOLD_PIECE" }

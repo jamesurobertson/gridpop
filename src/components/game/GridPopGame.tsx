@@ -66,6 +66,7 @@ const initialState: GameState = {
   showOptionsMenu: false,
   nextQueue: [],
   linesCleared: 0,
+  pendingClear: false,
 };
 
 let animationCounter = 0;
@@ -137,30 +138,32 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "PLACE_PIECE": {
       if (state.gameOver || !state.currentPiece || !state.hasStarted || state.showOptionsMenu) return state;
-
-      try {
-      } catch (e) {}
-
+      // Only place the piece and set pendingClear
       const placedGrid = placeTetromino(state.grid, state.currentPiece);
-      const { rows, cols, clearValue } = checkLinesToClear(placedGrid);
+      return {
+        ...state,
+        grid: placedGrid,
+        pendingClear: true,
+      };
+    }
 
-      let clearedGrid = placedGrid;
+    case "CLEAR_LINES": {
+      // This is the old PLACE_PIECE logic after placing the piece
+      // Use the grid from state (already has the piece placed)
+      const { rows, cols, clearValue } = checkLinesToClear(state.grid);
+      let clearedGrid = state.grid;
       let effectType = null;
       let linesCleared = 0;
       let scoreGain = 0;
       let scoreAnimations = [...state.scoreAnimations];
       let hasFullGridClear = false;
-
       if ((rows.length > 0 || cols.length > 0) && clearValue > 0) {
         linesCleared = rows.length + cols.length;
-
         if (clearValue === 7) {
           effectType = "super";
         }
-
         // Calculate the base score for each line clear
         const baseScore = clearValue * clearValue * 100;
-
         // Calculate line bonus based on clear value
         const getLineBonus = (lines: number, value: CellValue) => {
           const baseBonus = value * value * 100;
@@ -175,10 +178,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
               return 0;
           }
         };
-
         // Calculate total score for this clear
         const totalScore = Math.floor(baseScore * linesCleared + getLineBonus(linesCleared, clearValue));
-
         // Show the total score animation
         scoreAnimations.push({
           value: totalScore,
@@ -186,9 +187,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           id: animationCounter++,
           clearValue: clearValue,
         });
-
-        clearedGrid = clearRowsAndCols(placedGrid, rows, cols);
-
+        clearedGrid = clearRowsAndCols(state.grid, rows, cols);
         // Check if the entire grid was cleared
         hasFullGridClear = checkGridCleared(clearedGrid);
         if (hasFullGridClear) {
@@ -201,20 +200,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           });
         }
       }
-
       if (clearValue > 0) {
         scoreGain = Math.floor(calculateLineClearScore(clearValue, linesCleared, hasFullGridClear, state.level));
       }
-
       const newScore = state.score + scoreGain;
       const isGameOver = checkGameOver(clearedGrid);
-
       const turnsPlayed = state.turnsPlayed + 1;
       const level = Math.floor(turnsPlayed / TURNS_PER_LEVEL) + 1;
-
       let updatedHighScores = state.highScores;
       let updatedBestScore = state.bestScore;
-
       if (isGameOver) {
         const newHighScore: HighScore = {
           score: newScore,
@@ -240,9 +234,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         updatedBestScore = getBestScore(updatedHighScores, state.gridSize, state.isTimed);
         localStorage.setItem("gridpop-high-scores", JSON.stringify(updatedHighScores));
       }
-
       const newTimeRemaining = getTimerForLevel(level);
-
       return {
         ...state,
         grid: clearedGrid,
@@ -258,6 +250,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         highScores: updatedHighScores,
         scoreAnimations,
         linesCleared: state.linesCleared + linesCleared,
+        pendingClear: false,
       };
     }
 
@@ -512,6 +505,15 @@ const GridPopGame: React.FC = () => {
     if (!state.hasStarted || state.timeRemaining > 0 || state.gameOver || !state.isTimed) return;
     dispatch({ type: "AUTO_PLACE" });
   }, [state.timeRemaining, state.gameOver, state.isTimed, state.hasStarted]);
+
+  useEffect(() => {
+    if (state.pendingClear) {
+      const timeout = setTimeout(() => {
+        dispatch({ type: "CLEAR_LINES" });
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [state.pendingClear]);
 
   const handleDirectionalMove = (direction: "left" | "right" | "up" | "down") => {
     if (state.showOptionsMenu || !state.currentPiece || state.gameOver || !state.hasStarted) return;
