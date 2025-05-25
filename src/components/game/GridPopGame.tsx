@@ -630,8 +630,7 @@ const GridPopGame: React.FC = () => {
     dispatch,
   ]);
 
-  const handleNewGame = (e) => {
-    e.target.blur();
+  const handleNewGame = () => {
     dispatch({ type: "RESET_GAME" });
     dispatch({ type: "START_GAME" });
   };
@@ -659,18 +658,102 @@ const GridPopGame: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto p-4">
       {isMobile ? (
-        <div className="min-h-[80vh] flex flex-col items-center justify-center bg-white rounded-xl shadow-md p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Mobile Version Coming Soon!</h2>
-          <p className="text-gray-600 mb-6">
-            We're working on making GridPop perfect for mobile devices. For now, please enjoy the game on desktop.
-          </p>
-          <div className="text-sm text-gray-500">
-            <p>Check back soon for:</p>
-            <ul className="list-disc list-inside mt-2">
-              <li>Touch controls</li>
-              <li>Mobile-optimized layout</li>
-              <li>Better performance</li>
-            </ul>
+        <div className="flex flex-col items-center w-full px-1">
+          {/* Hold and Next above board, centered */}
+          <div className="flex flex-row justify-center items-start gap-6 w-full max-w-[340px] mt-2 mb-2">
+            {/* Hold Box */}
+            <div className="flex flex-col items-center w-[60px]">
+              <span className="text-gray-500 text-xs font-bold mb-1">Hold</span>
+              <div className="w-[60px] h-[60px] p-1 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center">
+                <PieceDisplay piece={state.heldPiece} label="" size="large" gridSize={3} />
+              </div>
+            </div>
+            {/* Next Piece (single) */}
+            <div className="flex flex-col items-center w-[60px]">
+              <span className="text-gray-500 text-xs font-bold mb-1">Next</span>
+              <div className="w-[60px] h-[60px] p-1 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center">
+                {state.nextQueue.length === 0 ? (
+                  <PieceDisplay piece={null} label="" size="large" gridSize={3} />
+                ) : (
+                  <PieceDisplay piece={state.nextQueue[0]} label="" size="large" gridSize={3} />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Board centered */}
+          <div className="flex justify-center w-full">
+            <GameBoard
+              grid={state.grid}
+              currentPiece={state.hasStarted ? state.currentPiece : null}
+              scoreAnimations={state.scoreAnimations}
+              onPieceMove={handleDirectionalMove}
+              onPiecePlace={() => state.hasStarted && dispatch({ type: "PLACE_PIECE" })}
+              onPieceRotate={handlePieceRotate}
+              onPieceHold={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
+              gameOver={state.gameOver && state.showBoard}
+              hasStarted={state.hasStarted}
+              showOptionsMenu={state.showOptionsMenu}
+            />
+          </div>
+
+          {/* Mobile Score Panel below board */}
+          <div className="w-full max-w-[340px] mt-2 mb-2">
+            <div className="flex justify-between items-center">
+              <Button
+                variant="outline"
+                onClick={() => setShowHighScores(true)}
+                className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 px-2 py-1 text-xs"
+              >
+                <Trophy size={14} className="text-yellow-400" />
+                <span className="font-bold text-base">{state.bestScore}</span>
+              </Button>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  onClick={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
+                  className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 px-2 py-1 text-xs"
+                >
+                  Options
+                </Button>
+                <Button onClick={handleNewGame} className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-2 py-1 text-xs">
+                  New
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-1 text-center mt-2">
+              <div>
+                <div className="text-xs text-gray-500">Score</div>
+                <div className="text-lg font-bold">{state.score}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Level</div>
+                <div className="text-lg font-bold">{state.level}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Lines</div>
+                <div className="text-lg font-bold">{state.linesCleared}</div>
+              </div>
+            </div>
+            {state.isTimed && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center">
+                    <Timer size={14} className="mr-1" />
+                    <span className="text-xs">Time</span>
+                  </div>
+                  <span className="text-xs">{Math.ceil(state.timeRemaining)}s</span>
+                </div>
+                <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
+                  <div
+                    style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
+                    className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
+                      state.timeRemaining < 3 ? "bg-red-500" : "bg-blue-500"
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -757,7 +840,7 @@ const GridPopGame: React.FC = () => {
                 grid={state.grid}
                 currentPiece={state.hasStarted ? state.currentPiece : null}
                 scoreAnimations={state.scoreAnimations}
-                onPieceMove={handlePieceMove}
+                onPieceMove={handleDirectionalMove}
                 onPiecePlace={() => state.hasStarted && dispatch({ type: "PLACE_PIECE" })}
                 onPieceRotate={handlePieceRotate}
                 onPieceHold={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
@@ -786,42 +869,42 @@ const GridPopGame: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {state.gameOver && (
-            <GameOverModal
-              score={state.score}
-              level={state.level}
-              highScores={state.highScores}
-              onRestart={handleNewGame}
-              onViewBoard={() => dispatch({ type: "TOGGLE_SHOW_BOARD" })}
-              showBoard={state.showBoard}
-              gridSize={state.gridSize}
-              isTimed={state.isTimed}
-              onClose={() => {}}
-              linesCleared={state.linesCleared}
-            />
-          )}
-
-          <OptionsMenu
-            isOpen={state.showOptionsMenu}
-            onClose={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: false })}
-            onUpdateKeyConfig={handleUpdateKeyConfig}
-            keyConfig={state.keyConfig}
-            onChangeGridSize={handleChangeGridSize}
-            currentGridSize={state.gridSize}
-            isTimed={state.isTimed}
-            onToggleTimed={handleToggleTimed}
-          />
-
-          <HighScoresModal
-            isOpen={showHighScores}
-            onClose={() => setShowHighScores(false)}
-            highScores={loadHighScores()}
-            gridSize={state.gridSize}
-            isTimed={state.isTimed}
-          />
         </>
       )}
+
+      {state.gameOver && (
+        <GameOverModal
+          score={state.score}
+          level={state.level}
+          highScores={state.highScores}
+          onRestart={handleNewGame}
+          onViewBoard={() => dispatch({ type: "TOGGLE_SHOW_BOARD" })}
+          showBoard={state.showBoard}
+          gridSize={state.gridSize}
+          isTimed={state.isTimed}
+          onClose={() => {}}
+          linesCleared={state.linesCleared}
+        />
+      )}
+
+      <OptionsMenu
+        isOpen={state.showOptionsMenu}
+        onClose={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: false })}
+        onUpdateKeyConfig={handleUpdateKeyConfig}
+        keyConfig={state.keyConfig}
+        onChangeGridSize={handleChangeGridSize}
+        currentGridSize={state.gridSize}
+        isTimed={state.isTimed}
+        onToggleTimed={handleToggleTimed}
+      />
+
+      <HighScoresModal
+        isOpen={showHighScores}
+        onClose={() => setShowHighScores(false)}
+        highScores={loadHighScores()}
+        gridSize={state.gridSize}
+        isTimed={state.isTimed}
+      />
     </div>
   );
 };

@@ -1,12 +1,14 @@
 import GridPopGame from "@/components/game/GridPopGame";
+import { useIsMobile } from "@/hooks/use-mobile";
 const Index = () => {
+  const isMobile = useIsMobile();
   return (
     <div className="min-h-screen bg-neutral-100 flex flex-col">
       <main className="flex-1 flex flex-col overflow-x-auto">
         <GridPopGame />
       </main>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 bg-white rounded-lg shadow-sm border border-gray-200 my-6">
+      <div className="max-w-3xl mx-auto px-4 py-6 bg-white rounded-lg shadow-sm border border-gray-200 my-6 mt-[20vh] sm:mt-6">
         <h2 className="text-xl font-bold text-center mb-4">How to Play</h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-3">
@@ -23,13 +25,22 @@ const Index = () => {
 
           <div className="space-y-3">
             <h3 className="font-semibold text-lg">Controls</h3>
-            <ul className="list-disc pl-5 space-y-1 text-gray-700">
-              <li>Use arrow keys to move the piece.</li>
-              <li>Press D to rotate clockwise, A to rotate counter-clockwise.</li>
-              <li>Press S to hold a piece for later (once per turn).</li>
-              <li>Press Space to place the piece.</li>
-            </ul>
-            <p className="text-gray-700">You can customize controls in the Options menu.</p>
+            {isMobile ? (
+              <ul className="list-disc pl-5 space-y-1 text-gray-700">
+                <li><b>Drag</b>: Move piece</li>
+                <li><b>Tap</b>: Rotate piece</li>
+                <li><b>Swipe down</b>: Place piece</li>
+                <li><b>Swipe up</b>: Hold piece</li>
+              </ul>
+            ) : (
+              <ul className="list-disc pl-5 space-y-1 text-gray-700">
+                <li>Use arrow keys to move the piece.</li>
+                <li>Press D to rotate clockwise, A to rotate counter-clockwise.</li>
+                <li>Press S to hold a piece for later (once per turn).</li>
+                <li>Press Space to place the piece.</li>
+              </ul>
+            )}
+            {!isMobile && <p className="text-gray-700">You can customize controls in the Options menu.</p>}
           </div>
         </div>
         <p className="text-center text-gray-500 mt-4 italic">

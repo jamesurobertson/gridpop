@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { GridType, Tetromino, ScoreAnimation, Position } from "@/types/game";
 import { getCellVisual } from "@/utils/gameCellVisuals";
 import { cn } from "@/lib/utils";
@@ -8,10 +8,7 @@ interface GameBoardProps {
   grid: GridType;
   currentPiece: Tetromino | null;
   scoreAnimations: ScoreAnimation[];
-  onPieceMove: (
-    e: React.MouseEvent | React.TouchEvent | React.KeyboardEvent,
-    boardRef: React.RefObject<HTMLDivElement>
-  ) => void;
+  onPieceMove: (direction: "left" | "right" | "up" | "down") => void;
   onPiecePlace: () => void;
   onPieceRotate: (direction: "clockwise" | "counterclockwise") => void;
   onPieceHold: () => void;
@@ -20,12 +17,144 @@ interface GameBoardProps {
   showOptionsMenu: boolean;
 }
 
-const GameBoard: React.FC<GameBoardProps> = ({ grid, currentPiece, scoreAnimations, gameOver }: GameBoardProps) => {
+const GameBoard: React.FC<GameBoardProps> = ({
+  grid,
+  currentPiece,
+  scoreAnimations,
+  onPieceMove,
+  onPiecePlace,
+  onPieceRotate,
+  onPieceHold,
+  gameOver,
+  hasStarted,
+  showOptionsMenu,
+}) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [lastDrag, setLastDrag] = useState<{ x: number; y: number } | null>(null);
+  const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
+  const [totalDelta, setTotalDelta] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [gestureType, setGestureType] = useState<"idle" | "drag">("idle");
+  const [actionTaken, setActionTaken] = useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+    setLastDrag({ x: touch.clientX, y: touch.clientY });
+    setTouchStartTime(Date.now());
+    setTotalDelta({ x: 0, y: 0 });
+    setGestureType("idle");
+    setActionTaken(false);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault();
+    if (!touchStart || !touchStartTime) return;
+    const touch = e.touches[0];
+    const now = Date.now();
+    const duration = now - touchStartTime;
+    const threshold = 16;
+    if (duration <= 150) return;
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = touch.clientY - touchStart.y;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+    const velocityY = Math.abs(deltaY) / (duration || 1);
+    if (
+      duration < 150 &&
+      absDeltaY > 50 &&
+      velocityY > 0.5 &&
+      absDeltaY > 1.5 * absDeltaX
+    ) {
+      setActionTaken(true);
+      return;
+    }
+    if (absDeltaX > absDeltaY) {
+      if (deltaX > threshold) {
+        onPieceMove("right");
+        setTouchStart({ x: touch.clientX, y: touchStart.y });
+        setGestureType("drag");
+        setActionTaken(true);
+      } else if (deltaX < -threshold) {
+        onPieceMove("left");
+        setTouchStart({ x: touch.clientX, y: touchStart.y });
+        setGestureType("drag");
+        setActionTaken(true);
+      }
+    } else {
+      if (deltaY > threshold) {
+        onPieceMove("down");
+        setTouchStart({ x: touchStart.x, y: touch.clientY });
+        setGestureType("drag");
+        setActionTaken(true);
+      } else if (deltaY < -threshold) {
+        onPieceMove("up");
+        setTouchStart({ x: touchStart.x, y: touch.clientY });
+        setGestureType("drag");
+        setActionTaken(true);
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    if (!touchStart || !touchStartTime) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = touch.clientY - touchStart.y;
+    const duration = Date.now() - touchStartTime;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+    const velocityY = Math.abs(deltaY) / (duration || 1);
+    if (
+      !actionTaken &&
+      absDeltaX < 10 &&
+      absDeltaY < 10
+    ) {
+      onPieceRotate("clockwise");
+    } else if (
+      duration < 150 &&
+      absDeltaY > 50 &&
+      velocityY > 0.5 &&
+      absDeltaY > 1.5 * absDeltaX
+    ) {
+      setActionTaken(true);
+      if (deltaY > 0) {
+        onPiecePlace(); // Swipe down
+      } else {
+        onPieceHold(); // Swipe up
+      }
+    }
+    setTouchStart(null);
+    setLastDrag(null);
+    setTouchStartTime(null);
+    setTotalDelta({ x: 0, y: 0 });
+    setGestureType("idle");
+    setActionTaken(false);
+  };
+
+  useEffect(() => {
+    if (!isMobile || !boardRef.current) return;
+    const el = boardRef.current;
+    const preventScroll = (e: TouchEvent) => {
+      e.preventDefault();
+    };
+    el.addEventListener("touchmove", preventScroll, { passive: false });
+    return () => {
+      el.removeEventListener("touchmove", preventScroll);
+    };
+  }, [isMobile]);
 
   return (
-    <div className="relative w-[500px] h-[500px] mx-auto select-none focus:outline-none">
+    <div
+      className={
+        isMobile
+          ? "relative w-[85vw] h-[85vw] max-w-[340px] max-h-[340px] mx-auto select-none focus:outline-none"
+          : "relative w-[500px] h-[500px] mx-auto select-none focus:outline-none"
+      }
+    >
       {/* Score animations */}
       {scoreAnimations.map((anim) => {
         // Get the cell visual based on the clear value
@@ -49,20 +178,23 @@ const GameBoard: React.FC<GameBoardProps> = ({ grid, currentPiece, scoreAnimatio
       })}
 
       {/* Mobile gesture instructions tooltip */}
-      {isMobile && !gameOver && (
+      {/* {isMobile && !gameOver && (
         <div className="absolute top-2 right-2 bg-black/50 text-white text-xs p-1 rounded z-10">
-          Swipe to rotate • Tap to place • Double-tap to hold
+          Swipe to move • Tap to place • Double-tap to hold
         </div>
-      )}
+      )} */}
 
       <div
         tabIndex={0}
         ref={boardRef}
-        className="grid gap-3 x h-full p-4 bg-white rounded-xl shadow-md outline-none"
+        className="grid gap-3 h-full p-4 bg-white rounded-xl shadow-md outline-none"
         style={{
           gridTemplateRows: `repeat(${grid.length}, 1fr)`,
           gridTemplateColumns: `repeat(${grid.length}, 1fr)`,
         }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {grid.map((row, y) =>
           row.map((cell, x) => {

@@ -6,6 +6,7 @@ import { KeyConfig } from "@/types/game";
 import { Grid3x3, Timer } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface OptionsMenuProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
   onToggleTimed,
 }) => {
   const [attemptedClose, setAttemptedClose] = useState(false);
+  const isMobile = useIsMobile();
 
   // List of all keybinding fields
   const keyFields = ["moveUp", "moveDown", "moveLeft", "moveRight", "rotate", "rotateCounter", "drop", "hold"];
@@ -36,7 +38,7 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
 
   // Custom close handler
   const handleClose = () => {
-    if (emptyKeys.length > 0) {
+    if (!isMobile && emptyKeys.length > 0) {
       setAttemptedClose(true);
       return;
     }
@@ -80,14 +82,25 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
         <div className="space-y-6 px-6 py-4">
           <div>
             <h3 className="text-lg font-medium mb-2">Controls</h3>
-            <p className="text-sm text-gray-500 mb-2">Click on a key field and press any key to configure</p>
-            <KeyConfigPanel
-              currentConfig={keyConfig}
-              onUpdateConfig={onUpdateKeyConfig}
-              standalone={false}
-              emptyKeys={emptyKeys}
-              attemptedClose={attemptedClose}
-            />
+            {isMobile ? (
+              <ul className="list-disc pl-5 space-y-2 text-gray-700 text-sm">
+                <li><b>Drag</b>: Move piece</li>
+                <li><b>Tap</b>: Rotate piece</li>
+                <li><b>Swipe down</b>: Place piece</li>
+                <li><b>Swipe up</b>: Hold piece</li>
+              </ul>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 mb-2">Click on a key field and press any key to configure</p>
+                <KeyConfigPanel
+                  currentConfig={keyConfig}
+                  onUpdateConfig={onUpdateKeyConfig}
+                  standalone={false}
+                  emptyKeys={emptyKeys}
+                  attemptedClose={attemptedClose}
+                />
+              </>
+            )}
           </div>
 
           <div>

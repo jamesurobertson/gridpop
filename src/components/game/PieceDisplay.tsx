@@ -6,11 +6,12 @@ interface PieceDisplayProps {
   piece: Tetromino | null;
   label: string;
   size: string;
+  gridSize?: number;
 }
 
-const PieceDisplay = ({ piece, label, size }: PieceDisplayProps) => {
+const PieceDisplay = ({ piece, label, size, gridSize = 3 }: PieceDisplayProps) => {
   // Calculate size based on piece shape
-  const sizeNum = 3;
+  const sizeNum = gridSize;
 
   return (
     <div className="flex flex-col items-center w-full">
