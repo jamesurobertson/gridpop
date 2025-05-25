@@ -34,6 +34,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
   const [actionTaken, setActionTaken] = useState(false);
+  const [lastMoveTime, setLastMoveTime] = useState<number>(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastMovePosition, setLastMovePosition] = useState<{ x: number; y: number } | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     e.preventDefault();
@@ -41,49 +44,59 @@ const GameBoard: React.FC<GameBoardProps> = ({
     setTouchStart({ x: touch.clientX, y: touch.clientY });
     setTouchStartTime(Date.now());
     setActionTaken(false);
+    setIsDragging(false);
+    setLastMovePosition(null);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     e.preventDefault();
-    if (!touchStart || !touchStartTime) return;
+    if (!touchStart || !touchStartTime || !currentPiece) return;
+
     const touch = e.touches[0];
     const now = Date.now();
-    const duration = now - touchStartTime;
-    const threshold = 16;
-    if (duration <= 150) return;
     const deltaX = touch.clientX - touchStart.x;
     const deltaY = touch.clientY - touchStart.y;
     const absDeltaX = Math.abs(deltaX);
     const absDeltaY = Math.abs(deltaY);
-    const velocityY = Math.abs(deltaY) / (duration || 1);
-    if (
-      duration < 150 &&
-      absDeltaY > 50 &&
-      velocityY > 0.5 &&
-      absDeltaY > 1.5 * absDeltaX
-    ) {
+
+    // Determine if this is a drag or a swipe
+    const isSwipe = now - touchStartTime < 150 && absDeltaY > 50 && absDeltaY > 1.5 * absDeltaX;
+    
+    if (isSwipe) {
       setActionTaken(true);
       return;
     }
-    if (absDeltaX > absDeltaY) {
-      if (deltaX > threshold) {
-        onPieceMove("right");
-        setTouchStart({ x: touch.clientX, y: touchStart.y });
-        setActionTaken(true);
-      } else if (deltaX < -threshold) {
-        onPieceMove("left");
-        setTouchStart({ x: touch.clientX, y: touchStart.y });
-        setActionTaken(true);
-      }
-    } else {
-      if (deltaY > threshold) {
-        onPieceMove("down");
-        setTouchStart({ x: touchStart.x, y: touch.clientY });
-        setActionTaken(true);
-      } else if (deltaY < -threshold) {
-        onPieceMove("up");
-        setTouchStart({ x: touchStart.x, y: touch.clientY });
-        setActionTaken(true);
+
+    // Handle dragging
+    if (!isDragging && (absDeltaX > 10 || absDeltaY > 10)) {
+      setIsDragging(true);
+    }
+
+    if (isDragging) {
+      // Calculate grid cell size
+      const boardRect = boardRef.current?.getBoundingClientRect();
+      if (!boardRect) return;
+      
+      const cellSize = boardRect.width / grid.length;
+      const moveThreshold = cellSize * 0.3; // 30% of cell size
+
+      // Only move if we've moved enough distance
+      if (lastMovePosition) {
+        const moveDeltaX = touch.clientX - lastMovePosition.x;
+        const moveDeltaY = touch.clientY - lastMovePosition.y;
+
+        if (Math.abs(moveDeltaX) > moveThreshold || Math.abs(moveDeltaY) > moveThreshold) {
+          // Determine primary direction
+          if (Math.abs(moveDeltaX) > Math.abs(moveDeltaY)) {
+            onPieceMove(moveDeltaX > 0 ? "right" : "left");
+          } else {
+            onPieceMove(moveDeltaY > 0 ? "down" : "up");
+          }
+          setLastMovePosition({ x: touch.clientX, y: touch.clientY });
+          setLastMoveTime(now);
+        }
+      } else {
+        setLastMovePosition({ x: touch.clientX, y: touch.clientY });
       }
     }
   };
@@ -91,35 +104,33 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const handleTouchEnd = (e: React.TouchEvent) => {
     e.preventDefault();
     if (!touchStart || !touchStartTime) return;
+
     const touch = e.changedTouches[0];
     const deltaX = touch.clientX - touchStart.x;
     const deltaY = touch.clientY - touchStart.y;
     const duration = Date.now() - touchStartTime;
     const absDeltaX = Math.abs(deltaX);
     const absDeltaY = Math.abs(deltaY);
-    const velocityY = Math.abs(deltaY) / (duration || 1);
-    if (
-      !actionTaken &&
-      absDeltaX < 10 &&
-      absDeltaY < 10
-    ) {
-      onPieceRotate("clockwise");
-    } else if (
-      duration < 150 &&
-      absDeltaY > 50 &&
-      velocityY > 0.5 &&
-      absDeltaY > 1.5 * absDeltaX
-    ) {
-      setActionTaken(true);
+
+    // Handle swipe gestures
+    if (duration < 150 && absDeltaY > 50 && absDeltaY > 1.5 * absDeltaX) {
       if (deltaY > 0) {
         onPiecePlace(); // Swipe down
       } else {
         onPieceHold(); // Swipe up
       }
+    } 
+    // Handle tap for rotation
+    else if (!isDragging && absDeltaX < 10 && absDeltaY < 10) {
+      onPieceRotate("clockwise");
     }
+
+    // Reset all states
     setTouchStart(null);
     setTouchStartTime(null);
     setActionTaken(false);
+    setIsDragging(false);
+    setLastMovePosition(null);
   };
 
   useEffect(() => {
