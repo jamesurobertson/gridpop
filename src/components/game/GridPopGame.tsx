@@ -660,20 +660,20 @@ const GridPopGame: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto p-4">
       {isMobile ? (
-        <div className="flex flex-col items-center w-full px-1">
+        <div className="flex flex-col items-center w-full px-2">
           {/* Hold and Next above board, centered */}
-          <div className="flex flex-row justify-center items-start gap-6 w-full max-w-[340px] mt-2 mb-2">
+          <div className="flex flex-row justify-center items-start gap-6 w-full max-w-[340px] mt-3 mb-3">
             {/* Hold Box */}
-            <div className="flex flex-col items-center w-[60px]">
-              <span className="text-gray-500 text-xs font-bold mb-1">Hold</span>
-              <div className="w-[60px] h-[60px] p-1 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center">
+            <div className="flex flex-col items-center w-[65px]">
+              <span className="text-gray-600 text-sm font-medium mb-1.5">Hold</span>
+              <div className="w-[65px] h-[65px] p-1.5 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm">
                 <PieceDisplay piece={state.heldPiece} label="" size="large" gridSize={3} />
               </div>
             </div>
             {/* Next Piece (single) */}
-            <div className="flex flex-col items-center w-[60px]">
-              <span className="text-gray-500 text-xs font-bold mb-1">Next</span>
-              <div className="w-[60px] h-[60px] p-1 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center">
+            <div className="flex flex-col items-center w-[65px]">
+              <span className="text-gray-600 text-sm font-medium mb-1.5">Next</span>
+              <div className="w-[65px] h-[65px] p-1.5 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm">
                 {state.nextQueue.length === 0 ? (
                   <PieceDisplay piece={null} label="" size="large" gridSize={3} />
                 ) : (
@@ -700,65 +700,70 @@ const GridPopGame: React.FC = () => {
           </div>
 
           {/* Mobile Score Panel below board */}
-          <div className="w-full max-w-[340px] mt-2 mb-2">
-            <div className="flex justify-between items-center">
-              <Button
-                variant="outline"
-                onClick={() => setShowHighScores(true)}
-                className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 px-3 py-2 text-sm"
-              >
-                <Trophy size={16} className="text-yellow-400" />
-                <span className="font-bold text-base">{state.bestScore}</span>
-              </Button>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
-                  className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 px-4 py-2 text-sm min-w-[80px]"
-                >
-                  Options
-                </Button>
-                <Button 
-                  onClick={handleNewGame} 
-                  className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-4 py-2 text-sm min-w-[80px]"
-                >
-                  New Game
-                </Button>
+          <div className="w-full max-w-[340px] mt-3 mb-3">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-3 gap-2 text-center mb-3 bg-white rounded-xl p-2.5 shadow-sm">
+              <div>
+                <div className="text-xs text-gray-500 font-medium">Score</div>
+                <div className="text-lg font-bold text-gray-800">{state.score}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 font-medium">Level</div>
+                <div className="text-lg font-bold text-gray-800">{state.level}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 font-medium">Lines</div>
+                <div className="text-lg font-bold text-gray-800">{state.linesCleared}</div>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-1 text-center mt-3">
-              <div>
-                <div className="text-xs text-gray-500">Score</div>
-                <div className="text-lg font-bold">{state.score}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Level</div>
-                <div className="text-lg font-bold">{state.level}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Lines</div>
-                <div className="text-lg font-bold">{state.linesCleared}</div>
-              </div>
-            </div>
+
+            {/* Timer */}
             {state.isTimed && (
-              <div className="mt-3">
-                <div className="flex items-center justify-between mb-1">
+              <div className="mb-3 bg-white rounded-xl p-2.5 shadow-sm">
+                <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center">
-                    <Timer size={16} className="mr-1" />
-                    <span className="text-sm">Time</span>
+                    <Timer size={16} className="mr-1.5 text-gray-600" />
+                    <span className="text-xs font-medium text-gray-600">Time</span>
                   </div>
-                  <span className="text-sm">{Math.ceil(state.timeRemaining)}s</span>
+                  <span className="text-xs font-medium text-gray-600">{Math.ceil(state.timeRemaining)}s</span>
                 </div>
-                <div className="overflow-hidden h-2.5 text-xs flex rounded bg-gray-200">
+                <div className="overflow-hidden h-2.5 text-xs flex rounded-full bg-gray-100">
                   <div
                     style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
-                    className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
+                    className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-300 ${
                       state.timeRemaining < 3 ? "bg-red-500" : "bg-blue-500"
                     }`}
                   />
                 </div>
               </div>
             )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowHighScores(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-white border border-gray-200 hover:bg-gray-50 px-3 py-2 text-sm font-medium shadow-sm"
+              >
+                <Trophy size={16} className="text-yellow-400" />
+                <span className="font-bold text-base">{state.bestScore}</span>
+              </Button>
+              <div className="flex gap-2 flex-1">
+                <Button
+                  variant="outline"
+                  onClick={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
+                  className="flex-1 border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 px-3 py-2 text-sm font-medium shadow-sm"
+                >
+                  Options
+                </Button>
+                <Button 
+                  onClick={handleNewGame} 
+                  className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-2 text-sm font-medium shadow-sm"
+                >
+                  New Game
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
