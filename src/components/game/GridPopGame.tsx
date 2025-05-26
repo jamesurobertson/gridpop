@@ -90,7 +90,7 @@ function loadGridSize(): 4 | 5 {
 
 function loadIsTimed(): boolean {
   const savedIsTimed = localStorage.getItem("isTimed");
-  return savedIsTimed === null ? true : savedIsTimed === "true";
+  return savedIsTimed === null ? false : savedIsTimed === "true";
 }
 
 function gameReducer(state: GameState, action: GameAction): GameState {
