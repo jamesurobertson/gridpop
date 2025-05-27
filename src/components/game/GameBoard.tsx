@@ -38,8 +38,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [lastMovePosition, setLastMovePosition] = useState<{ x: number; y: number } | null>(null);
   const [lastTapTime, setLastTapTime] = useState<number>(0);
-  const [lastTapPosition, setLastTapPosition] = useState<{ x: number; y: number } | null>(null);
-  const [pendingTap, setPendingTap] = useState<{ x: number; y: number; time: number } | null>(null);
+  const [pendingTap, setPendingTap] = useState<number | null>(null);
 
   // Add useEffect to handle delayed single tap
   useEffect(() => {
@@ -51,7 +50,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
         onPiecePlace();
         setPendingTap(null);
       }
-    }, 200); // Same as double tap window
+    }, 250); // Same as double tap window
 
     return () => clearTimeout(timer);
   }, [pendingTap, onPiecePlace]);
@@ -82,7 +81,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
       setIsDragging(true);
       // If we start dragging, reset tap tracking
       setLastTapTime(0);
-      setLastTapPosition(null);
       setPendingTap(null);
     }
 
@@ -131,38 +129,30 @@ const GameBoard: React.FC<GameBoardProps> = ({
       onPieceHold();
       // Reset tap tracking after a swipe
       setLastTapTime(0);
-      setLastTapPosition(null);
       setPendingTap(null);
     } 
     // Handle tap for placing piece
     else if (!isDragging && absDeltaX < 10 && absDeltaY < 10) {
       const now = Date.now();
-      const currentTapPosition = { x: touch.clientX, y: touch.clientY };
       
       // Check if this is a double tap
-      if (lastTapTime && lastTapPosition) {
+      if (lastTapTime) {
         const timeSinceLastTap = now - lastTapTime;
-        const distanceSinceLastTap = Math.sqrt(
-          Math.pow(currentTapPosition.x - lastTapPosition.x, 2) +
-          Math.pow(currentTapPosition.y - lastTapPosition.y, 2)
-        );
         
-        // Double tap detected if taps are close in time and space
-        if (timeSinceLastTap < 200 && distanceSinceLastTap < 50) {
+        // Double tap detected if taps are close in time
+        if (timeSinceLastTap < 250) {
           onPieceRotate("clockwise");
           // Reset tap tracking after double tap
           setLastTapTime(0);
-          setLastTapPosition(null);
           setPendingTap(null);
           return;
         }
       }
       
       // Set pending tap for potential single tap
-      setPendingTap({ x: currentTapPosition.x, y: currentTapPosition.y, time: now });
+      setPendingTap(now);
       // Update tap tracking for potential double tap
       setLastTapTime(now);
-      setLastTapPosition(currentTapPosition);
     }
 
     // Reset all states
@@ -184,6 +174,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
       el.removeEventListener("touchmove", preventScroll);
     };
   }, [isMobile]);
+
+  console.log(gameOver)
 
   return (
     <div
@@ -238,7 +230,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
           row.map((cell, x) => {
             let isPieceCell = false;
             let pieceColor = "";
-            if (currentPiece) {
+            if (currentPiece && !gameOver) {
               const shape = currentPiece.shape.rotations[currentPiece.rotation];
               const pieceY = y - currentPiece.position.y;
               const pieceX = x - currentPiece.position.x;

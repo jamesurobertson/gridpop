@@ -16,8 +16,8 @@ const cellVisuals: { [key: number]: CellVisual } = {
   3: { backgroundColor: "#C3F5D0", text: "3", textColor: "#6BBF9E" },
   4: { backgroundColor: "#D9CEFF", text: "4", textColor: "#8E7DCC" },
   5: { backgroundColor: "#FAD4C0", text: "5", textColor: "#D48F82" },
-  6: { backgroundColor: "#F8A0A0", text: "6", textColor: "#C25C5C" },
-  7: { backgroundColor: "#FF7070", text: "7", textColor: "#B91C1C" },
+  6: { backgroundColor: "#FF7070", text: "6", textColor: "#B91C1C" },
+  7: { backgroundColor: "#000000", text: "💀", textColor: "#FFFFFF" },
 };
 
 const defaultVisual: CellVisual = { backgroundColor: "#f1f1f1", text: "", textColor: "#000000" };

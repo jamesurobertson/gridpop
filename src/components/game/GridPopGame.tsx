@@ -705,7 +705,7 @@ const GridPopGame: React.FC = () => {
               onPiecePlace={() => state.hasStarted && dispatch({ type: "PLACE_PIECE" })}
               onPieceRotate={handlePieceRotate}
               onPieceHold={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
-              gameOver={state.gameOver && state.showBoard}
+              gameOver={state.gameOver}
               hasStarted={state.hasStarted}
               showOptionsMenu={state.showOptionsMenu}
             />
