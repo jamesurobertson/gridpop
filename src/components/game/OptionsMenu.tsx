@@ -85,8 +85,8 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
             {isMobile ? (
               <ul className="list-disc pl-5 space-y-2 text-gray-700 text-sm">
                 <li><b>Drag</b>: Move piece</li>
-                <li><b>Tap</b>: Rotate piece</li>
-                <li><b>Swipe down</b>: Place piece</li>
+                <li><b>Tap</b>: Place piece</li>
+                <li><b>Double tap</b>: Rotate piece</li>
                 <li><b>Swipe up</b>: Hold piece</li>
               </ul>
             ) : (

@@ -37,6 +37,24 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const [lastMoveTime, setLastMoveTime] = useState<number>(0);
   const [isDragging, setIsDragging] = useState(false);
   const [lastMovePosition, setLastMovePosition] = useState<{ x: number; y: number } | null>(null);
+  const [lastTapTime, setLastTapTime] = useState<number>(0);
+  const [lastTapPosition, setLastTapPosition] = useState<{ x: number; y: number } | null>(null);
+  const [pendingTap, setPendingTap] = useState<{ x: number; y: number; time: number } | null>(null);
+
+  // Add useEffect to handle delayed single tap
+  useEffect(() => {
+    if (!pendingTap) return;
+
+    const timer = setTimeout(() => {
+      // If we still have a pending tap after the double tap window, it was a single tap
+      if (pendingTap) {
+        onPiecePlace();
+        setPendingTap(null);
+      }
+    }, 200); // Same as double tap window
+
+    return () => clearTimeout(timer);
+  }, [pendingTap, onPiecePlace]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     e.preventDefault();
@@ -59,17 +77,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const absDeltaX = Math.abs(deltaX);
     const absDeltaY = Math.abs(deltaY);
 
-    // Determine if this is a drag or a swipe
-    const isSwipe = now - touchStartTime < 150 && absDeltaY > 50 && absDeltaY > 1.5 * absDeltaX;
-    
-    if (isSwipe) {
-      setActionTaken(true);
-      return;
-    }
-
     // Handle dragging
     if (!isDragging && (absDeltaX > 10 || absDeltaY > 10)) {
       setIsDragging(true);
+      // If we start dragging, reset tap tracking
+      setLastTapTime(0);
+      setLastTapPosition(null);
+      setPendingTap(null);
     }
 
     if (isDragging) {
@@ -112,17 +126,43 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const absDeltaX = Math.abs(deltaX);
     const absDeltaY = Math.abs(deltaY);
 
-    // Handle swipe gestures
-    if (duration < 150 && absDeltaY > 50 && absDeltaY > 1.5 * absDeltaX) {
-      if (deltaY > 0) {
-        onPiecePlace(); // Swipe down
-      } else {
-        onPieceHold(); // Swipe up
-      }
+    // Handle swipe up for hold
+    if (duration < 150 && absDeltaY > 50 && absDeltaY > 1.5 * absDeltaX && deltaY < 0) {
+      onPieceHold();
+      // Reset tap tracking after a swipe
+      setLastTapTime(0);
+      setLastTapPosition(null);
+      setPendingTap(null);
     } 
-    // Handle tap for rotation
+    // Handle tap for placing piece
     else if (!isDragging && absDeltaX < 10 && absDeltaY < 10) {
-      onPieceRotate("clockwise");
+      const now = Date.now();
+      const currentTapPosition = { x: touch.clientX, y: touch.clientY };
+      
+      // Check if this is a double tap
+      if (lastTapTime && lastTapPosition) {
+        const timeSinceLastTap = now - lastTapTime;
+        const distanceSinceLastTap = Math.sqrt(
+          Math.pow(currentTapPosition.x - lastTapPosition.x, 2) +
+          Math.pow(currentTapPosition.y - lastTapPosition.y, 2)
+        );
+        
+        // Double tap detected if taps are close in time and space
+        if (timeSinceLastTap < 200 && distanceSinceLastTap < 50) {
+          onPieceRotate("clockwise");
+          // Reset tap tracking after double tap
+          setLastTapTime(0);
+          setLastTapPosition(null);
+          setPendingTap(null);
+          return;
+        }
+      }
+      
+      // Set pending tap for potential single tap
+      setPendingTap({ x: currentTapPosition.x, y: currentTapPosition.y, time: now });
+      // Update tap tracking for potential double tap
+      setLastTapTime(now);
+      setLastTapPosition(currentTapPosition);
     }
 
     // Reset all states

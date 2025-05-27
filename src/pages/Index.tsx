@@ -27,8 +27,8 @@ const Index = () => {
             {isMobile ? (
               <ul className="list-disc pl-5 space-y-1 text-gray-700">
                 <li><b>Drag</b>: Move piece</li>
-                <li><b>Tap</b>: Rotate piece</li>
-                <li><b>Swipe down</b>: Place piece</li>
+                <li><b>Tap</b>: Place piece</li>
+                <li><b>Double tap</b>: Rotate piece</li>
                 <li><b>Swipe up</b>: Hold piece</li>
               </ul>
             ) : (
