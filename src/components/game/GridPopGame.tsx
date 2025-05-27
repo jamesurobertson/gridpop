@@ -67,6 +67,7 @@ const initialState: GameState = {
   nextQueue: [],
   linesCleared: 0,
   pendingClear: false,
+  animatingLines: { rows: [], cols: [] },
 };
 
 let animationCounter = 0;
@@ -140,10 +141,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.gameOver || !state.currentPiece || !state.hasStarted || state.showOptionsMenu) return state;
       // Only place the piece and set pendingClear
       const placedGrid = placeTetromino(state.grid, state.currentPiece);
+      const { rows, cols } = checkLinesToClear(placedGrid);
       return {
         ...state,
         grid: placedGrid,
         pendingClear: true,
+        animatingLines: { rows, cols },
       };
     }
 
@@ -251,6 +254,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         scoreAnimations,
         linesCleared: state.linesCleared + linesCleared,
         pendingClear: false,
+        animatingLines: { rows: [], cols: [] },
       };
     }
 
@@ -510,7 +514,7 @@ const GridPopGame: React.FC = () => {
     if (state.pendingClear) {
       const timeout = setTimeout(() => {
         dispatch({ type: "CLEAR_LINES" });
-      }, 100);
+      }, 3500);
       return () => clearTimeout(timeout);
     }
   }, [state.pendingClear]);
@@ -708,6 +712,7 @@ const GridPopGame: React.FC = () => {
               gameOver={state.gameOver && state.showBoard}
               hasStarted={state.hasStarted}
               showOptionsMenu={state.showOptionsMenu}
+              animatingLines={state.animatingLines}
             />
           </div>
 
@@ -871,6 +876,7 @@ const GridPopGame: React.FC = () => {
                 gameOver={state.gameOver && state.showBoard}
                 hasStarted={state.hasStarted}
                 showOptionsMenu={state.showOptionsMenu}
+                animatingLines={state.animatingLines}
               />
             </div>
             {/* Next queue (top right) */}

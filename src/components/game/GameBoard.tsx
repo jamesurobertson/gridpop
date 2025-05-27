@@ -15,6 +15,7 @@ interface GameBoardProps {
   gameOver: boolean;
   hasStarted: boolean;
   showOptionsMenu: boolean;
+  animatingLines: { rows: number[], cols: number[] };
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({
@@ -28,6 +29,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   gameOver,
   hasStarted,
   showOptionsMenu,
+  animatingLines,
 }) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
@@ -222,11 +224,20 @@ const GameBoard: React.FC<GameBoardProps> = ({
             }
             const { backgroundColor, text, textColor } = getCellVisual(cell);
 
+            // Check if this cell is part of an animating line
+            const isAnimatingRow = animatingLines.rows.includes(y);
+            const isAnimatingCol = animatingLines.cols.includes(x);
+            const isAnimating = isAnimatingRow || isAnimatingCol;
+
             // Content styling based on the mockup
             const cellContent =
               cell === 0 ? null : (
                 <span
-                  className={cn("text-2xl font-bold transition-colors", cell >= 5 ? "drop-shadow-sm" : "")}
+                  className={cn(
+                    "text-2xl font-bold transition-colors",
+                    cell >= 5 ? "drop-shadow-sm" : "",
+                    isAnimating ? "animate-line-pop" : ""
+                  )}
                   style={{ color: textColor }}
                 >
                   {text}
@@ -236,9 +247,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
             return (
               <div
                 key={`${x}-${y}`}
-                className={
-                  "aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center"
-                }
+                className={cn(
+                  "aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center",
+                  isAnimating ? "animate-line-pop" : ""
+                )}
                 style={{
                   backgroundColor: backgroundColor,
                   boxShadow: cell > 0 ? "inset 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(255,255,255,0.1)" : undefined,

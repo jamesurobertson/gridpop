@@ -79,6 +79,7 @@ export interface GameState {
   nextQueue: Tetromino[];
   linesCleared: number;
   pendingClear: boolean;
+  animatingLines: { rows: number[], cols: number[] };
 }
 
 export type GameAction =
