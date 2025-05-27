@@ -1,8 +1,9 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import { GridType, Tetromino, ScoreAnimation, Position } from "@/types/game";
 import { getCellVisual } from "@/utils/gameCellVisuals";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDrag } from "@use-gesture/react";
 
 interface GameBoardProps {
   grid: GridType;
@@ -15,6 +16,7 @@ interface GameBoardProps {
   gameOver: boolean;
   hasStarted: boolean;
   showOptionsMenu: boolean;
+  animatingLines: { rows: number[], cols: number[] };
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({
@@ -28,122 +30,87 @@ const GameBoard: React.FC<GameBoardProps> = ({
   gameOver,
   hasStarted,
   showOptionsMenu,
+  animatingLines,
 }) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
-  const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
-  const [actionTaken, setActionTaken] = useState(false);
-  const [lastMoveTime, setLastMoveTime] = useState<number>(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [lastMovePosition, setLastMovePosition] = useState<{ x: number; y: number } | null>(null);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    setTouchStart({ x: touch.clientX, y: touch.clientY });
-    setTouchStartTime(Date.now());
-    setActionTaken(false);
-    setIsDragging(false);
-    setLastMovePosition(null);
-  };
+  const hasSwipedRef = useRef(false)
+  const lastGridPosRef = useRef({ x: 0, y: 0 }) // Track last grid position
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (!touchStart || !touchStartTime || !currentPiece) return;
+  const bind = useDrag(
+    ({
+      movement: [mx, my],
+      swipe: [swipeX, swipeY],
+      down,
+      tap,
+      first,
+      last,
+    }) => {
+      if (!currentPiece || !hasStarted || gameOver || showOptionsMenu) return
 
-    const touch = e.touches[0];
-    const now = Date.now();
-    const deltaX = touch.clientX - touchStart.x;
-    const deltaY = touch.clientY - touchStart.y;
-    const absDeltaX = Math.abs(deltaX);
-    const absDeltaY = Math.abs(deltaY);
+      // 1️⃣ Handle Tap (Rotate)
+      if (tap) {
+        onPieceRotate('clockwise')
+        return
+      }
 
-    // Determine if this is a drag or a swipe
-    const isSwipe = now - touchStartTime < 150 && absDeltaY > 50 && absDeltaY > 1.5 * absDeltaX;
-    
-    if (isSwipe) {
-      setActionTaken(true);
-      return;
-    }
-
-    // Handle dragging
-    if (!isDragging && (absDeltaX > 10 || absDeltaY > 10)) {
-      setIsDragging(true);
-    }
-
-    if (isDragging) {
-      // Calculate grid cell size
-      const boardRect = boardRef.current?.getBoundingClientRect();
-      if (!boardRect) return;
-      
-      const cellSize = boardRect.width / grid.length;
-      const moveThreshold = cellSize * 0.3; // 30% of cell size
-
-      // Only move if we've moved enough distance
-      if (lastMovePosition) {
-        const moveDeltaX = touch.clientX - lastMovePosition.x;
-        const moveDeltaY = touch.clientY - lastMovePosition.y;
-
-        if (Math.abs(moveDeltaX) > moveThreshold || Math.abs(moveDeltaY) > moveThreshold) {
-          // Determine primary direction
-          if (Math.abs(moveDeltaX) > Math.abs(moveDeltaY)) {
-            onPieceMove(moveDeltaX > 0 ? "right" : "left");
-          } else {
-            onPieceMove(moveDeltaY > 0 ? "down" : "up");
-          }
-          setLastMovePosition({ x: touch.clientX, y: touch.clientY });
-          setLastMoveTime(now);
+      // 2️⃣ Handle Swipe
+      if (!down && (swipeX || swipeY)) {
+        hasSwipedRef.current = true
+        if (swipeY > 0) {
+          onPiecePlace()
+        } else if (swipeY < 0) {
+          onPieceHold()
         }
-      } else {
-        setLastMovePosition({ x: touch.clientX, y: touch.clientY });
+        return
       }
-    }
-  };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (!touchStart || !touchStartTime) return;
+      // 3️⃣ Handle Drag (with grid snapping)
+      if (down && !hasSwipedRef.current) {
+        const boardRect = boardRef.current?.getBoundingClientRect()
+        if (!boardRect) return
+        const cellSize = boardRect.width / grid.length
 
-    const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - touchStart.x;
-    const deltaY = touch.clientY - touchStart.y;
-    const duration = Date.now() - touchStartTime;
-    const absDeltaX = Math.abs(deltaX);
-    const absDeltaY = Math.abs(deltaY);
+        // Calculate how many grid cells we've moved
+        const gridX = Math.floor(mx / cellSize)
+        const gridY = Math.floor(my / cellSize)
 
-    // Handle swipe gestures
-    if (duration < 150 && absDeltaY > 50 && absDeltaY > 1.5 * absDeltaX) {
-      if (deltaY > 0) {
-        onPiecePlace(); // Swipe down
-      } else {
-        onPieceHold(); // Swipe up
+        // Compare to last grid position to avoid repeat calls
+        const lastX = lastGridPosRef.current.x
+        const lastY = lastGridPosRef.current.y
+
+        if (gridX !== lastX || gridY !== lastY) {
+          // Determine dominant axis
+          if (Math.abs(mx) > Math.abs(my)) {
+            if (gridX > lastX) onPieceMove('right')
+            else if (gridX < lastX) onPieceMove('left')
+          } else {
+            if (gridY > lastY) onPieceMove('down')
+            else if (gridY < lastY) onPieceMove('up')
+          }
+          // Update last position
+          lastGridPosRef.current = { x: gridX, y: gridY }
+        }
       }
-    } 
-    // Handle tap for rotation
-    else if (!isDragging && absDeltaX < 10 && absDeltaY < 10) {
-      onPieceRotate("clockwise");
+
+      // 4️⃣ Reset swipe and grid position when gesture ends
+      if (!down) {
+        hasSwipedRef.current = false
+        lastGridPosRef.current = { x: 0, y: 0 } // Reset grid position
+      }
+    },
+    {
+      filterTaps: true,
+      threshold: 10, // Lower for quicker detection
+      swipe: {
+        distance: [40, 40],
+        velocity: 0.4,
+        duration: 300,
+      },
+      pointer: { touch: true },
     }
-
-    // Reset all states
-    setTouchStart(null);
-    setTouchStartTime(null);
-    setActionTaken(false);
-    setIsDragging(false);
-    setLastMovePosition(null);
-  };
-
-  useEffect(() => {
-    if (!isMobile || !boardRef.current) return;
-    const el = boardRef.current;
-    const preventScroll = (e: TouchEvent) => {
-      e.preventDefault();
-    };
-    el.addEventListener("touchmove", preventScroll, { passive: false });
-    return () => {
-      el.removeEventListener("touchmove", preventScroll);
-    };
-  }, [isMobile]);
+  )
 
   return (
     <div
@@ -155,9 +122,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     >
       {/* Score animations */}
       {scoreAnimations.map((anim) => {
-        // Get the cell visual based on the clear value
         const { textColor } = getCellVisual(anim.clearValue);
-
         return (
           <div
             key={anim.id}
@@ -185,14 +150,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
       <div
         tabIndex={0}
         ref={boardRef}
-        className="grid gap-3 h-full p-4 bg-white rounded-xl shadow-md outline-none"
+        className="grid gap-3 h-full p-4 bg-white rounded-xl shadow-md outline-none border border-red-500" 
         style={{
           gridTemplateRows: `repeat(${grid.length}, 1fr)`,
           gridTemplateColumns: `repeat(${grid.length}, 1fr)`,
+          touchAction: "none",
         }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        {...bind()}
       >
         {grid.map((row, y) =>
           row.map((cell, x) => {
@@ -205,16 +169,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
               if (pieceY >= 0 && pieceY < shape.length && pieceX >= 0 && pieceX < shape[pieceY].length) {
                 isPieceCell = shape[pieceY][pieceX];
                 if (isPieceCell) {
-                  // Use the text color instead of the background color for the ghost outline
                   const pieceType = currentPiece.shape.type;
                   const textColorMap: Record<string, string> = {
-                    I: "#5BA3D9", // Sky Blue text
-                    O: "#D1B347", // Pale Lemon text
-                    T: "#8E7DCC", // Lavender text
-                    S: "#6BBF9E", // Mint text
-                    Z: "#C25C5C", // Red text
-                    L: "#D48F82", // Coral text
-                    J: "#5BA3D9", // Sky Blue text
+                    I: "#5BA3D9",
+                    O: "#D1B347",
+                    T: "#8E7DCC",
+                    S: "#6BBF9E",
+                    Z: "#C25C5C",
+                    L: "#D48F82",
+                    J: "#5BA3D9",
                   };
                   pieceColor = textColorMap[pieceType] || currentPiece.shape.color;
                 }
@@ -222,11 +185,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
             }
             const { backgroundColor, text, textColor } = getCellVisual(cell);
 
-            // Content styling based on the mockup
+            const isAnimatingRow = animatingLines.rows.includes(y);
+            const isAnimatingCol = animatingLines.cols.includes(x);
+            const isAnimating = isAnimatingRow || isAnimatingCol;
+
             const cellContent =
               cell === 0 ? null : (
                 <span
-                  className={cn("text-2xl font-bold transition-colors", cell >= 5 ? "drop-shadow-sm" : "")}
+                  className={cn(
+                    "text-2xl font-bold transition-colors",
+                    cell >= 5 ? "drop-shadow-sm" : "",
+                    isAnimating ? "animate-line-pop" : ""
+                  )}
                   style={{ color: textColor }}
                 >
                   {text}
@@ -236,9 +206,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
             return (
               <div
                 key={`${x}-${y}`}
-                className={
-                  "aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center"
-                }
+                className={cn(
+                  "aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center",
+                  isAnimating ? "animate-line-pop" : ""
+                )}
                 style={{
                   backgroundColor: backgroundColor,
                   boxShadow: cell > 0 ? "inset 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(255,255,255,0.1)" : undefined,
