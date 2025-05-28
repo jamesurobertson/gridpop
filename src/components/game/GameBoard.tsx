@@ -90,25 +90,23 @@ const GameBoard: React.FC<GameBoardProps> = ({
       if (!boardRect) return;
       
       const cellSize = boardRect.width / grid.length;
-      const moveThreshold = cellSize * 0.3; // 30% of cell size
+      
+      // Calculate how many cells we've moved based on finger position
+      const cellsMovedX = Math.round(deltaX / cellSize);
+      const cellsMovedY = Math.round(deltaY / cellSize);
 
-      // Only move if we've moved enough distance
-      if (lastMovePosition) {
-        const moveDeltaX = touch.clientX - lastMovePosition.x;
-        const moveDeltaY = touch.clientY - lastMovePosition.y;
-
-        if (Math.abs(moveDeltaX) > moveThreshold || Math.abs(moveDeltaY) > moveThreshold) {
-          // Determine primary direction
-          if (Math.abs(moveDeltaX) > Math.abs(moveDeltaY)) {
-            onPieceMove(moveDeltaX > 0 ? "right" : "left");
-          } else {
-            onPieceMove(moveDeltaY > 0 ? "down" : "up");
-          }
-          setLastMovePosition({ x: touch.clientX, y: touch.clientY });
-          setLastMoveTime(now);
+      // Only move if we've moved at least one cell
+      if (cellsMovedX !== 0 || cellsMovedY !== 0) {
+        // Move horizontally first if there's horizontal movement
+        if (cellsMovedX !== 0) {
+          onPieceMove(cellsMovedX > 0 ? "right" : "left");
         }
-      } else {
-        setLastMovePosition({ x: touch.clientX, y: touch.clientY });
+        // Then move vertically if there's vertical movement
+        if (cellsMovedY !== 0) {
+          onPieceMove(cellsMovedY > 0 ? "down" : "up");
+        }
+        // Update the touch start position to the current position
+        setTouchStart({ x: touch.clientX, y: touch.clientY });
       }
     }
   };
@@ -120,7 +118,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const touch = e.changedTouches[0];
     const deltaX = touch.clientX - touchStart.x;
     const deltaY = touch.clientY - touchStart.y;
-    const duration = Date.now() - touchStartTime;
     const absDeltaX = Math.abs(deltaX);
     const absDeltaY = Math.abs(deltaY);
 
