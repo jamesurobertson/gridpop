@@ -29,7 +29,7 @@ const Index = () => {
                 <li><b>Drag</b>: Move piece</li>
                 <li><b>Tap</b>: Place piece</li>
                 <li><b>Double tap</b>: Rotate piece</li>
-                <li><b>Swipe up</b>: Hold piece</li>
+                <li><b>Tap hold block</b>: Hold piece</li>
               </ul>
             ) : (
               <ul className="list-disc pl-5 space-y-1 text-gray-700">

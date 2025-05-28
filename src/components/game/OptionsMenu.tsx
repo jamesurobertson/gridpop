@@ -87,7 +87,7 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
                 <li><b>Drag</b>: Move piece</li>
                 <li><b>Tap</b>: Place piece</li>
                 <li><b>Double tap</b>: Rotate piece</li>
-                <li><b>Swipe up</b>: Hold piece</li>
+                <li><b>Tap hold block</b>: Hold piece</li>
               </ul>
             ) : (
               <>
