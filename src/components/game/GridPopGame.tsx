@@ -219,10 +219,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
         const currentHighScores: HighScore[] = Array.isArray(state.highScores)
           ? state.highScores.map((score) =>
-              typeof score === "number"
-                ? { score, date: new Date().toISOString(), gridSize: DEFAULT_GRID_SIZE, isTimed: true, linesCleared: 0 }
-                : (score as HighScore)
-            )
+            typeof score === "number"
+              ? { score, date: new Date().toISOString(), gridSize: DEFAULT_GRID_SIZE, isTimed: true, linesCleared: 0 }
+              : (score as HighScore)
+          )
           : [];
         updatedHighScores = updateHighScores(
           currentHighScores,
@@ -754,9 +754,8 @@ const GridPopGame: React.FC = () => {
                 <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
                   <div
                     style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
-                    className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
-                      state.timeRemaining < 3000 ? "bg-red-500" : "bg-blue-500"
-                    }`}
+                    className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${state.timeRemaining < 3000 ? "bg-red-500" : "bg-blue-500"
+                      }`}
                   />
                 </div>
               </div>
@@ -841,9 +840,8 @@ const GridPopGame: React.FC = () => {
                       <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
                         <div
                           style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
-                          className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
-                            state.timeRemaining < 3000 ? "bg-red-500" : "bg-blue-500"
-                          }`}
+                          className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${state.timeRemaining < 3000 ? "bg-red-500" : "bg-blue-500"
+                            }`}
                         />
                       </div>
                     </div>
@@ -873,7 +871,7 @@ const GridPopGame: React.FC = () => {
                 onPiecePlace={() => state.hasStarted && dispatch({ type: "PLACE_PIECE" })}
                 onPieceRotate={handlePieceRotate}
                 onPieceHold={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
-                gameOver={state.gameOver && state.showBoard}
+                gameOver={state.gameOver}
                 hasStarted={state.hasStarted}
                 showOptionsMenu={state.showOptionsMenu}
               />
@@ -911,7 +909,7 @@ const GridPopGame: React.FC = () => {
           showBoard={state.showBoard}
           gridSize={state.gridSize}
           isTimed={state.isTimed}
-          onClose={() => {}}
+          onClose={() => { }}
           linesCleared={state.linesCleared}
         />
       )}
