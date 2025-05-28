@@ -1,67 +1,128 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 interface BottomSheetProps {
-  label: string;
   children: React.ReactNode;
-  initialOpen?: boolean;
+  label: string;
 }
 
-const BottomSheet: React.FC<BottomSheetProps> = ({ label, children, initialOpen = false }) => {
-  const [open, setOpen] = useState(initialOpen);
-  const startY = useRef<number | null>(null);
-  const lastY = useRef<number | null>(null);
+const BottomSheet: React.FC<BottomSheetProps> = ({ children, label }) => {
+  const [open, setOpen] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [sheetHeight, setSheetHeight] = useState<number>(0);
+  const touchStartY = useRef<number>(0);
+  const currentY = useRef<number>(0);
+  const [hasMounted, setHasMounted] = useState(false);
 
-  // Handle swipe up/down
-  const handleTouchStart = (e: React.TouchEvent) => {
-    startY.current = e.touches[0].clientY;
-    lastY.current = e.touches[0].clientY;
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    lastY.current = e.touches[0].clientY;
-  };
-  const handleTouchEnd = () => {
-    if (startY.current !== null && lastY.current !== null) {
-      const delta = startY.current - lastY.current;
-      if (!open && delta > 40) setOpen(true); // swipe up to open
-      if (open && delta < -40) setOpen(false); // swipe down to close
+  useEffect(() => {
+    if (sheetRef.current) {
+      setSheetHeight(sheetRef.current.offsetHeight);
     }
-    startY.current = null;
-    lastY.current = null;
+    // Enable transitions after initial mount
+    const timer = setTimeout(() => {
+      setHasMounted(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [children]);
+
+  // Calculate the closed position: fully hidden except for header (~60px)
+  const closedY = sheetHeight - 60; // adjust if header height differs
+
+  // Reset scroll position when sheet is closed
+  useEffect(() => {
+    if (!open && contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [open]);
+
+  // Prevent body scroll when bottom sheet is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [open]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    currentY.current = open ? 0 : closedY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const touchY = e.touches[0].clientY;
+    const deltaY = touchY - touchStartY.current;
+    const newY = Math.max(0, Math.min(closedY, currentY.current + deltaY));
+
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = `translateY(${newY}px)`;
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchY = e.changedTouches[0].clientY;
+    const deltaY = touchY - touchStartY.current;
+    const threshold = 50; // Minimum distance to trigger open/close
+
+    if (Math.abs(deltaY) > threshold) {
+      setOpen(deltaY < 0); // Open if swiped up, close if swiped down
+    } else {
+      setOpen(open); // Return to previous state if threshold not met
+    }
   };
 
   return (
     <>
-      {/* Overlay when open */}
+      {/* Overlay */}
       {open && (
         <div
-          className="fixed inset-0 z-30 bg-black bg-opacity-20 transition-opacity duration-300"
+          className="fixed inset-0 z-30 transition-opacity duration-500 ease-in-out"
           onClick={() => setOpen(false)}
         />
       )}
+
+      {/* Bottom Sheet */}
       <div
+        ref={sheetRef}
         className={cn(
-          "fixed left-0 right-0 z-40 flex flex-col items-center transition-all duration-300",
-          open ? "bottom-0" : "bottom-0"
+          "fixed left-0 right-0 bottom-0 z-40 flex justify-center pointer-events-auto",
+          hasMounted && "transition-transform duration-500 ease-in-out" // Only enable transition after mount
         )}
-        style={{ pointerEvents: "auto" }}
+        style={{
+          transform: `translateY(${open ? 0 : closedY}px)`,
+          touchAction: "none",
+        }}
       >
         <div
-          className={cn(
-            "w-full bg-white rounded-t-2xl flex flex-col items-center transition-all duration-300 shadow-[0_-2px_12px_0_rgba(0,0,0,0.10)]",
-            open ? "h-[70vh]" : "h-15"
-          )}
-          onClick={() => setOpen((v) => !v)}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{ touchAction: "pan-y", maxWidth: "100vw" }}
+          className="w-full max-w-md bg-white rounded-t-2xl shadow-[0_-2px_12px_0_rgba(0,0,0,0.10)] flex flex-col items-center max-h-[70vh]"
+          style={{ maxWidth: "100vw" }}
         >
-          <div className="w-full flex flex-col items-center pt-2">
+          {/* Header */}
+          <div
+            className="w-full flex flex-col items-center pt-2 cursor-pointer"
+            onClick={() => setOpen(!open)}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
             <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-2" />
-            <div className="font-bold text-lg select-none cursor-pointer pb-2 border-b w-full text-center">{label}</div>
+            <div className="font-bold text-lg select-none pb-2 border-b w-full text-center">
+              {label}
+            </div>
           </div>
-          {open && <div className="overflow-y-auto w-full px-4 pt-4 pb-6 flex-1">{children}</div>}
+
+          {/* Content */}
+          <div
+            ref={contentRef}
+            className="overflow-y-auto w-full px-4 pt-4 pb-6 flex-1 overscroll-contain"
+            onTouchMove={(e) => e.stopPropagation()}
+          >
+            {children}
+          </div>
         </div>
       </div>
     </>

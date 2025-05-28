@@ -12,11 +12,10 @@ const HowToPlayContent = ({ isMobile }: HowToPlayContentProps) => (
       <div className="space-y-3">
         <h3 className="font-semibold text-lg">Basic Rules</h3>
         <ul className="list-disc pl-5 space-y-1 text-gray-700">
-          <li>Place tetromino pieces on the grid to clear rows and score points.</li>
-          <li>Cells start at value 0 and increase by 1 when a piece is placed.</li>
-          <li>When any cell reaches value 7, game over!</li>
-          <li>When all cells in a row or column have the same value (1-6), the row or column clears.</li>
-          <li>Clear multiple rows/columns at once for bonus points!</li>
+          <li>Place pieces on the grid to fill rows and columns to score points.</li>
+          <li>Tiles start at value 0 and increase by 1 when a piece is placed over it.</li>
+          <li>When all the tiles in a row or column show the same number, that line clears.</li>
+          <li>If any tile reaches value 7, game over!</li>
         </ul>
       </div>
       <div className="space-y-3">
@@ -70,7 +69,7 @@ const Index = () => {
         <GridPopGame />
       </main>
       {isMobile ? (
-        <BottomSheet label="How to Play">
+        <BottomSheet label="How to Play GridPop">
           <HowToPlayContent isMobile={true} />
         </BottomSheet>
       ) : (
