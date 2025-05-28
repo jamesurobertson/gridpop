@@ -124,15 +124,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const absDeltaX = Math.abs(deltaX);
     const absDeltaY = Math.abs(deltaY);
 
-    // Handle swipe up for hold
-    if (duration < 150 && absDeltaY > 50 && absDeltaY > 1.5 * absDeltaX && deltaY < 0) {
-      onPieceHold();
-      // Reset tap tracking after a swipe
-      setLastTapTime(0);
-      setPendingTap(null);
-    } 
     // Handle tap for placing piece
-    else if (!isDragging && absDeltaX < 10 && absDeltaY < 10) {
+    if (!isDragging && absDeltaX < 10 && absDeltaY < 10) {
       const now = Date.now();
       
       // Check if this is a double tap
