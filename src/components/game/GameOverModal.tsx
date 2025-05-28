@@ -31,7 +31,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 
     const shareData = {
       title: 'GridPop.io',
-      text: `I scored ${score.toLocaleString()} points in GridPop! Play now:`,
+      text: `I scored ${score.toLocaleString()} points in GridPop! See if you can beat it!`,
       url: 'https://gridpop.io'
     };
 
