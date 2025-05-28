@@ -321,7 +321,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case "TICK_TIMER": {
       if (state.gameOver || !state.hasStarted) return state;
 
-      const updatedTimeRemaining = Math.max(0, state.timeRemaining - 0.1);
+      const updatedTimeRemaining = Math.max(0, state.timeRemaining - 16);
       return {
         ...state,
         timeRemaining: updatedTimeRemaining,
@@ -501,7 +501,7 @@ const GridPopGame: React.FC = () => {
 
     const timerInterval = setInterval(() => {
       dispatch({ type: "TICK_TIMER" });
-    }, 100);
+    }, 16);
 
     return () => clearInterval(timerInterval);
   }, [state.hasStarted, state.gameOver, state.isTimed]);
@@ -749,13 +749,13 @@ const GridPopGame: React.FC = () => {
                     <Timer size={16} className="mr-1" />
                     <span className="text-xs text-gray-500 font-medium">Time</span>
                   </div>
-                  <span className="text-base font-bold text-gray-800">{Math.ceil(state.timeRemaining)}s</span>
+                  <span className="text-base font-bold text-gray-800">{Math.ceil(state.timeRemaining / 1000)}s</span>
                 </div>
                 <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
                   <div
                     style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
                     className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
-                      state.timeRemaining < 3 ? "bg-red-500" : "bg-blue-500"
+                      state.timeRemaining < 3000 ? "bg-red-500" : "bg-blue-500"
                     }`}
                   />
                 </div>
@@ -836,13 +836,13 @@ const GridPopGame: React.FC = () => {
                           <Timer size={16} className="mr-1" />
                           <span>Time</span>
                         </div>
-                        <span>{Math.ceil(state.timeRemaining)}s</span>
+                        <span>{Math.ceil(state.timeRemaining / 1000)}s</span>
                       </div>
                       <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
                         <div
                           style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
                           className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
-                            state.timeRemaining < 3 ? "bg-red-500" : "bg-blue-500"
+                            state.timeRemaining < 3000 ? "bg-red-500" : "bg-blue-500"
                           }`}
                         />
                       </div>

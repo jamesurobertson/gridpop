@@ -4,16 +4,16 @@ import { getRandomTetromino } from "./tetrominoShapes";
 // Constants
 export const DEFAULT_GRID_SIZE = 4;
 export const MAX_CELL_VALUE = 7;
-export const INITIAL_TIMER = 10;
-export const MIN_TIMER = 0.5;
-export const TIMER_DECREASE_PER_LEVEL = 0.5;
+export const INITIAL_TIMER = 10000; // 16 seconds in milliseconds
+export const MIN_TIMER = 500; // 0.5 seconds in milliseconds
+export const TIMER_DECREASE_PER_LEVEL = 500; // 0.5 seconds in milliseconds
 export const TURNS_PER_LEVEL = 10;
 
 // Create an empty grid
 export const createEmptyGrid = (size: number = DEFAULT_GRID_SIZE): GridType => {
-  return Array(size).fill(0).map(() =>
-    Array(size).fill(0) as CellValue[]
-  );
+  return Array(size)
+    .fill(0)
+    .map(() => Array(size).fill(0) as CellValue[]);
 };
 
 // Create a new tetromino
@@ -24,7 +24,7 @@ export const createTetromino = (shape: TetrominoShape, gridSize: number = DEFAUL
   return {
     shape,
     position: { x: startX, y: 0 },
-    rotation: 0
+    rotation: 0,
   };
 };
 
@@ -34,11 +34,7 @@ export const getCurrentShape = (tetromino: Tetromino): boolean[][] => {
 };
 
 // Check if position is valid for tetromino placement
-export const isValidPosition = (
-  grid: GridType,
-  tetromino: Tetromino,
-  position = tetromino.position
-): boolean => {
+export const isValidPosition = (grid: GridType, tetromino: Tetromino, position = tetromino.position): boolean => {
   const shape = getCurrentShape(tetromino);
   const gridSize = grid.length;
 
@@ -49,12 +45,7 @@ export const isValidPosition = (
         const newY = position.y + y;
 
         // Check boundaries
-        if (
-          newX < 0 ||
-          newX >= gridSize ||
-          newY < 0 ||
-          newY >= gridSize
-        ) {
+        if (newX < 0 || newX >= gridSize || newY < 0 || newY >= gridSize) {
           return false;
         }
 
@@ -70,11 +61,7 @@ export const isValidPosition = (
 };
 
 // Try to move piece with wall kick - enhanced with more options
-export const tryWallKick = (
-  grid: GridType,
-  tetromino: Tetromino,
-  newRotation: number
-): Position | null => {
+export const tryWallKick = (grid: GridType, tetromino: Tetromino, newRotation: number): Position | null => {
   const originalRotation = tetromino.rotation;
   tetromino.rotation = newRotation;
 
@@ -118,7 +105,7 @@ export const tryWallKick = (
   for (const kick of kicks) {
     const kickPosition = {
       x: tetromino.position.x + kick.x,
-      y: tetromino.position.y + kick.y
+      y: tetromino.position.y + kick.y,
     };
 
     if (isValidPosition(grid, tetromino, kickPosition)) {
@@ -132,11 +119,8 @@ export const tryWallKick = (
 };
 
 // Place tetromino on the grid
-export const placeTetromino = (
-  grid: GridType,
-  tetromino: Tetromino
-): GridType => {
-  const newGrid = grid.map(row => [...row]);
+export const placeTetromino = (grid: GridType, tetromino: Tetromino): GridType => {
+  const newGrid = grid.map((row) => [...row]);
   const shape = getCurrentShape(tetromino);
   const gridSize = newGrid.length;
 
@@ -146,17 +130,9 @@ export const placeTetromino = (
         const gridY = tetromino.position.y + y;
         const gridX = tetromino.position.x + x;
 
-        if (
-          gridY >= 0 &&
-          gridY < gridSize &&
-          gridX >= 0 &&
-          gridX < gridSize
-        ) {
+        if (gridY >= 0 && gridY < gridSize && gridX >= 0 && gridX < gridSize) {
           // Increase cell value by 1
-          newGrid[gridY][gridX] = Math.min(
-            (newGrid[gridY][gridX] + 1),
-            MAX_CELL_VALUE
-          ) as CellValue;
+          newGrid[gridY][gridX] = Math.min(newGrid[gridY][gridX] + 1, MAX_CELL_VALUE) as CellValue;
         }
       }
     }
@@ -180,7 +156,7 @@ export const checkGridCleared = (grid: GridType): boolean => {
 };
 
 // Utility to check for complete identical nonzero rows/columns
-export const checkLinesToClear = (grid: GridType): { rows: number[], cols: number[], clearValue: CellValue } => {
+export const checkLinesToClear = (grid: GridType): { rows: number[]; cols: number[]; clearValue: CellValue } => {
   const rows: number[] = [];
   const cols: number[] = [];
   let clearedValue: CellValue = 0;
@@ -190,7 +166,7 @@ export const checkLinesToClear = (grid: GridType): { rows: number[], cols: numbe
   for (let y = 0; y < gridSize; y++) {
     const row = grid[y];
     const first = row[0];
-    if (first > 0 && row.every(cell => cell === first)) {
+    if (first > 0 && row.every((cell) => cell === first)) {
       rows.push(y);
       clearedValue = first;
     }
@@ -217,7 +193,7 @@ export const checkLinesToClear = (grid: GridType): { rows: number[], cols: numbe
 
 // Clear rows and columns, resetting to zero
 export const clearRowsAndCols = (grid: GridType, rows: number[], cols: number[]): GridType => {
-  const newGrid = grid.map(row => [...row]);
+  const newGrid = grid.map((row) => [...row]);
   for (const y of rows) {
     for (let x = 0; x < newGrid[y].length; x++) {
       newGrid[y][x] = 0;
@@ -245,10 +221,14 @@ export const calculateLineClearScore = (
   const getLineBonus = (lines: number, value: CellValue) => {
     const baseBonus = value * value * 100; // Use the same quadratic scaling as the base score
     switch (lines) {
-      case 2: return baseBonus * 2;  // 2x the base value
-      case 3: return baseBonus * 4;  // 4x the base value
-      case 4: return baseBonus * 8;  // 8x the base value
-      default: return 0;
+      case 2:
+        return baseBonus * 2; // 2x the base value
+      case 3:
+        return baseBonus * 4; // 4x the base value
+      case 4:
+        return baseBonus * 8; // 8x the base value
+      default:
+        return 0;
     }
   };
 
@@ -261,7 +241,11 @@ export const calculateLineClearScore = (
   console.log(`\n=== Score Calculation ===`);
   console.log(`Cleared ${totalLines} lines of value ${clearValue}`);
   console.log(`Base Score: ${valueScores[clearValue]} × ${totalLines} = ${score}`);
-  console.log(`Line Bonus: ${clearValue}² × 100 × ${totalLines === 2 ? '2' : totalLines === 3 ? '4' : totalLines === 4 ? '8' : '0'} = ${lineBonus}`);
+  console.log(
+    `Line Bonus: ${clearValue}² × 100 × ${
+      totalLines === 2 ? "2" : totalLines === 3 ? "4" : totalLines === 4 ? "8" : "0"
+    } = ${lineBonus}`
+  );
   if (hasFullGridClear) console.log(`Full Grid Bonus: +5000`);
   console.log(`Total Score: ${score + lineBonus + fullGridBonus}`);
   console.log(`======================\n`);
@@ -279,14 +263,12 @@ export const calculateLineClearScore = (
 
 // Check for rows that can be cleared (all cells >= 4)
 export const checkRowsToClear = (grid: GridType): number[] => {
-  return grid.map((row, index) =>
-    row.every(cell => cell >= 4) ? index : -1
-  ).filter(index => index !== -1);
+  return grid.map((row, index) => (row.every((cell) => cell >= 4) ? index : -1)).filter((index) => index !== -1);
 };
 
 // Clear rows and return new grid
 export const clearRows = (grid: GridType, rowsToClear: number[]): GridType => {
-  const newGrid = grid.map(row => [...row]);
+  const newGrid = grid.map((row) => [...row]);
 
   for (const rowIndex of rowsToClear) {
     // Reset row to 0
@@ -299,24 +281,26 @@ export const clearRows = (grid: GridType, rowsToClear: number[]): GridType => {
 // Calculate score based on cleared rows
 export const calculateScore = (rowsCleared: number): number => {
   switch (rowsCleared) {
-    case 1: return 100;
-    case 2: return 250;
-    case 3: return 500;
-    case 4: return 1000;
-    default: return 0;
+    case 1:
+      return 100;
+    case 2:
+      return 250;
+    case 3:
+      return 500;
+    case 4:
+      return 1000;
+    default:
+      return 0;
   }
 };
 
 // Check if game is over (any cell reaches MAX_CELL_VALUE)
 export const checkGameOver = (grid: GridType): boolean => {
-  return grid.some(row => row.some(cell => cell === MAX_CELL_VALUE));
+  return grid.some((row) => row.some((cell) => cell === MAX_CELL_VALUE));
 };
 
 // Generate random valid position for auto-placement
-export const generateRandomValidPosition = (
-  grid: GridType,
-  tetromino: Tetromino
-): Position | null => {
+export const generateRandomValidPosition = (grid: GridType, tetromino: Tetromino): Position | null => {
   const shape = getCurrentShape(tetromino);
   const gridSize = grid.length;
   const maxX = gridSize - shape[0].length;
@@ -348,7 +332,7 @@ export const generateRandomValidPosition = (
 
 // Get adjusted timer based on level - Updated to match new requirements
 export const getTimerForLevel = (level: number): number => {
-  return Math.max(INITIAL_TIMER - (level * TIMER_DECREASE_PER_LEVEL), MIN_TIMER);
+  return Math.max(INITIAL_TIMER - level * TIMER_DECREASE_PER_LEVEL, MIN_TIMER);
 };
 
 // Get cell color based on value
@@ -357,7 +341,13 @@ export const getCellColor = (value: CellValue): string => {
 };
 
 // Update high scores
-export function updateHighScores(highScores: HighScore[], newScore: number, gridSize: 4 | 5, isTimed: boolean, linesCleared: number): HighScore[] {
+export function updateHighScores(
+  highScores: HighScore[],
+  newScore: number,
+  gridSize: 4 | 5,
+  isTimed: boolean,
+  linesCleared: number
+): HighScore[] {
   // Don't save zero scores
   if (newScore === 0) return highScores;
 
@@ -370,43 +360,35 @@ export function updateHighScores(highScores: HighScore[], newScore: number, grid
   };
 
   // Filter scores for the current game mode
-  const otherModeScores = highScores.filter(
-    s => s.gridSize !== gridSize || s.isTimed !== isTimed
-  );
+  const otherModeScores = highScores.filter((s) => s.gridSize !== gridSize || s.isTimed !== isTimed);
 
   // Get scores for current game mode
-  const currentModeScores = highScores.filter(
-    s => s.gridSize === gridSize && s.isTimed === isTimed
-  );
+  const currentModeScores = highScores.filter((s) => s.gridSize === gridSize && s.isTimed === isTimed);
 
   // Add new score and sort
-  const updatedModeScores = [...currentModeScores, newHighScore]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5); // Keep only top 5
+  const updatedModeScores = [...currentModeScores, newHighScore].sort((a, b) => b.score - a.score).slice(0, 5); // Keep only top 5
 
   // Combine with other mode scores
   return [...otherModeScores, ...updatedModeScores];
 }
 
 export function getBestScore(highScores: HighScore[], gridSize: 4 | 5, isTimed: boolean): number {
-  const relevantScores = highScores.filter(
-    score => score.gridSize === gridSize && score.isTimed === isTimed
-  );
+  const relevantScores = highScores.filter((score) => score.gridSize === gridSize && score.isTimed === isTimed);
 
   if (relevantScores.length === 0) return 0;
-  return Math.max(...relevantScores.map(score => score.score));
+  return Math.max(...relevantScores.map((score) => score.score));
 }
 
 export function formatHighScores(highScores: HighScore[]): { [key: string]: HighScore[] } {
   const categories = {
-    '4x4 Timed': highScores.filter(score => score.gridSize === 4 && score.isTimed),
-    '4x4 Untimed': highScores.filter(score => score.gridSize === 4 && !score.isTimed),
-    '5x5 Timed': highScores.filter(score => score.gridSize === 5 && score.isTimed),
-    '5x5 Untimed': highScores.filter(score => score.gridSize === 5 && !score.isTimed),
+    "4x4 Timed": highScores.filter((score) => score.gridSize === 4 && score.isTimed),
+    "4x4 Untimed": highScores.filter((score) => score.gridSize === 4 && !score.isTimed),
+    "5x5 Timed": highScores.filter((score) => score.gridSize === 5 && score.isTimed),
+    "5x5 Untimed": highScores.filter((score) => score.gridSize === 5 && !score.isTimed),
   };
 
   // Sort each category by score
-  Object.keys(categories).forEach(key => {
+  Object.keys(categories).forEach((key) => {
     categories[key].sort((a, b) => b.score - a.score);
   });
 
@@ -422,29 +404,29 @@ export const getNextTetromino = (gridSize: number = DEFAULT_GRID_SIZE): Tetromin
 // Save game settings to local storage
 export const saveGameSettings = (keyConfig: KeyConfig, gridSize: 4 | 5): void => {
   try {
-    localStorage.setItem('gridpop-settings', JSON.stringify({ keyConfig, gridSize }));
+    localStorage.setItem("gridpop-settings", JSON.stringify({ keyConfig, gridSize }));
   } catch (error) {
-    console.error('Error saving game settings:', error);
+    console.error("Error saving game settings:", error);
   }
 };
 
 // Load game settings from local storage
-export const loadGameSettings = (): { keyConfig: KeyConfig | null, gridSize: 4 | 5 } => {
+export const loadGameSettings = (): { keyConfig: KeyConfig | null; gridSize: 4 | 5 } => {
   try {
-    const savedSettings = localStorage.getItem('gridpop-settings');
+    const savedSettings = localStorage.getItem("gridpop-settings");
     if (savedSettings) {
       const settings = JSON.parse(savedSettings);
       return {
         keyConfig: settings.keyConfig || null,
-        gridSize: settings.gridSize || DEFAULT_GRID_SIZE
+        gridSize: settings.gridSize || DEFAULT_GRID_SIZE,
       };
     }
   } catch (error) {
-    console.error('Error loading game settings:', error);
+    console.error("Error loading game settings:", error);
   }
 
   return {
     keyConfig: null,
-    gridSize: DEFAULT_GRID_SIZE
+    gridSize: DEFAULT_GRID_SIZE,
   };
 };
