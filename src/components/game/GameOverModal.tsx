@@ -51,7 +51,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="bg-white max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-white max-w-[85vw] sm:max-w-md max-h-[90vh] overflow-y-auto rounded-lg">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">Game Over!</DialogTitle>
         </DialogHeader>
@@ -84,9 +84,9 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
               <div>
                 {/* Header Row */}
                 <div className="grid grid-cols-12 px-2 pb-2 text-xs text-gray-500 font-semibold border-b border-gray-200">
-                  <div className="col-span-2">Rank</div>
-                  <div className="col-span-4">Score</div>
-                  <div className="col-span-3 text-center">Lines</div>
+                  <div className="col-span-2">#</div>
+                  <div className="col-span-5">Score</div>
+                  <div className="col-span-2 text-center">Lines</div>
                   <div className="col-span-3 text-right">Date</div>
                 </div>
                 {categorizedScores[selectedCategory].map((score, index, arr) => (
@@ -96,9 +96,9 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
                       index < arr.length - 1 ? "border-b border-gray-200" : ""
                     }`}
                   >
-                    <div className="col-span-2 flex items-center gap-2">
+                    <div className="col-span-2 flex items-center gap-1">
                       <span
-                        className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold
+                        className={`w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold
                         ${
                           index === 0
                             ? "bg-yellow-400"
@@ -112,8 +112,8 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
                         <span className={index > 2 ? "text-gray-700" : "text-white"}>{index + 1}</span>
                       </span>
                     </div>
-                    <div className="col-span-4 font-medium">{score.score.toLocaleString()}</div>
-                    <div className="col-span-3 text-center text-xs text-blue-700 font-semibold">
+                    <div className="col-span-5 font-medium text-sm">{score.score.toLocaleString()}</div>
+                    <div className="col-span-2 text-center text-xs text-blue-700 font-semibold">
                       {score.linesCleared ?? "-"}
                     </div>
                     <div className="col-span-3 text-right text-xs text-gray-500">{formatDate(score.date)}</div>

@@ -57,31 +57,35 @@ const HighScoresModal: React.FC<HighScoresModalProps> = ({ isOpen, onClose, high
           <div className="bg-gray-50 rounded-lg p-4">
             {categorizedScores[selectedCategory]?.length > 0 ? (
               <div className="space-y-2">
-                <div className="flex justify-between items-center p-3 rounded-lg bg-white font-bold border-b border-gray-200">
-                  <span className="w-24 text-center">Score</span>
-                  <span className="w-16 text-center">Lines</span>
-                  <span className="w-28 text-center">Date</span>
+                <div className="grid grid-cols-12 px-2 pb-2 text-xs text-gray-500 font-semibold border-b border-gray-200">
+                  <div className="col-span-2">#</div>
+                  <div className="col-span-5">Score</div>
+                  <div className="col-span-2 text-center">Lines</div>
+                  <div className="col-span-3 text-right">Date</div>
                 </div>
                 {categorizedScores[selectedCategory].map((score, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-white">
-                    <div className="flex items-center gap-3 w-24 justify-center">
+                  <div key={index} className="grid grid-cols-12 items-center px-2 py-2 text-sm border-b border-gray-200">
+                    <div className="col-span-2 flex items-center gap-1">
                       <span
-                        className={`w-6 h-6 flex items-center justify-center rounded-full ${
+                        className={`w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold
+                        ${
                           index === 0
                             ? "bg-yellow-400"
                             : index === 1
                             ? "bg-gray-300"
                             : index === 2
                             ? "bg-amber-600"
-                            : "bg-gray-100"
+                            : "bg-gray-200"
                         }`}
                       >
-                        <span className="text-sm font-medium text-white">{index + 1}</span>
+                        <span className={index > 2 ? "text-gray-700" : "text-white"}>{index + 1}</span>
                       </span>
-                      <span className="font-medium text-center">{score.score.toLocaleString()}</span>
                     </div>
-                    <span className="w-16 text-center text-sm font-medium text-blue-700">{score.linesCleared ?? 0}</span>
-                    <span className="w-28 text-center text-sm text-gray-500">{formatDate(score.date)}</span>
+                    <div className="col-span-5 font-medium text-sm">{score.score.toLocaleString()}</div>
+                    <div className="col-span-2 text-center text-xs text-blue-700 font-semibold">
+                      {score.linesCleared ?? "-"}
+                    </div>
+                    <div className="col-span-3 text-right text-xs text-gray-500">{formatDate(score.date)}</div>
                   </div>
                 ))}
               </div>
