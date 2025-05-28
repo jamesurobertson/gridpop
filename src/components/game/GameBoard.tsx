@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect } from "react";
-import { GridType, Tetromino, ScoreAnimation, Position } from "@/types/game";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import { GridType, Tetromino, ScoreAnimation } from "@/types/game";
 import { getCellVisual } from "@/utils/gameCellVisuals";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -33,153 +33,138 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const isMobile = useIsMobile();
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
-  const [actionTaken, setActionTaken] = useState(false);
-  const [lastMoveTime, setLastMoveTime] = useState<number>(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [lastMovePosition, setLastMovePosition] = useState<{ x: number; y: number } | null>(null);
   const [lastTapTime, setLastTapTime] = useState<number>(0);
-  const [pendingTap, setPendingTap] = useState<number | null>(null);
+  const pendingTapRef = useRef<number | null>(null);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Add useEffect to handle delayed single tap
-  useEffect(() => {
-    if (!pendingTap) return;
+  // Handle delayed single tap
+  const handlePendingTap = useCallback(() => {
+    if (pendingTapRef.current) {
+      onPiecePlace();
+      pendingTapRef.current = null;
+    }
+  }, [onPiecePlace]);
 
-    const timer = setTimeout(() => {
-      // If we still have a pending tap after the double tap window, it was a single tap
-      if (pendingTap) {
-        onPiecePlace();
-        setPendingTap(null);
-      }
-    }, 250); // Same as double tap window
-
-    return () => clearTimeout(timer);
-  }, [pendingTap, onPiecePlace]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
     const touch = e.touches[0];
     setTouchStart({ x: touch.clientX, y: touch.clientY });
     setTouchStartTime(Date.now());
-    setActionTaken(false);
     setIsDragging(false);
-    setLastMovePosition(null);
-  };
+  }, []);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (!touchStart || !touchStartTime || !currentPiece) return;
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+      if (!touchStart || !touchStartTime || !currentPiece) return;
 
-    const touch = e.touches[0];
-    const now = Date.now();
-    const deltaX = touch.clientX - touchStart.x;
-    const deltaY = touch.clientY - touchStart.y;
-    const absDeltaX = Math.abs(deltaX);
-    const absDeltaY = Math.abs(deltaY);
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchStart.x;
+      const deltaY = touch.clientY - touchStart.y;
+      const absDeltaX = Math.abs(deltaX);
+      const absDeltaY = Math.abs(deltaY);
 
-    // Handle dragging
-    if (!isDragging && (absDeltaX > 10 || absDeltaY > 10)) {
-      setIsDragging(true);
-      // If we start dragging, reset tap tracking
-      setLastTapTime(0);
-      setPendingTap(null);
-    }
-
-    if (isDragging) {
-      // Calculate grid cell size
-      const boardRect = boardRef.current?.getBoundingClientRect();
-      if (!boardRect) return;
-      
-      const cellSize = boardRect.width / grid.length;
-      
-      // Calculate how many cells we've moved based on finger position
-      const cellsMovedX = Math.round(deltaX / cellSize);
-      const cellsMovedY = Math.round(deltaY / cellSize);
-
-      // Only move if we've moved at least one cell
-      if (cellsMovedX !== 0 || cellsMovedY !== 0) {
-        // Move horizontally first if there's horizontal movement
-        if (cellsMovedX !== 0) {
-          onPieceMove(cellsMovedX > 0 ? "right" : "left");
+      if (!isDragging && (absDeltaX > 10 || absDeltaY > 10)) {
+        setIsDragging(true);
+        setLastTapTime(0);
+        pendingTapRef.current = null;
+        if (tapTimeoutRef.current) {
+          clearTimeout(tapTimeoutRef.current);
+          tapTimeoutRef.current = null;
         }
-        // Then move vertically if there's vertical movement
-        if (cellsMovedY !== 0) {
-          onPieceMove(cellsMovedY > 0 ? "down" : "up");
-        }
-        // Update the touch start position to the current position
-        setTouchStart({ x: touch.clientX, y: touch.clientY });
       }
-    }
-  };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (!touchStart || !touchStartTime) return;
+      if (isDragging) {
+        const boardRect = boardRef.current?.getBoundingClientRect();
+        if (!boardRect) return;
 
-    const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - touchStart.x;
-    const deltaY = touch.clientY - touchStart.y;
-    const absDeltaX = Math.abs(deltaX);
-    const absDeltaY = Math.abs(deltaY);
+        const cellSize = boardRect.width / grid.length;
+        const cellsMovedX = Math.round(deltaX / cellSize);
+        const cellsMovedY = Math.round(deltaY / cellSize);
 
-    // Handle tap for placing piece
-    if (!isDragging && absDeltaX < 10 && absDeltaY < 10) {
-      const now = Date.now();
-      
-      // Check if this is a double tap
-      if (lastTapTime) {
-        const timeSinceLastTap = now - lastTapTime;
-        
-        // Double tap detected if taps are close in time
-        if (timeSinceLastTap < 250) {
+        if (cellsMovedX !== 0 || cellsMovedY !== 0) {
+          if (cellsMovedX !== 0) {
+            onPieceMove(cellsMovedX > 0 ? "right" : "left");
+          }
+          if (cellsMovedY !== 0) {
+            onPieceMove(cellsMovedY > 0 ? "down" : "up");
+          }
+          setTouchStart({ x: touch.clientX, y: touch.clientY });
+        }
+      }
+    },
+    [touchStart, touchStartTime, isDragging, currentPiece, grid.length, onPieceMove]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+      if (!touchStart || !touchStartTime) return;
+
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStart.x;
+      const deltaY = touch.clientY - touchStart.y;
+      const absDeltaX = Math.abs(deltaX);
+      const absDeltaY = Math.abs(deltaY);
+
+      if (!isDragging && absDeltaX < 10 && absDeltaY < 10) {
+        const now = Date.now();
+
+        if (lastTapTime && now - lastTapTime < 250) {
           onPieceRotate("clockwise");
-          // Reset tap tracking after double tap
           setLastTapTime(0);
-          setPendingTap(null);
+          pendingTapRef.current = null;
+          if (tapTimeoutRef.current) {
+            clearTimeout(tapTimeoutRef.current);
+            tapTimeoutRef.current = null;
+          }
           return;
         }
+
+        pendingTapRef.current = now;
+        setLastTapTime(now);
+
+        if (tapTimeoutRef.current) {
+          clearTimeout(tapTimeoutRef.current);
+        }
+        tapTimeoutRef.current = setTimeout(handlePendingTap, 250);
       }
-      
-      // Set pending tap for potential single tap
-      setPendingTap(now);
-      // Update tap tracking for potential double tap
-      setLastTapTime(now);
-    }
 
-    // Reset all states
-    setTouchStart(null);
-    setTouchStartTime(null);
-    setActionTaken(false);
-    setIsDragging(false);
-    setLastMovePosition(null);
-  };
+      setTouchStart(null);
+      setTouchStartTime(null);
+      setIsDragging(false);
+    },
+    [touchStart, touchStartTime, isDragging, lastTapTime, onPieceRotate, handlePendingTap]
+  );
 
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Prevent scroll on mobile
   useEffect(() => {
     if (!isMobile || !boardRef.current) return;
     const el = boardRef.current;
-    const preventScroll = (e: TouchEvent) => {
-      e.preventDefault();
-    };
+    const preventScroll = (e: TouchEvent) => e.preventDefault();
     el.addEventListener("touchmove", preventScroll, { passive: false });
-    return () => {
-      el.removeEventListener("touchmove", preventScroll);
-    };
+    return () => el.removeEventListener("touchmove", preventScroll);
   }, [isMobile]);
-
-  console.log(gameOver)
 
   return (
     <div
-      className={
-        isMobile
-          ? "relative w-[85vw] h-[85vw] max-w-[340px] max-h-[340px] mx-auto select-none focus:outline-none"
-          : "relative w-[500px] h-[500px] mx-auto select-none focus:outline-none"
-      }
+      className={cn(
+        "relative mx-auto select-none focus:outline-none",
+        isMobile ? "w-[85vw] h-[85vw] max-w-[340px] max-h-[340px]" : "w-[500px] h-[500px]"
+      )}
     >
-      {/* Score animations */}
       {scoreAnimations.map((anim) => {
-        // Get the cell visual based on the clear value
         const { textColor } = getCellVisual(anim.clearValue);
-
         return (
           <div
             key={anim.id}
@@ -196,13 +181,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
           </div>
         );
       })}
-
-      {/* Mobile gesture instructions tooltip */}
-      {/* {isMobile && !gameOver && (
-        <div className="absolute top-2 right-2 bg-black/50 text-white text-xs p-1 rounded z-10">
-          Swipe to move • Tap to place • Double-tap to hold
-        </div>
-      )} */}
 
       <div
         tabIndex={0}
@@ -227,16 +205,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
               if (pieceY >= 0 && pieceY < shape.length && pieceX >= 0 && pieceX < shape[pieceY].length) {
                 isPieceCell = shape[pieceY][pieceX];
                 if (isPieceCell) {
-                  // Use the text color instead of the background color for the ghost outline
                   const pieceType = currentPiece.shape.type;
                   const textColorMap: Record<string, string> = {
-                    I: "#5BA3D9", // Sky Blue text
-                    O: "#D1B347", // Pale Lemon text
-                    T: "#8E7DCC", // Lavender text
-                    S: "#6BBF9E", // Mint text
-                    Z: "#C25C5C", // Red text
-                    L: "#D48F82", // Coral text
-                    J: "#5BA3D9", // Sky Blue text
+                    I: "#5BA3D9",
+                    O: "#D1B347",
+                    T: "#8E7DCC",
+                    S: "#6BBF9E",
+                    Z: "#C25C5C",
+                    L: "#D48F82",
+                    J: "#5BA3D9",
                   };
                   pieceColor = textColorMap[pieceType] || currentPiece.shape.color;
                 }
@@ -244,31 +221,24 @@ const GameBoard: React.FC<GameBoardProps> = ({
             }
             const { backgroundColor, text, textColor } = getCellVisual(cell);
 
-            // Content styling based on the mockup
-            const cellContent =
-              cell === 0 ? null : (
-                <span
-                  className={cn("text-2xl font-bold transition-colors", cell >= 5 ? "drop-shadow-sm" : "")}
-                  style={{ color: textColor }}
-                >
-                  {text}
-                </span>
-              );
-
             return (
               <div
                 key={`${x}-${y}`}
-                className={
-                  "aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center"
-                }
+                className="aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center"
                 style={{
-                  backgroundColor: backgroundColor,
+                  backgroundColor,
                   boxShadow: cell > 0 ? "inset 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(255,255,255,0.1)" : undefined,
                   transition: "background-color 0.4s ease",
                 }}
               >
-                {cellContent}
-
+                {cell !== 0 && (
+                  <span
+                    className={cn("text-2xl font-bold transition-colors", cell >= 5 ? "drop-shadow-sm" : "")}
+                    style={{ color: textColor }}
+                  >
+                    {text}
+                  </span>
+                )}
                 {isPieceCell && (
                   <div
                     className="absolute rounded-lg pointer-events-none"

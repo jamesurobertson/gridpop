@@ -427,17 +427,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       localStorage.setItem("isTimed", action.isTimed.toString());
       const highScores = loadHighScores();
       const bestScore = getBestScore(highScores, state.gridSize, action.isTimed);
-      console.log(state);
       return {
         ...state,
         isTimed: action.isTimed,
         timeRemaining: action.isTimed ? getTimerForLevel(1) : Infinity,
         currentPiece: null,
-        nextQueue: [],
-
         nextPiece: null,
         heldPiece: null,
         hasStarted: false,
+        nextQueue: [],
         highScores,
         bestScore,
       };
@@ -684,43 +682,43 @@ const GridPopGame: React.FC = () => {
           <div className="flex justify-between items-end w-full max-w-[340px] mb-3">
             {/* Stats panel left-aligned */}
             <div className="bg-white rounded-xl p-3 shadow-sm">
-  <div className="flex gap-4">
-    <div className="flex-2">
-      <div className="text-xs text-gray-500 font-medium">Score</div>
-      <div className="text-lg font-bold text-gray-800">{state.score.toLocaleString()}</div>
-    </div>
-    <div className="flex-1">
-      <div className="text-xs text-gray-500 font-medium">Level</div>
-      <div className="text-lg font-bold text-gray-800">{state.level}</div>
-    </div>
-    <div className="flex-1">
-      <div className="text-xs text-gray-500 font-medium">Lines</div>
-      <div className="text-lg font-bold text-gray-800">{state.linesCleared}</div>
-    </div>
-  </div>
-</div>
+              <div className="flex gap-4">
+                <div className="flex-2">
+                  <div className="text-xs text-gray-500 font-medium">Score</div>
+                  <div className="text-lg font-bold text-gray-800">{state.score.toLocaleString()}</div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs text-gray-500 font-medium">Level</div>
+                  <div className="text-lg font-bold text-gray-800">{state.level}</div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs text-gray-500 font-medium">Lines</div>
+                  <div className="text-lg font-bold text-gray-800">{state.linesCleared}</div>
+                </div>
+              </div>
+            </div>
 
             {/* Hold and Next right-aligned */}
             <div className="flex gap-3">
-            {/* Hold Box */}
+              {/* Hold Box */}
               <div className="flex flex-col items-center">
                 <span className="text-gray-600 text-sm font-medium mb-1">Hold</span>
-                <div 
+                <div
                   onClick={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
                   className="w-[65px] h-[65px] p-1.5 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
-                <PieceDisplay piece={state.heldPiece} label="" size="large" gridSize={3} />
+                  <PieceDisplay piece={state.heldPiece} label="" size="large" gridSize={3} />
+                </div>
               </div>
-            </div>
               {/* Next Piece */}
               <div className="flex flex-col items-center">
                 <span className="text-gray-600 text-sm font-medium mb-1">Next</span>
-              <div className="w-[65px] h-[65px] p-1.5 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm">
-                {state.nextQueue.length === 0 ? (
-                  <PieceDisplay piece={null} label="" size="large" gridSize={3} />
-                ) : (
-                  <PieceDisplay piece={state.nextQueue[0]} label="" size="large" gridSize={3} />
-                )}
+                <div className="w-[65px] h-[65px] p-1.5 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm">
+                  {state.nextQueue.length === 0 ? (
+                    <PieceDisplay piece={null} label="" size="large" gridSize={3} />
+                  ) : (
+                    <PieceDisplay piece={state.nextQueue[0]} label="" size="large" gridSize={3} />
+                  )}
                 </div>
               </div>
             </div>
@@ -743,7 +741,7 @@ const GridPopGame: React.FC = () => {
           </div>
 
           {/* Timer if in timed mode */}
-            {state.isTimed && (
+          {state.isTimed && (
             <div className="w-full max-w-[340px] mt-3">
               <div className="bg-white rounded-xl p-2 shadow-sm">
                 <div className="flex items-center justify-between mb-1">
@@ -761,33 +759,30 @@ const GridPopGame: React.FC = () => {
                     }`}
                   />
                 </div>
-                </div>
               </div>
-            )}
+            </div>
+          )}
 
           {/* Mobile buttons */}
           <div className="w-full max-w-[340px] mt-3 flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowHighScores(true)}
+            <Button
+              variant="outline"
+              onClick={() => setShowHighScores(true)}
               className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 hover:bg-gray-50"
-              >
-                <Trophy size={16} className="text-yellow-400" />
+            >
+              <Trophy size={16} className="text-yellow-400" />
               <span className="font-bold">{state.bestScore}</span>
-              </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
               className="flex-1 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800"
-                >
-                  Options
-                </Button>
-                <Button 
-                  onClick={handleNewGame} 
-              className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
-                >
-                  New Game
-                </Button>
+            >
+              Options
+            </Button>
+            <Button onClick={handleNewGame} className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] text-white">
+              New Game
+            </Button>
           </div>
         </div>
       ) : (
