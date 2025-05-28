@@ -80,21 +80,21 @@ const BottomSheet: React.FC<BottomSheetProps> = ({ children, label }) => {
       {/* Overlay */}
       {open && (
         <div
-          className="fixed inset-0 z-30 transition-opacity duration-500 ease-in-out"
+          className="fixed inset-0 z-30"
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* Bottom Sheet */}
+      {/* top is bottom of screen - 60px */}
       <div
         ref={sheetRef}
-        className={cn(
-          "fixed left-0 right-0 bottom-0 z-40 flex justify-center pointer-events-auto",
-          hasMounted && "transition-transform duration-500 ease-in-out" // Only enable transition after mount
+        className={cn(`fixed left-0 bottom-0 right-0 z-40 flex justify-center pointer-events-auto transition-transform duration-500 ease-in-out`,
+          open ? 'translate-y-0' : 'translate-y-[calc(100%-59px)]'
         )}
         style={{
-          transform: `translateY(${open ? 0 : closedY}px)`,
           touchAction: "none",
+          // top: `${window.innerHeight - 60}px`,
         }}
       >
         <div
@@ -124,7 +124,7 @@ const BottomSheet: React.FC<BottomSheetProps> = ({ children, label }) => {
             {children}
           </div>
         </div>
-      </div>
+      </div >
     </>
   );
 };
