@@ -46,19 +46,20 @@ const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [onPiecePlace]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    setTouchStart({ x: touch.clientX, y: touch.clientY });
-    setTouchStartTime(Date.now());
-    setIsDragging(false);
-  }, []);
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isMobile) return;
+      const touch = e.touches[0];
+      setTouchStart({ x: touch.clientX, y: touch.clientY });
+      setTouchStartTime(Date.now());
+      setIsDragging(false);
+    },
+    [isMobile]
+  );
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      e.preventDefault();
-      if (!touchStart || !touchStartTime || !currentPiece) return;
-
+      if (!isMobile || !touchStart || !touchStartTime || !currentPiece) return;
       const touch = e.touches[0];
       const deltaX = touch.clientX - touchStart.x;
       const deltaY = touch.clientY - touchStart.y;
@@ -94,14 +95,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
         }
       }
     },
-    [touchStart, touchStartTime, isDragging, currentPiece, grid.length, onPieceMove]
+    [touchStart, touchStartTime, isDragging, currentPiece, grid.length, onPieceMove, isMobile]
   );
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      e.preventDefault();
-      if (!touchStart || !touchStartTime) return;
-
+      if (!isMobile || !touchStart || !touchStartTime) return;
       const touch = e.changedTouches[0];
       const deltaX = touch.clientX - touchStart.x;
       const deltaY = touch.clientY - touchStart.y;
@@ -135,7 +134,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
       setTouchStartTime(null);
       setIsDragging(false);
     },
-    [touchStart, touchStartTime, isDragging, lastTapTime, onPieceRotate, handlePendingTap]
+    [touchStart, touchStartTime, isDragging, lastTapTime, onPieceRotate, handlePendingTap, isMobile]
   );
 
   // Cleanup timeouts on unmount
@@ -147,21 +146,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
     };
   }, []);
 
-  // Prevent scroll on mobile
-  useEffect(() => {
-    if (!isMobile || !boardRef.current) return;
-    const el = boardRef.current;
-    const preventScroll = (e: TouchEvent) => e.preventDefault();
-    el.addEventListener("touchmove", preventScroll, { passive: false });
-    return () => el.removeEventListener("touchmove", preventScroll);
-  }, [isMobile]);
-
   return (
     <div
       className={cn(
-        "relative mx-auto select-none focus:outline-none",
+        "relative mx-auto select-none focus:outline-none touch-none",
         isMobile ? "w-[85vw] h-[85vw] max-w-[340px] max-h-[340px]" : "w-[500px] h-[500px]"
       )}
+      style={{ touchAction: "none" }}
     >
       {scoreAnimations.map((anim) => {
         const { textColor } = getCellVisual(anim.clearValue);
@@ -185,10 +176,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
       <div
         tabIndex={0}
         ref={boardRef}
-        className="grid gap-3 h-full p-4 bg-white rounded-xl shadow-md outline-none"
+        className="grid gap-3 h-full p-4 bg-white rounded-xl shadow-md outline-none touch-none"
         style={{
           gridTemplateRows: `repeat(${grid.length}, 1fr)`,
           gridTemplateColumns: `repeat(${grid.length}, 1fr)`,
+          touchAction: "none",
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -224,11 +216,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
             return (
               <div
                 key={`${x}-${y}`}
-                className="aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center"
+                className="aspect-square rounded-lg transition-all duration-150 relative flex items-center justify-center touch-none"
                 style={{
                   backgroundColor,
                   boxShadow: cell > 0 ? "inset 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(255,255,255,0.1)" : undefined,
                   transition: "background-color 0.4s ease",
+                  touchAction: "none",
                 }}
               >
                 {cell !== 0 && (
