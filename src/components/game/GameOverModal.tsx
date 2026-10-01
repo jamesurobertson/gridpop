@@ -51,7 +51,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({ score, level, linesCleare
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[88vw] overflow-hidden rounded-[28px] border-0 bg-white p-0 sm:max-w-sm">
+      <DialogContent className="max-w-[88vw] overflow-hidden rounded-[28px] border-[2.5px] border-[#1F1633] bg-white p-0 sm:max-w-sm">
         <div className="relative bg-[#3B2E5A] px-6 pb-7 pt-8 text-center text-white">
           <motion.div
             className="text-5xl"
@@ -65,7 +65,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({ score, level, linesCleare
           <DialogDescription className="mt-1 text-sm font-bold text-white/60">A tile reached 7</DialogDescription>
           {isNewBest && (
             <motion.span
-              className="gp-pop-label absolute right-4 top-4 !m-0 bg-[#FFD45E] text-[#6E4300] shadow-[0_3px_0_#D9A12A]"
+              className="gp-pop-label absolute right-4 top-4 !m-0 bg-[#FFD45E] text-[#6E4300]"
               initial={{ scale: 0, rotate: 20 }}
               animate={{ scale: 1, rotate: 8 }}
               transition={{ type: "spring", stiffness: 500, damping: 12, delay: 1.1 }}

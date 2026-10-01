@@ -9,7 +9,7 @@ const Chip = ({ v }: { v: number }) => {
   return (
     <span
       className="font-display inline-grid h-7 w-7 place-items-center rounded-[9px] text-sm font-bold align-middle"
-      style={{ background: t.face, color: t.text, boxShadow: `0 2px 0 ${t.edge}` }}
+      style={{ background: t.face, color: t.text, border: "2px solid #1F1633" }}
     >
       {t.label}
     </span>
@@ -61,7 +61,7 @@ const HowToPlayContent = ({ isMobile }: { isMobile: boolean }) => (
 );
 
 const Key = ({ children }: { children: React.ReactNode }) => (
-  <kbd className="mr-1 inline-grid min-w-[26px] place-items-center rounded-lg bg-[#F6EEE2] px-1.5 py-0.5 font-sans text-xs font-extrabold shadow-[0_2px_0_var(--gp-line)]">
+  <kbd className="mr-1 inline-grid min-w-[26px] place-items-center rounded-lg bg-[#F6EEE2] px-1.5 py-0.5 font-sans text-xs font-extrabold border-2 border-[#1F1633]">
     {children}
   </kbd>
 );

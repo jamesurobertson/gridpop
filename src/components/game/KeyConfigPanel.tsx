@@ -124,13 +124,13 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({
   // Button style for consistent height
   const keyBtnClass = (isEditing: boolean, isEmpty: boolean) =>
     `min-w-[48px] min-h-[44px] flex items-center justify-center px-2 py-1 rounded-lg text-center font-semibold border transition-all outline-none focus:ring-2 focus:ring-[#7C5CFF]
-    shadow-[0_1.5px_6px_0_rgba(0,0,0,0.07)] hover:shadow-md active:shadow-inner
+    active:scale-95
     ` +
     (isEditing
       ? "bg-[#EFEAFF] border-[#7C5CFF] text-[#5A3ED6]"
       : isEmpty
       ? "bg-white border-red-500 text-red-600 animate-pulse"
-      : "bg-white border-[#EADFCE] hover:bg-[#FFFAF3] text-[#2E2346] shadow-[0_2px_0_#EADFCE]");
+      : "bg-white border-[#EADFCE] hover:bg-[#FFFAF3] text-[#2E2346]");
 
   return (
     <div className="space-y-4" ref={editingRef}>

@@ -33,7 +33,7 @@ const HighScoresModal: React.FC<HighScoresModalProps> = ({ isOpen, onClose, high
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[92vw] rounded-[28px] border-0 bg-white sm:max-w-md">
+      <DialogContent className="max-w-[92vw] rounded-[28px] border-[2.5px] border-[#1F1633] bg-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-center text-2xl font-bold">High Scores</DialogTitle>
         </DialogHeader>

@@ -564,6 +564,14 @@ const GridPopGame: React.FC = () => {
   const [muted, setMuted] = useState(sfx.muted);
   const [bumpKey, setBumpKey] = useState(0);
   const [levelToast, setLevelToast] = useState<number | null>(null);
+  // Phones: show the gestures over the board until the first piece is placed (once ever).
+  const [gestureHintDone, setGestureHintDone] = useState(() => {
+    try {
+      return localStorage.getItem("gridpop-gestures-seen") === "1";
+    } catch {
+      return true;
+    }
+  });
   const isMobile = useIsMobile();
   const score = useCountUp(state.score);
   // The best score when this game began, to tell a new record at game over.
@@ -618,7 +626,17 @@ const GridPopGame: React.FC = () => {
       sfx.play(best ? "best" : "gameover", { delay: 0.25 });
       return;
     }
-    if (state.pendingClear && !p.pendingClear) sfx.play("place", { jitter: 0.06 });
+    if (state.pendingClear && !p.pendingClear) {
+      sfx.play("place", { jitter: 0.06 });
+      if (!gestureHintDone) {
+        setGestureHintDone(true);
+        try {
+          localStorage.setItem("gridpop-gestures-seen", "1");
+        } catch {
+          // Private mode: the hint just shows again next visit.
+        }
+      }
+    }
 
     const seen = new Set(p.scoreAnimations.map((a) => a.id));
     for (const a of state.scoreAnimations) {
@@ -629,6 +647,8 @@ const GridPopGame: React.FC = () => {
       }
       // Higher numbers ring higher; more lines at once add a flourish.
       sfx.play("clear", { rate: 0.8 + a.clearValue * 0.09 });
+      // A small buzz on phones that support it (bigger for bigger clears).
+      navigator.vibrate?.((a.lines ?? 1) >= 2 ? [12, 40, 18] : 12);
       if ((a.lines ?? 1) >= 2) sfx.play("combo", { delay: 0.09, rate: 0.95 + (a.lines ?? 2) * 0.05 });
     }
 
@@ -735,6 +755,7 @@ const GridPopGame: React.FC = () => {
 
   // ---------- layout ----------
 
+  const showGestureHint = isMobile && !gestureHintDone && state.hasStarted && !state.gameOver;
   const pieceKey = `${state.turnsPlayed}-${state.canHold ? 0 : 1}-${state.currentPiece?.shape.type}`;
   const mode = `${state.gridSize}×${state.gridSize} · ${state.isTimed ? "Timed" : "Untimed"}`;
 
@@ -763,7 +784,7 @@ const GridPopGame: React.FC = () => {
             exit={{ y: -10, opacity: 0 }}
             transition={{ type: "spring", stiffness: 500, damping: 22 }}
           >
-            <span className="gp-pop-label !m-0 !rotate-0 bg-[#45D486] shadow-[0_3px_0_#2BA864]">Level {levelToast}</span>
+            <span className="gp-pop-label !m-0 !rotate-0 bg-[#45D486]">Level {levelToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -781,7 +802,7 @@ const GridPopGame: React.FC = () => {
   return (
     <div className="mx-auto w-full">
       {isMobile ? (
-        <div className="mx-auto flex min-h-[calc(100dvh-60px)] w-full max-w-[440px] flex-col gap-3 px-4 pb-6 pt-3">
+        <div className="mx-auto flex min-h-[calc(100dvh-60px-env(safe-area-inset-bottom))] w-full max-w-[440px] flex-col gap-3 px-4 pb-6 pt-[max(12px,env(safe-area-inset-top))]">
           <header className="flex items-center justify-between">
             <Logo className="text-[30px]" />
             <div className="flex gap-2">
@@ -825,8 +846,23 @@ const GridPopGame: React.FC = () => {
             </div>
           </div>
 
-          <div className="mx-auto w-full" style={{ maxWidth: "min(100%, calc(100dvh - 330px))", minWidth: 260 }}>
+          <div className="relative mx-auto w-full" style={{ maxWidth: "min(100%, calc(100dvh - 330px))", minWidth: 260 }}>
             {board}
+            <AnimatePresence>
+              {showGestureHint && (
+                <motion.div
+                  className="pointer-events-none absolute inset-x-2 bottom-3 z-30 flex justify-center"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ delay: 0.6 }}
+                >
+                  <span className="whitespace-nowrap rounded-full border-[2.5px] border-[#1F1633] bg-white px-3 py-1.5 text-[12px] font-extrabold leading-none">
+                    Drag to move · Tap to place · Double-tap to rotate
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {state.isTimed && (
@@ -927,10 +963,15 @@ const GridPopGame: React.FC = () => {
         onClose={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: false })}
         onUpdateKeyConfig={(config: Partial<KeyConfig>) => dispatch({ type: "UPDATE_KEY_CONFIG", config })}
         keyConfig={state.keyConfig}
-        onChangeGridSize={(size: 4 | 5) => dispatch({ type: "CHANGE_GRID_SIZE", size })}
+        defaultKeyConfig={DEFAULT_KEY_CONFIG}
         currentGridSize={state.gridSize}
         isTimed={state.isTimed}
-        onToggleTimed={(isTimed: boolean) => dispatch({ type: "TOGGLE_TIMED_MODE", isTimed })}
+        onApplyMode={(size: 4 | 5, timed: boolean) => {
+          // Both reset the board; the game then starts fresh with the new settings.
+          sfx.play("click");
+          if (size !== state.gridSize) dispatch({ type: "CHANGE_GRID_SIZE", size });
+          if (timed !== state.isTimed) dispatch({ type: "TOGGLE_TIMED_MODE", isTimed: timed });
+        }}
         muted={muted}
         onToggleMute={toggleMute}
       />

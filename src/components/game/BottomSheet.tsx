@@ -1,4 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { animate, motion, useDragControls, useMotionValue, useTransform, type PanInfo } from "framer-motion";
+import { ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BottomSheetProps {
@@ -6,125 +8,134 @@ interface BottomSheetProps {
   label: string;
 }
 
+/** Height of the bar that stays visible when the sheet is closed. */
+const PEEK = 58;
+const SPRING = { type: "spring", stiffness: 420, damping: 40, mass: 0.9 } as const;
+
+/**
+ * A drawer that peeks up from the bottom of the screen. Drag the bar (or tap it) to open; flick,
+ * drag down, tap the backdrop or press Escape to close. Only the bar starts a drag, so the
+ * content can scroll normally.
+ */
 const BottomSheet: React.FC<BottomSheetProps> = ({ children, label }) => {
   const [open, setOpen] = useState(false);
+  const [height, setHeight] = useState(0);
+  /** iPhone home-indicator strip: the closed bar sits above it. */
+  const [safeBottom, setSafeBottom] = useState(0);
   const sheetRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [sheetHeight, setSheetHeight] = useState<number>(0);
-  const touchStartY = useRef<number>(0);
-  const currentY = useRef<number>(0);
-  const [hasMounted, setHasMounted] = useState(false);
+  const controls = useDragControls();
+  const closedY = Math.max(0, height - PEEK - safeBottom);
+  const y = useMotionValue(10000);
+  // The backdrop darkens as the sheet comes up.
+  const backdrop = useTransform(y, [closedY, 0], [0, 1]);
+  const dragged = useRef(false);
 
-  useEffect(() => {
-    if (sheetRef.current) {
-      setSheetHeight(sheetRef.current.offsetHeight);
-    }
-    // Enable transitions after initial mount
-    const timer = setTimeout(() => {
-      setHasMounted(true);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [children]);
-
-  // Calculate the closed position: fully hidden except for header (~60px)
-  const closedY = sheetHeight - 60; // adjust if header height differs
-
-  // Reset scroll position when sheet is closed
-  useEffect(() => {
-    if (!open && contentRef.current) {
-      contentRef.current.scrollTop = 0;
-    }
-  }, [open]);
-
-  // Prevent body scroll when bottom sheet is open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+  // Track the sheet's real height (fonts, rotation and content changes all move it).
+  useLayoutEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none";
+    document.body.appendChild(probe);
+    const measure = () => {
+      setHeight(el.offsetHeight);
+      setSafeBottom(probe.offsetHeight);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure);
     return () => {
-      document.body.style.overflow = 'unset';
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+      probe.remove();
+    };
+  }, []);
+
+  // Glide to wherever the sheet should be.
+  useEffect(() => {
+    if (!height) return;
+    const target = open ? 0 : closedY;
+    // The very first placement is instant, so the bar doesn't fly up on load.
+    if (y.get() > height) y.set(target);
+    else void animate(y, target, SPRING);
+  }, [open, closedY, height, y]);
+
+  // While open: Escape closes, the page behind stays put, and the content starts at the top.
+  useEffect(() => {
+    if (!open) {
+      if (contentRef.current) contentRef.current.scrollTop = 0;
+      return;
+    }
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    currentY.current = open ? 0 : closedY;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const touchY = e.touches[0].clientY;
-    const deltaY = touchY - touchStartY.current;
-    const newY = Math.max(0, Math.min(closedY, currentY.current + deltaY));
-
-    if (sheetRef.current) {
-      sheetRef.current.style.transform = `translateY(${newY}px)`;
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const touchY = e.changedTouches[0].clientY;
-    const deltaY = touchY - touchStartY.current;
-    const threshold = 50; // Minimum distance to trigger open/close
-
-    if (Math.abs(deltaY) > threshold) {
-      setOpen(deltaY < 0); // Open if swiped up, close if swiped down
-    } else {
-      setOpen(open); // Return to previous state if threshold not met
-    }
+  const onDragEnd = (_: unknown, info: PanInfo) => {
+    // A flick decides by direction; a slow drag by how far it got.
+    const flick = Math.abs(info.velocity.y) > 400;
+    const next = flick ? info.velocity.y < 0 : y.get() < closedY / 2;
+    if (next === open) void animate(y, next ? 0 : closedY, SPRING);
+    setOpen(next);
   };
 
   return (
     <>
-      {/* Overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 z-30"
-          onClick={() => setOpen(false)}
-        />
-      )}
-
-      {/* Bottom Sheet */}
-      {/* top is bottom of screen - 60px */}
-      <div
+      <motion.div
+        className={cn("fixed inset-0 z-30 bg-[#2E2346]/45", !open && "pointer-events-none")}
+        style={{ opacity: backdrop }}
+        onClick={() => setOpen(false)}
+        aria-hidden
+      />
+      <motion.div
         ref={sheetRef}
-        className={cn(`fixed left-0 bottom-0 right-0 z-40 flex justify-center pointer-events-auto transition-transform duration-500 ease-in-out`,
-          open ? 'translate-y-0' : 'translate-y-[calc(100%-59px)]'
-        )}
-        style={{
-          touchAction: "none",
-          // top: `${window.innerHeight - 60}px`,
-        }}
+        role="dialog"
+        aria-modal={open}
+        aria-label={label}
+        className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-h-[78dvh] w-full max-w-md flex-col rounded-t-[26px] border-[2.5px] border-b-0 border-[#1F1633] bg-white"
+        style={{ y, visibility: height ? "visible" : "hidden" }}
+        drag="y"
+        dragListener={false}
+        dragControls={controls}
+        dragConstraints={{ top: 0, bottom: closedY }}
+        dragElastic={{ top: 0.04, bottom: 0.2 }}
+        dragMomentum={false}
+        onDragStart={() => (dragged.current = true)}
+        onDragEnd={onDragEnd}
       >
-        <div
-          className="w-full max-w-md bg-white rounded-t-[26px] shadow-[0_-6px_24px_rgba(46,35,70,0.12)] flex flex-col items-center max-h-[70vh] pb-[env(safe-area-inset-bottom)]"
-          style={{ maxWidth: "100vw" }}
+        <button
+          className="flex w-full shrink-0 touch-none select-none flex-col items-center rounded-t-[24px] px-5 pb-3 pt-2 outline-none focus-visible:bg-[#F6EEE2]"
+          style={{ height: PEEK }}
+          aria-expanded={open}
+          onPointerDown={(e) => {
+            dragged.current = false;
+            controls.start(e);
+          }}
+          onClick={() => {
+            // A drag also ends in a click; only a real tap toggles.
+            if (!dragged.current) setOpen((o) => !o);
+          }}
         >
-          {/* Header */}
-          <div
-            className="w-full flex flex-col items-center pt-2 cursor-pointer"
-            onClick={() => setOpen(!open)}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            <div className="w-10 h-1.5 bg-[#E3D6C4] rounded-full mb-2" />
-            <div className="font-display font-bold text-lg select-none pb-2.5 border-b border-[color:var(--gp-line)] w-full text-center">
-              {label}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div
-            ref={contentRef}
-            className="overflow-y-auto w-full px-4 pt-4 pb-6 flex-1 overscroll-contain"
-            onTouchMove={(e) => e.stopPropagation()}
-          >
-            {children}
-          </div>
+          <span className="mb-2 h-1.5 w-10 rounded-full bg-[#D9CBB8]" />
+          <span className="font-display flex items-center gap-1.5 text-[17px] font-bold">
+            {label}
+            <ChevronUp size={18} strokeWidth={3} className={cn("transition-transform duration-300", open && "rotate-180")} />
+          </span>
+        </button>
+        <div
+          ref={contentRef}
+          className={cn("min-h-0 flex-1 overscroll-contain border-t border-[color:var(--gp-line)] px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-4", open ? "overflow-y-auto" : "overflow-hidden")}
+        >
+          {children}
         </div>
-      </div >
+      </motion.div>
     </>
   );
 };
