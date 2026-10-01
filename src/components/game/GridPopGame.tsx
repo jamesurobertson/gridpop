@@ -642,7 +642,7 @@ const GridPopGame: React.FC = () => {
 
     const samePiece = p.currentPiece && state.currentPiece && p.turnsPlayed === state.turnsPlayed && p.canHold === state.canHold;
     if (p.canHold && !state.canHold) sfx.play("hold");
-    else if (samePiece && p.currentPiece!.rotation !== state.currentPiece!.rotation) sfx.play("rotate", { jitter: 0.03 });
+    else if (samePiece && p.currentPiece!.rotation !== state.currentPiece!.rotation) sfx.play("rotate");
     else if (samePiece && (p.currentPiece!.position.x !== state.currentPiece!.position.x || p.currentPiece!.position.y !== state.currentPiece!.position.y))
       sfx.play("move", { jitter: 0.04 });
   }, [state]);
@@ -658,7 +658,7 @@ const GridPopGame: React.FC = () => {
   const canAct = () => !state.showOptionsMenu && !!state.currentPiece && !state.gameOver && state.hasStarted && !state.pendingClear;
 
   const bump = () => {
-    sfx.play("bump", { jitter: 0.05 });
+    sfx.play("bump");
     setBumpKey((k) => k + 1);
   };
 

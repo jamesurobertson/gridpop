@@ -19,14 +19,14 @@ export type SoundName =
   | "best"
   | "gameover";
 
-/** Recorded sounds (in public/sounds). Move and rotate are synthesised instead; see `synth`. */
-const NAMES: SoundName[] = ["bump", "place", "hold", "clear", "combo", "danger", "click", "open", "levelup", "boardclear", "best", "gameover"];
+/** Recorded sounds (in public/sounds). Move, rotate and bump are synthesised instead; see `synth`. */
+const NAMES: SoundName[] = ["place", "hold", "clear", "combo", "danger", "click", "open", "levelup", "boardclear", "best", "gameover"];
 
 /** Hand-balanced so quick, frequent sounds (moves) sit well under the rewarding ones. */
 const VOLUME: Record<SoundName, number> = {
-  move: 0.16,
-  rotate: 0.13,
-  bump: 0.3,
+  move: 0.2,
+  rotate: 0.12,
+  bump: 0.25,
   place: 0.6,
   hold: 0.45,
   clear: 0.7,
@@ -114,17 +114,31 @@ class Sfx {
     osc.stop(t + dur + 0.02);
   }
 
+  // Chosen in the GridPop Sound Lab: Soft thud (move), Boing (rotate), Bonk (blocked move).
   private synth(name: SoundName, vol: number, jitter: number) {
     const j = 1 + (Math.random() * 2 - 1) * jitter;
     if (name === "move") {
-      // A small wooden tock.
-      this.tone(620 * j, 540 * j, 0.05, vol, "triangle");
+      this.tone(240 * j, 170 * j, 0.07, vol, "sine");
       return true;
     }
     if (name === "rotate") {
-      // A quick soft whoop up about half an octave, with a faint octave on top.
-      this.tone(480 * j, 700 * j, 0.09, vol, "sine");
-      this.tone(960 * j, 1400 * j, 0.07, vol * 0.25, "sine");
+      // A springy boing: the pitch rises fast while the note fades a little slower.
+      const ctx = this.ctx!;
+      const t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.setValueAtTime(300 * j, t);
+      osc.frequency.exponentialRampToValueAtTime(620 * j, t + 0.12);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      osc.connect(gain).connect(this.out!);
+      osc.start(t);
+      osc.stop(t + 0.2);
+      return true;
+    }
+    if (name === "bump") {
+      this.tone(160 * j, 120 * j, 0.08, vol, "triangle");
       return true;
     }
     return false;
