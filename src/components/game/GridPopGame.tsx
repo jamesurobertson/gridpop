@@ -563,6 +563,7 @@ const GridPopGame: React.FC = () => {
   const [showHighScores, setShowHighScores] = useState(false);
   const [muted, setMuted] = useState(sfx.muted);
   const [bumpKey, setBumpKey] = useState(0);
+  const [spin, setSpin] = useState<{ key: number; dir: 1 | -1 }>({ key: 0, dir: 1 });
   const [levelToast, setLevelToast] = useState<number | null>(null);
   // Phones: show the gestures over the board until the first piece is placed (once ever).
   const [gestureHintDone, setGestureHintDone] = useState(() => {
@@ -699,6 +700,7 @@ const GridPopGame: React.FC = () => {
     // tryWallKick tries the new rotation on a copy, nudging it if it doesn't fit.
     if (!tryWallKick(state.grid, { ...piece, rotation: next }, next)) return bump();
     dispatch({ type: "ROTATE_PIECE", direction });
+    setSpin((s) => ({ key: s.key + 1, dir: direction === "clockwise" ? 1 : -1 }));
   };
 
   const handlePlace = () => {
@@ -768,6 +770,7 @@ const GridPopGame: React.FC = () => {
         pieceKey={pieceKey}
         pendingClear={state.pendingClear}
         bumpKey={bumpKey}
+        spin={spin}
         scoreAnimations={state.scoreAnimations}
         onPieceMove={handleDirectionalMove}
         onPiecePlace={handlePlace}

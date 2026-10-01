@@ -15,6 +15,8 @@ interface GameBoardProps {
   pendingClear: boolean;
   /** Bumped each time a move is blocked: the piece wobbles. */
   bumpKey: number;
+  /** Bumped on every rotation, with its direction: the whole piece turns that way. */
+  spin: { key: number; dir: 1 | -1 };
   scoreAnimations: ScoreAnimation[];
   onPieceMove: (direction: "left" | "right" | "up" | "down") => void;
   onPiecePlace: () => void;
@@ -39,6 +41,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   pieceKey,
   pendingClear,
   bumpKey,
+  spin,
   scoreAnimations,
   onPieceMove,
   onPiecePlace,
@@ -230,35 +233,57 @@ const GameBoard: React.FC<GameBoardProps> = ({
               return <div key={`w${key}`} className="gp-will-clear" style={{ ...cellArea(x, y), zIndex: 2 }} />;
             })}
 
-          {/* The piece you're moving: glides from cell to cell and shows what each tile will become */}
-          {preview &&
-            preview.cells.map((c, i) => {
-              const deadly = c.next >= MAX_CELL_VALUE;
-              // Coloured as the tile it would become, so colour patterns (and clears) read at a glance.
-              const look = TILES[c.next];
-              return (
+          {/* The piece you're moving, as one block over its own patch of the board. It glides when it moves
+              and turns as a whole (clockwise or counterclockwise) when it rotates. Each cell shows the tile it
+              would become. */}
+          {preview && preview.cells.length > 0 && (() => {
+            const xs = preview.cells.map((c) => c.x);
+            const ys = preview.cells.map((c) => c.y);
+            const minX = Math.min(...xs);
+            const minY = Math.min(...ys);
+            const w = Math.max(...xs) - minX + 1;
+            const h = Math.max(...ys) - minY + 1;
+            return (
+              <motion.div
+                key={pieceKey}
+                layout="position"
+                className="relative"
+                style={{ gridColumn: `${minX + 1} / span ${w}`, gridRow: `${minY + 1} / span ${h}`, zIndex: 3 }}
+                initial={{ scale: 0.4, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ layout: { type: "spring", stiffness: 700, damping: 40 }, default: { type: "spring", stiffness: 500, damping: 22 } }}
+              >
                 <motion.div
-                  key={`${pieceKey}-${i}`}
-                  layout
-                  className="relative"
-                  style={{ ...cellArea(c.x, c.y), zIndex: 3 }}
-                  initial={{ scale: 0.4, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ layout: { type: "spring", stiffness: 700, damping: 38 }, default: { type: "spring", stiffness: 500, damping: 22 } }}
+                  key={spin.key}
+                  className="grid h-full w-full"
+                  style={{ gridTemplateColumns: `repeat(${w}, 1fr)`, gridTemplateRows: `repeat(${h}, 1fr)`, gap: "var(--gp-gap)" }}
+                  initial={spin.key ? { rotate: -90 * spin.dir } : false}
+                  animate={{ rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 24 }}
                 >
-                  <motion.div
-                    key={bumpKey}
-                    className={cn("gp-piece", deadly && "gp-piece-deadly")}
-                    style={{ ["--pc" as string]: deadly ? "#FF3B4E" : preview.color, ["--face" as string]: look.face, ["--edge" as string]: look.edge, color: look.text }}
-                    initial={bumpKey ? { x: 0 } : false}
-                    animate={bumpKey ? { x: [0, -5, 5, -3, 0] } : undefined}
-                    transition={{ duration: 0.22 }}
-                  >
-                    <span className="gp-num gp-piece-num">{deadly ? "💀" : c.next}</span>
-                  </motion.div>
+                  {preview.cells.map((c) => {
+                    const deadly = c.next >= MAX_CELL_VALUE;
+                    // Coloured as the tile it would become, so colour patterns (and clears) read at a glance.
+                    const look = TILES[c.next];
+                    return (
+                      <div key={`${c.x},${c.y}`} className="relative" style={{ gridColumn: c.x - minX + 1, gridRow: c.y - minY + 1 }}>
+                        <motion.div
+                          key={bumpKey}
+                          className={cn("gp-piece", deadly && "gp-piece-deadly")}
+                          style={{ ["--face" as string]: look.face, color: look.text }}
+                          initial={bumpKey ? { x: 0 } : false}
+                          animate={bumpKey ? { x: [0, -5, 5, -3, 0] } : undefined}
+                          transition={{ duration: 0.22 }}
+                        >
+                          <span className="gp-num gp-piece-num">{deadly ? "💀" : c.next}</span>
+                        </motion.div>
+                      </div>
+                    );
+                  })}
                 </motion.div>
-              );
-            })}
+              </motion.div>
+            );
+          })()}
 
           {/* Bursts where tiles were cleared */}
           {bursts.map((b) => (

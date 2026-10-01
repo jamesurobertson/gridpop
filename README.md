@@ -1,8 +1,11 @@
 # GridPop
 
-A fast-paced grid-based puzzle game where you match and clear patterns to score points.
+![GridPop](public/og-image.png)
 
-![image](https://github.com/user-attachments/assets/ac52f872-cefb-47a9-b108-43441dd9f7f1)
+Stack pieces, match the numbers, and pop the lines before a tile hits 7.
+**Play it at https://jamesurobertson.github.io/gridpop/**
+
+![GridPop on desktop](docs/screenshot.png)
 
 
 ## Getting Started
