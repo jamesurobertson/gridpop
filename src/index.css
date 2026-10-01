@@ -193,28 +193,27 @@
 }
 @keyframes gp-shimmer { from { opacity: 0.45; } to { opacity: 1; } }
 
-/* The piece you're moving. */
+/* The piece you're moving: each cell looks like the tile it would become, ringed in white. */
 .gp-piece {
   position: absolute;
-  inset: -0.5cqw;
+  inset: 0;
   display: grid;
   place-items: center;
-  border-radius: 24%;
-  border: 0.8cqw solid color-mix(in srgb, var(--pc) 75%, white);
-  /* Mostly solid, so it never blends with the tile underneath into a misleading colour. */
-  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 80%, white) 0%, color-mix(in srgb, var(--pc) 88%, #3b2e5a) 100%);
-  box-shadow: 0 0 3cqw color-mix(in srgb, var(--pc) 70%, transparent), inset 0 0 0 0.5cqw rgba(255, 255, 255, 0.35);
-  opacity: 0.94;
+  border-radius: 22%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--face) 82%, white) 0%, var(--face) 55%);
+  outline: 0.75cqw solid #fff;
+  outline-offset: 0.3cqw;
+  box-shadow: 0 1cqw 0 var(--edge), 0 0 3cqw 0.6cqw color-mix(in srgb, var(--pc) 70%, transparent);
 }
+
 /* The piece is live: its glow breathes, so it never reads as a placed tile. */
-.gp-piece:not(.gp-piece-deadly) { animation: gp-live 1.4s ease-in-out infinite alternate; }
+.gp-piece:not(.gp-piece-deadly) { animation: gp-live 1.2s ease-in-out infinite alternate; }
 @keyframes gp-live {
-  from { box-shadow: 0 0 1.5cqw color-mix(in srgb, var(--pc) 45%, transparent), inset 0 0 0 0.5cqw rgba(255, 255, 255, 0.35); }
-  to { box-shadow: 0 0 4.5cqw color-mix(in srgb, var(--pc) 90%, transparent), inset 0 0 0 0.5cqw rgba(255, 255, 255, 0.6); }
+  from { box-shadow: 0 1cqw 0 var(--edge), 0 0 1.5cqw 0.2cqw color-mix(in srgb, var(--pc) 55%, transparent); }
+  to { box-shadow: 0 1cqw 0 var(--edge), 0 0 4cqw 0.9cqw color-mix(in srgb, var(--pc) 95%, transparent); }
 }
 .gp-piece-num {
-  color: #fff;
-  text-shadow: 0 0.5cqw 0 rgba(30, 20, 50, 0.35);
+  text-shadow: 0 0.3cqw 0 rgba(255, 255, 255, 0.35);
 }
 .gp-piece-deadly { animation: gp-shimmer 0.35s ease-in-out infinite alternate; }
 

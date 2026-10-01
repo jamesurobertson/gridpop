@@ -234,6 +234,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
           {preview &&
             preview.cells.map((c, i) => {
               const deadly = c.next >= MAX_CELL_VALUE;
+              // Coloured as the tile it would become, so colour patterns (and clears) read at a glance.
+              const look = TILES[c.next];
               return (
                 <motion.div
                   key={`${pieceKey}-${i}`}
@@ -247,7 +249,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
                   <motion.div
                     key={bumpKey}
                     className={cn("gp-piece", deadly && "gp-piece-deadly")}
-                    style={{ ["--pc" as string]: deadly ? "#FF3B4E" : preview.color }}
+                    style={{ ["--pc" as string]: deadly ? "#FF3B4E" : preview.color, ["--face" as string]: look.face, ["--edge" as string]: look.edge, color: look.text }}
                     initial={bumpKey ? { x: 0 } : false}
                     animate={bumpKey ? { x: [0, -5, 5, -3, 0] } : undefined}
                     transition={{ duration: 0.22 }}
