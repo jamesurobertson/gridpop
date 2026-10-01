@@ -165,7 +165,7 @@
 }
 /* The little shine in the top-left corner of every tile. */
 .gp-tile::before,
-.gp-piece::before {
+.gp-piece-shine {
   content: "";
   position: absolute;
   left: 13%;
@@ -237,6 +237,13 @@
   outline-offset: 0.4cqw;
 }
 .gp-piece-deadly { outline-color: #ff5a6e; }
+/* A moving block's number and shine: they counter-turn so they stay upright while the tile spins. */
+.gp-piece-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
 
 /* Cleared tile: a ring and sparks. */
 .gp-ring {

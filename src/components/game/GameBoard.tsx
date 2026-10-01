@@ -253,8 +253,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
             })}
 
           {/* The piece you're moving. It sits in its rotation square, glides when it moves and spins about
-              the square's centre when it rotates; each block turns back so its number stays upright. Every
-              block shows the tile it would become. */}
+              the square's centre when it rotates. Every block shows the tile it would become. */}
           {preview && currentPiece && (() => {
             const base = currentPiece.shape.rotations[0];
             const size = base.length;
@@ -305,11 +304,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
                       // Coloured as the tile it would become, so colour patterns (and clears) read at a glance.
                       const look = TILES[v];
                       return (
-                        <motion.div key={`${r},${c}`} className="relative" style={{ gridColumn: c + 1, gridRow: r + 1, rotate: counter }}>
+                        <div key={`${r},${c}`} className="relative" style={{ gridColumn: c + 1, gridRow: r + 1 }}>
+                          {/* The tile turns with the piece; its number and shine turn back so they end upright. */}
                           <div className={cn("gp-piece", deadly && "gp-piece-deadly")} style={{ ["--face" as string]: look.face, color: look.text }}>
-                            <span className="gp-num gp-piece-num">{deadly ? "💀" : v}</span>
+                            <motion.div className="gp-piece-face" style={{ rotate: counter }}>
+                              <span className="gp-piece-shine" />
+                              <span className="gp-num gp-piece-num">{deadly ? "💀" : v}</span>
+                            </motion.div>
                           </div>
-                        </motion.div>
+                        </div>
                       );
                     })}
                   </motion.div>
