@@ -82,7 +82,7 @@ class Sfx {
     this.loading = Promise.all(
       NAMES.map(async (name) => {
         try {
-          const res = await fetch(`/sounds/${name}.mp3`);
+          const res = await fetch(`${import.meta.env.BASE_URL}sounds/${name}.mp3`);
           this.buffers.set(name, await ctx.decodeAudioData(await res.arrayBuffer()));
         } catch {
           // A missing sound just stays silent.

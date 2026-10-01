@@ -12,7 +12,7 @@ interface GameOverModalProps {
   onClose: () => void;
 }
 
-const SITE = "https://gridpop.netlify.app";
+const SITE = "https://jamesurobertson.github.io/gridpop/";
 
 const GameOverModal: React.FC<GameOverModalProps> = ({ score, level, linesCleared, isNewBest, onRestart, onClose }) => {
   const [isOpen, setIsOpen] = useState(true);

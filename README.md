@@ -30,6 +30,12 @@ npm run build
 
 The built files will be in the `dist` directory.
 
+## Deploying
+
+Every push to `master` builds the game and publishes it to GitHub Pages at
+https://jamesurobertson.github.io/gridpop/ (`.github/workflows/deploy.yml`). The site is served from
+`/gridpop/`, which `vite.config.ts` sets as the base path.
+
 ## Credits
 
 Sound effects: [Interface Sounds](https://kenney.nl/assets/interface-sounds) and
