@@ -1,5 +1,0 @@
-[[redirects]]
-from = "https://gridpop.netlify.app/*"
-to = "https://www.gridpop.io/:splat"
-status = 301
-force = true

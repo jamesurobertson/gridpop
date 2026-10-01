@@ -27,12 +27,12 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 
 
   function handleShare() {
-    const shareText = `I scored ${score.toLocaleString()} points in GridPop! Can you beat my score? Play now at https://gridpop.io`;
+    const shareText = `I scored ${score.toLocaleString()} points in GridPop! Can you beat my score? Play now at https://gridpop.netlify.app`;
 
     const shareData = {
       title: 'GridPop.io',
       text: `I scored ${score.toLocaleString()} points in GridPop! See if you can beat it!`,
-      url: 'https://gridpop.io'
+      url: 'https://gridpop.netlify.app'
     };
 
     if (navigator.share) {
