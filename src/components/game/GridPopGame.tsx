@@ -95,6 +95,17 @@ function loadIsTimed(): boolean {
   return savedIsTimed === null ? false : savedIsTimed === "true";
 }
 
+/** Save a finished game to the high scores (zero scores aren't kept) and return the updated list and best. */
+function recordScore(state: GameState, score: number, linesCleared: number) {
+  const highScores = updateHighScores(loadHighScores(), score, state.gridSize, state.isTimed, linesCleared);
+  try {
+    localStorage.setItem("gridpop-high-scores", JSON.stringify(highScores));
+  } catch {
+    // Storage blocked (private mode): the score still shows for this session.
+  }
+  return { highScores, bestScore: getBestScore(highScores, state.gridSize, state.isTimed) };
+}
+
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "START_GAME": {
@@ -214,29 +225,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       let updatedHighScores = state.highScores;
       let updatedBestScore = state.bestScore;
       if (isGameOver) {
-        const newHighScore: HighScore = {
-          score: newScore,
-          date: new Date().toISOString(),
-          gridSize: state.gridSize,
-          isTimed: state.isTimed,
-          linesCleared: state.linesCleared,
-        };
-        const currentHighScores: HighScore[] = Array.isArray(state.highScores)
-          ? state.highScores.map((score) =>
-              typeof score === "number"
-                ? { score, date: new Date().toISOString(), gridSize: DEFAULT_GRID_SIZE, isTimed: true, linesCleared: 0 }
-                : (score as HighScore)
-            )
-          : [];
-        updatedHighScores = updateHighScores(
-          currentHighScores,
-          newHighScore.score,
-          state.gridSize,
-          state.isTimed,
-          state.linesCleared
-        );
-        updatedBestScore = getBestScore(updatedHighScores, state.gridSize, state.isTimed);
-        localStorage.setItem("gridpop-high-scores", JSON.stringify(updatedHighScores));
+        // Count the lines this last move cleared, too.
+        const saved = recordScore(state, newScore, state.linesCleared + linesCleared);
+        updatedHighScores = saved.highScores;
+        updatedBestScore = saved.bestScore;
       }
       const newTimeRemaining = getTimerForLevel(level);
       return {
@@ -352,9 +344,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         return gameReducer({ ...state, currentPiece: autoPlacedPiece }, { type: "PLACE_PIECE" });
       }
 
+      // The clock ran out and the piece fits nowhere: the game ends here, and still counts.
+      const saved = recordScore(state, state.score, state.linesCleared);
       return {
         ...state,
         gameOver: true,
+        highScores: saved.highScores,
+        bestScore: saved.bestScore,
       };
     }
 
