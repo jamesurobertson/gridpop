@@ -267,24 +267,68 @@
 /* ---------- logo ---------- */
 
 .gp-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.14em;
+  line-height: 1;
   font-family: "Fredoka", system-ui, sans-serif;
   font-weight: 700;
   color: var(--gp-ink);
-  letter-spacing: -0.02em;
+}
+.gp-logo-word {
+  letter-spacing: -0.035em;
+  text-shadow: 0 0.06em 0 #ead9c4;
+}
+
+/* The mark: a 2×2 of tiles, one of which keeps popping. */
+.gp-logo-mark {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.07em;
+  width: 0.9em;
+  height: 0.9em;
+  padding: 0.07em;
+  margin-right: 0.06em;
+  border-radius: 0.2em;
+  background: var(--gp-board);
+  box-shadow: 0 0.07em 0 var(--gp-board-edge);
+}
+.gp-logo-mark i {
+  border-radius: 28%;
+  box-shadow: inset 0 0.03em 0 rgba(255, 255, 255, 0.45);
+}
+.gp-logo-mark-pop { animation: gp-mark-pop 3.2s ease-in-out infinite; }
+@keyframes gp-mark-pop {
+  0%, 70%, 100% { transform: scale(1); }
+  76% { transform: scale(1.35); }
+  82% { transform: scale(0.9); }
+  88% { transform: scale(1); }
+}
+
+.gp-logo-pop {
+  display: inline-flex;
+  gap: 0.06em;
+  margin-left: 0.04em;
 }
 .gp-logo-tile {
   display: inline-grid;
   place-items: center;
-  width: 1.15em;
-  height: 1.15em;
-  margin-left: 0.08em;
-  border-radius: 26%;
+  width: 1.08em;
+  height: 1.08em;
+  border-radius: 24%;
+  font-size: 0.86em;
   color: var(--t);
-  background: var(--f);
-  box-shadow: 0 0.09em 0 var(--e), inset 0 0.06em 0 rgba(255, 255, 255, 0.4);
-  font-size: 0.82em;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--f) 80%, white) 0%, var(--f) 60%);
+  box-shadow: 0 0.09em 0 var(--e), inset 0 0.05em 0 rgba(255, 255, 255, 0.45);
+  transform: rotate(var(--r));
+  animation: gp-hop 4.8s ease-in-out var(--d) infinite;
+}
+@keyframes gp-hop {
+  0%, 84%, 100% { transform: translateY(0) rotate(var(--r)); }
+  88% { transform: translateY(-0.2em) rotate(calc(var(--r) * -1)); }
+  93% { transform: translateY(0.02em) rotate(var(--r)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gp-danger, .gp-skull, .gp-will-clear, .gp-piece, .gp-piece-deadly { animation: none; }
+  .gp-danger, .gp-skull, .gp-will-clear, .gp-piece, .gp-piece-deadly, .gp-logo-tile, .gp-logo-mark-pop { animation: none; }
 }

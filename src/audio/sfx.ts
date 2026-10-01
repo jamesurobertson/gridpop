@@ -19,12 +19,13 @@ export type SoundName =
   | "best"
   | "gameover";
 
-const NAMES: SoundName[] = ["move", "rotate", "bump", "place", "hold", "clear", "combo", "danger", "click", "open", "levelup", "boardclear", "best", "gameover"];
+/** Recorded sounds (in public/sounds). Move and rotate are synthesised instead; see `synth`. */
+const NAMES: SoundName[] = ["bump", "place", "hold", "clear", "combo", "danger", "click", "open", "levelup", "boardclear", "best", "gameover"];
 
 /** Hand-balanced so quick, frequent sounds (moves) sit well under the rewarding ones. */
 const VOLUME: Record<SoundName, number> = {
-  move: 0.25,
-  rotate: 0.3,
+  move: 0.16,
+  rotate: 0.13,
   bump: 0.3,
   place: 0.6,
   hold: 0.45,
@@ -90,9 +91,49 @@ class Sfx {
     ).then(() => undefined);
   }
 
+  /**
+   * A soft tone: a quick fade-in, a short fade-out and a gentle low-pass, so it never clicks or buzzes.
+   * Used for the sounds you hear constantly (moving, rotating), which need to stay quiet and pleasant.
+   */
+  private tone(from: number, to: number, dur: number, vol: number, type: OscillatorType, delay = 0) {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, t);
+    osc.frequency.exponentialRampToValueAtTime(to, t + dur);
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 2200;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(filter).connect(gain).connect(this.out!);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  }
+
+  private synth(name: SoundName, vol: number, jitter: number) {
+    const j = 1 + (Math.random() * 2 - 1) * jitter;
+    if (name === "move") {
+      // A small wooden tock.
+      this.tone(620 * j, 540 * j, 0.05, vol, "triangle");
+      return true;
+    }
+    if (name === "rotate") {
+      // A quick soft whoop up about half an octave, with a faint octave on top.
+      this.tone(480 * j, 700 * j, 0.09, vol, "sine");
+      this.tone(960 * j, 1400 * j, 0.07, vol * 0.25, "sine");
+      return true;
+    }
+    return false;
+  }
+
   /** `rate` pitches the sound (1 = as recorded); `jitter` adds a little random variation. */
   play(name: SoundName, opts: { rate?: number; vol?: number; jitter?: number; delay?: number } = {}) {
     if (this.muted || !this.ctx || !this.out) return;
+    if (this.synth(name, VOLUME[name] * (opts.vol ?? 1), opts.jitter ?? 0)) return;
     const buf = this.buffers.get(name);
     if (!buf) return;
     const src = this.ctx.createBufferSource();
