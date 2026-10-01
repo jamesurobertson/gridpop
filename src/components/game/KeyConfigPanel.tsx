@@ -123,14 +123,14 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({
 
   // Button style for consistent height
   const keyBtnClass = (isEditing: boolean, isEmpty: boolean) =>
-    `min-w-[48px] min-h-[44px] flex items-center justify-center px-2 py-1 rounded-lg text-center font-semibold border transition-all outline-none focus:ring-2 focus:ring-blue-400
+    `min-w-[48px] min-h-[44px] flex items-center justify-center px-2 py-1 rounded-lg text-center font-semibold border transition-all outline-none focus:ring-2 focus:ring-[#7C5CFF]
     shadow-[0_1.5px_6px_0_rgba(0,0,0,0.07)] hover:shadow-md active:shadow-inner
     ` +
     (isEditing
-      ? "bg-blue-100 border-blue-500 text-blue-700"
+      ? "bg-[#EFEAFF] border-[#7C5CFF] text-[#5A3ED6]"
       : isEmpty
       ? "bg-white border-red-500 text-red-600 animate-pulse"
-      : "bg-white border-gray-300 hover:bg-gray-100 text-gray-800");
+      : "bg-white border-[#EADFCE] hover:bg-[#FFFAF3] text-[#2E2346] shadow-[0_2px_0_#EADFCE]");
 
   return (
     <div className="space-y-4" ref={editingRef}>
@@ -143,8 +143,8 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({
               key={preset.value}
               className={`px-3 py-1 rounded font-medium border text-xs transition-all ${
                 movementPreset === preset.value
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                  ? "bg-[#7C5CFF] text-white border-[#7C5CFF]"
+                  : "bg-white text-[#2E2346] border-[#EADFCE] hover:bg-[#FFFAF3]"
               }`}
               onClick={() => handleMovementPreset(preset.value as "arrows" | "wasd")}
               type="button"
@@ -225,7 +225,7 @@ const KeyConfigPanel: React.FC<KeyConfigPanelProps> = ({
       {/* Block Actions */}
       <div>
         <div className="text-sm font-semibold mb-1">Block Actions</div>
-        <div className="rounded border border-gray-200 divide-y bg-gray-50">
+        <div className="rounded-2xl border border-[#EADFCE] divide-y divide-[#EADFCE] bg-[#FBF6EE] overflow-hidden">
           {/* Rotate */}
           <div className="flex items-center px-2 py-2">
             <span className="flex-1 font-medium text-gray-700 flex items-center">Rotate</span>

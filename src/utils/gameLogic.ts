@@ -237,19 +237,6 @@ export const calculateLineClearScore = (
   const lineBonus = getLineBonus(totalLines, clearValue);
   const fullGridBonus = hasFullGridClear ? 5000 : 0;
 
-  // Log the scoring breakdown
-  console.log(`\n=== Score Calculation ===`);
-  console.log(`Cleared ${totalLines} lines of value ${clearValue}`);
-  console.log(`Base Score: ${valueScores[clearValue]} × ${totalLines} = ${score}`);
-  console.log(
-    `Line Bonus: ${clearValue}² × 100 × ${
-      totalLines === 2 ? "2" : totalLines === 3 ? "4" : totalLines === 4 ? "8" : "0"
-    } = ${lineBonus}`
-  );
-  if (hasFullGridClear) console.log(`Full Grid Bonus: +5000`);
-  console.log(`Total Score: ${score + lineBonus + fullGridBonus}`);
-  console.log(`======================\n`);
-
   // Add line bonus based on clear value
   score += lineBonus;
 

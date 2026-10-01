@@ -1,101 +1,101 @@
-import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { RotateCcw, Share2 } from "lucide-react";
 
 interface GameOverModalProps {
   score: number;
   level: number;
+  linesCleared: number;
+  isNewBest: boolean;
   onRestart: () => void;
   onClose: () => void;
-  linesCleared: number;
 }
 
-const GameOverModal: React.FC<GameOverModalProps> = ({
-  score,
-  level,
-  onRestart,
-  onClose,
-  linesCleared,
-}) => {
+const SITE = "https://gridpop.netlify.app";
+
+const GameOverModal: React.FC<GameOverModalProps> = ({ score, level, linesCleared, isNewBest, onRestart, onClose }) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [shown, setShown] = useState(0);
+
+  // The final score counts up as the card lands.
+  useEffect(() => {
+    const start = performance.now() + 250;
+    let raf = 0;
+    const tick = (now: number) => {
+      const k = Math.max(0, Math.min(1, (now - start) / 900));
+      setShown(Math.round(score * (1 - (1 - k) ** 3)));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [score]);
 
   const handleClose = () => {
     setIsOpen(false);
     onClose();
   };
 
-
   function handleShare() {
-    const shareText = `I scored ${score.toLocaleString()} points in GridPop! Can you beat my score? Play now at https://gridpop.netlify.app`;
-
-    const shareData = {
-      title: 'GridPop.io',
-      text: `I scored ${score.toLocaleString()} points in GridPop! See if you can beat it!`,
-      url: 'https://gridpop.netlify.app'
-    };
-
+    const text = `I scored ${score.toLocaleString()} points in GridPop! Can you beat it?`;
     if (navigator.share) {
-      navigator.share(shareData)
-        .then(() => console.log('Shared successfully!'))
-        .catch((error) => console.warn('Share failed:', error));
-    } else if (navigator.clipboard && navigator.clipboard.writeText) {
-      // Clipboard fallback
-      navigator.clipboard.writeText(shareText)
-        .then(() => {
-          setShowCopiedMessage(true);
-          setTimeout(() => setShowCopiedMessage(false), 2000);
-        })
-        .catch((err) => console.error('Failed to copy text: ', err));
-    } else {
-      // Final fallback if clipboard API isn't available
-      console.warn('Web Share and Clipboard APIs not supported.');
-      alert('Please copy the following link manually:\n\n' + shareText);
+      navigator.share({ title: "GridPop", text, url: SITE }).catch(() => undefined);
+    } else if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(`${text} ${SITE}`).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
     }
   }
 
-
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="bg-white max-w-[85vw] sm:max-w-md max-h-[90vh] overflow-y-auto rounded-lg">
-        <DialogHeader>
-          <DialogTitle className="text-3xl font-bold text-center">
-            GAME OVER
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-[88vw] overflow-hidden rounded-[28px] border-0 bg-white p-0 sm:max-w-sm">
+        <div className="relative bg-[#3B2E5A] px-6 pb-7 pt-8 text-center text-white">
+          <motion.div
+            className="text-5xl"
+            initial={{ scale: 0, rotate: -30 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 12, delay: 0.1 }}
+          >
+            💀
+          </motion.div>
+          <DialogTitle className="font-display mt-2 text-[28px] font-bold tracking-tight">Game Over</DialogTitle>
+          <DialogDescription className="mt-1 text-sm font-bold text-white/60">A tile reached 7</DialogDescription>
+          {isNewBest && (
+            <motion.span
+              className="gp-pop-label absolute right-4 top-4 !m-0 bg-[#FFD45E] text-[#6E4300] shadow-[0_3px_0_#D9A12A]"
+              initial={{ scale: 0, rotate: 20 }}
+              animate={{ scale: 1, rotate: 8 }}
+              transition={{ type: "spring", stiffness: 500, damping: 12, delay: 1.1 }}
+            >
+              New best!
+            </motion.span>
+          )}
+        </div>
 
-        <div className="text-center space-y-6 py-4">
-          <div>
-            <p className="text-2xl font-bold text-blue-600">
-              {score.toLocaleString()} points
-            </p>
-            <p className="text-gray-600 mt-1">
-              Level {level} • {linesCleared} lines cleared
-            </p>
+        <div className="px-6 pb-6 pt-5 text-center">
+          <div className="gp-label">Score</div>
+          <div className="gp-value mt-1 text-[52px]">{shown.toLocaleString()}</div>
+          <div className="mt-3 flex justify-center gap-6">
+            <div>
+              <div className="gp-label">Level</div>
+              <div className="gp-value text-2xl">{level}</div>
+            </div>
+            <div>
+              <div className="gp-label">Lines</div>
+              <div className="gp-value text-2xl">{linesCleared}</div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <Button
-              onClick={handleShare}
-              className="bg-green-600 hover:bg-green-700 text-lg py-6"
-            >
-              Challenge Your Friends!
-            </Button>
-
-            {showCopiedMessage && (
-              <p className="text-sm text-gray-600 text-center">
-                Link Copied! Share it with your friends!
-              </p>
-            )}
-
-            <Button
-              onClick={onRestart}
-              className="bg-blue-600 hover:bg-blue-700 text-lg py-6"
-            >
-              Play Again
-            </Button>
-
-
+          <div className="mt-6 flex flex-col gap-2.5">
+            <button className="gp-btn gp-btn-primary w-full text-base" onClick={onRestart} autoFocus>
+              <RotateCcw size={18} strokeWidth={3} /> Play Again
+            </button>
+            <button className="gp-btn w-full" onClick={handleShare}>
+              <Share2 size={17} strokeWidth={2.5} /> {copied ? "Link copied!" : "Challenge a friend"}
+            </button>
           </div>
         </div>
       </DialogContent>

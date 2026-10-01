@@ -1,63 +1,47 @@
+import { motion } from "framer-motion";
 import { Tetromino } from "@/types/game";
 import { getCurrentShape } from "@/utils/gameLogic";
+import { pieceColor } from "@/utils/gameCellVisuals";
 import { cn } from "@/lib/utils";
 
 interface PieceDisplayProps {
   piece: Tetromino | null;
-  label: string;
-  size: string;
-  gridSize?: number;
+  /** Fade it out (e.g. hold is used up this turn). */
+  dim?: boolean;
+  className?: string;
 }
 
-const PieceDisplay = ({ piece, label, size, gridSize = 3 }: PieceDisplayProps) => {
-  // Calculate size based on piece shape
-  const sizeNum = gridSize;
+/** The piece's shape with empty rows and columns trimmed off, so every piece sits centred. */
+function trimmed(piece: Tetromino): boolean[][] {
+  const shape = getCurrentShape(piece);
+  const rows = shape.filter((r) => r.some(Boolean));
+  const cols = shape[0].map((_, x) => shape.some((r) => r[x]));
+  return rows.map((r) => r.filter((_, x) => cols[x]));
+}
 
+/** A small preview of a piece (Hold and Next), always on a 4-wide frame so sizes stay consistent. */
+const PieceDisplay = ({ piece, dim, className }: PieceDisplayProps) => {
+  if (!piece) return <div className={cn("aspect-square w-full", className)} />;
+  const shape = trimmed(piece);
+  const w = shape[0].length;
+  const h = shape.length;
+  const color = pieceColor(piece.shape.type);
   return (
-    <div className="flex flex-col items-center w-full">
-      {label && <h3 className="text-gray-500 text-sm font-medium mb-2">{label}</h3>}
-      <div
-        className="grid gap-1 w-full aspect-square"
-        style={{
-          gridTemplateRows: `repeat(${sizeNum}, 1fr)`,
-          gridTemplateColumns: `repeat(${sizeNum}, 1fr)`,
-        }}
-      >
-        {piece
-          ? // Render piece preview with darker color matching the text colors
-            [...Array(sizeNum)].map((_, y) =>
-              [...Array(sizeNum)].map((_, x) => {
-                const shape = getCurrentShape(piece);
-                const isFilled = y < shape.length && x < shape[0].length && shape[y][x];
-
-                const pieceType = piece.shape.type;
-                const colorMap: Record<string, string> = {
-                  I: "#5BA3D9", // Sky Blue text
-                  O: "#D1B347", // Pale Lemon text
-                  T: "#8E7DCC", // Lavender text
-                  S: "#6BBF9E", // Mint text
-                  Z: "#C25C5C", // Red text
-                  L: "#D48F82", // Coral text
-                  J: "#5BA3D9", // Sky Blue text
-                  I3: "#5e7ca8	", // Sky Blue text
-                  LJ2: "#E18FB8", // pastel pink
-                };
-
-                return (
-                  <div
-                    key={`${y}-${x}`}
-                    className={cn("w-full aspect-square rounded-sm", isFilled ? "" : "bg-neutral-100")}
-                    style={isFilled ? { backgroundColor: colorMap[pieceType] || piece.shape.color } : {}}
-                  />
-                );
-              })
-            )
-          : // Empty placeholder
-            [...Array(sizeNum * sizeNum)].map((_, i) => (
-              <div key={i} className="w-full aspect-square bg-neutral-100 rounded-sm" />
-            ))}
+    <motion.div
+      key={`${piece.shape.type}-${piece.rotation}`}
+      className={cn("flex aspect-square w-full items-center justify-center transition-opacity", dim && "opacity-35", className)}
+      initial={{ scale: 0.6, opacity: 0 }}
+      animate={{ scale: 1, opacity: dim ? 0.35 : 1 }}
+      transition={{ type: "spring", stiffness: 500, damping: 24 }}
+    >
+      <div className="grid gap-[6%]" style={{ width: `${(w / 4) * 100}%`, gridTemplateColumns: `repeat(${w}, 1fr)`, gridTemplateRows: `repeat(${h}, 1fr)` }}>
+        {shape.flatMap((row, y) =>
+          row.map((on, x) => (
+            <div key={`${x}-${y}`} className={cn("aspect-square rounded-[28%]", on && "gp-mini")} style={on ? { ["--pc" as string]: color } : undefined} />
+          ))
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 

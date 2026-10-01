@@ -1,30 +1,44 @@
 /**
- * Game Cell Visuals from Design Spec
- * Exports a function to get color, effects, and text for a cell value.
+ * The look of every tile value and piece. Tiles warm up from friendly colours (1-4) to danger
+ * (5 orange, 6 red) because a tile that reaches 7 ends the game.
  */
 
-type CellVisual = {
-  backgroundColor: string;
+export type TileStyle = {
+  /** Top face of the tile. */
+  face: string;
+  /** The darker edge under it (gives tiles their chunky, pressable look). */
+  edge: string;
   text: string;
-  textColor: string;
+  label: string;
 };
 
-const cellVisuals: { [key: number]: CellVisual } = {
-  0: { backgroundColor: "#f1f1f1", text: "", textColor: "#000000" },
-  1: { backgroundColor: "#FFF3B0", text: "1", textColor: "#D1B347" },
-  2: { backgroundColor: "#B6E0FE", text: "2", textColor: "#5BA3D9" },
-  3: { backgroundColor: "#C3F5D0", text: "3", textColor: "#6BBF9E" },
-  4: { backgroundColor: "#D9CEFF", text: "4", textColor: "#8E7DCC" },
-  5: { backgroundColor: "#FAD4C0", text: "5", textColor: "#D48F82" },
-  6: { backgroundColor: "#FF7070", text: "6", textColor: "#B91C1C" },
-  7: { backgroundColor: "#000000", text: "💀", textColor: "#FFFFFF" },
+export const TILES: Record<number, TileStyle> = {
+  1: { face: "#FFD45E", edge: "#D9A12A", text: "#6E4300", label: "1" },
+  2: { face: "#7CCBFF", edge: "#3A93D2", text: "#08436B", label: "2" },
+  3: { face: "#7BDEA3", edge: "#3BA86A", text: "#0C4D2C", label: "3" },
+  4: { face: "#B8A3FF", edge: "#8063E6", text: "#33198A", label: "4" },
+  5: { face: "#FF9D5C", edge: "#D86A22", text: "#6E2600", label: "5" },
+  6: { face: "#FF5A6E", edge: "#C92841", text: "#FFFFFF", label: "6" },
+  7: { face: "#2B2236", edge: "#100B16", text: "#FFFFFF", label: "💀" },
 };
 
-const defaultVisual: CellVisual = { backgroundColor: "#f1f1f1", text: "", textColor: "#000000" };
+/** Colour of each piece shape (the piece you're moving, and the Hold / Next previews). */
+export const PIECE_COLORS: Record<string, string> = {
+  I: "#4FC3FF",
+  O: "#FFC83A",
+  T: "#A97CFF",
+  S: "#45D486",
+  Z: "#FF6B7A",
+  L: "#FF9A4D",
+  J: "#5B8CFF",
+  I3: "#3FD0C9",
+  LJ2: "#FF7BC1",
+};
 
-/**
- * Returns color/effects/text for cell value.
- */
-export function getCellVisual(value: number): CellVisual {
-  return cellVisuals.hasOwnProperty(value) ? cellVisuals[value] : defaultVisual;
+export const pieceColor = (type: string) => PIECE_COLORS[type] ?? "#FFFFFF";
+
+/** Background / text / label for a cell value. */
+export function getCellVisual(value: number) {
+  const t = TILES[value];
+  return t ? { backgroundColor: t.face, text: t.label, textColor: t.text } : { backgroundColor: "transparent", text: "", textColor: "#000" };
 }

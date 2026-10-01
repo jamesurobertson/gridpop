@@ -33,9 +33,9 @@ const HighScoresModal: React.FC<HighScoresModalProps> = ({ isOpen, onClose, high
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-white sm:max-w-md">
+      <DialogContent className="max-w-[92vw] rounded-[28px] border-0 bg-white sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">High Scores</DialogTitle>
+          <DialogTitle className="font-display text-center text-2xl font-bold">High Scores</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -54,17 +54,17 @@ const HighScoresModal: React.FC<HighScoresModalProps> = ({ isOpen, onClose, high
             </Select>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="rounded-2xl bg-[#FBF6EE] p-4">
             {categorizedScores[selectedCategory]?.length > 0 ? (
               <div className="space-y-2">
-                <div className="grid grid-cols-12 px-2 pb-2 text-xs text-gray-500 font-semibold border-b border-gray-200">
+                <div className="grid grid-cols-12 px-2 pb-2 gp-label border-b border-[#EADFCE]">
                   <div className="col-span-2">#</div>
                   <div className="col-span-5">Score</div>
                   <div className="col-span-2 text-center">Lines</div>
                   <div className="col-span-3 text-right">Date</div>
                 </div>
                 {categorizedScores[selectedCategory].map((score, index) => (
-                  <div key={index} className="grid grid-cols-12 items-center px-2 py-2 text-sm border-b border-gray-200">
+                  <div key={index} className="grid grid-cols-12 items-center px-2 py-2 text-sm border-b border-[#EADFCE] last:border-0">
                     <div className="col-span-2 flex items-center gap-1">
                       <span
                         className={`w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold
@@ -81,16 +81,16 @@ const HighScoresModal: React.FC<HighScoresModalProps> = ({ isOpen, onClose, high
                         <span className={index > 2 ? "text-gray-700" : "text-white"}>{index + 1}</span>
                       </span>
                     </div>
-                    <div className="col-span-5 font-medium text-sm">{score.score.toLocaleString()}</div>
-                    <div className="col-span-2 text-center text-xs text-blue-700 font-semibold">
+                    <div className="gp-value col-span-5 text-lg">{score.score.toLocaleString()}</div>
+                    <div className="col-span-2 text-center text-sm font-extrabold text-[#5A3ED6]">
                       {score.linesCleared ?? "-"}
                     </div>
-                    <div className="col-span-3 text-right text-xs text-gray-500">{formatDate(score.date)}</div>
+                    <div className="col-span-3 text-right text-xs font-semibold text-[color:var(--gp-muted)]">{formatDate(score.date)}</div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">No scores yet</p>
+              <p className="py-4 text-center font-semibold text-[color:var(--gp-muted)]">No scores yet. Go set one!</p>
             )}
           </div>
         </div>

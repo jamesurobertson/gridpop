@@ -1,4 +1,5 @@
-import React, { useEffect, useReducer, useState, useCallback, useRef } from "react";
+import React, { useEffect, useReducer, useState, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import GameBoard from "./GameBoard";
 import PieceDisplay from "./PieceDisplay";
 import GameOverModal from "./GameOverModal";
@@ -26,10 +27,11 @@ import {
   DEFAULT_GRID_SIZE,
 } from "@/utils/gameLogic";
 import { CellValue, Position, GameState, GameAction, KeyConfig, HighScore } from "@/types/game";
-import { Trophy, Timer } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Trophy, Timer, Settings2, Volume2, VolumeX, RotateCcw } from "lucide-react";
 import HighScoresModal from "./HighScoresModal";
-import { loadHighScores, saveHighScore } from "@/utils/highScores";
+import { loadHighScores } from "@/utils/highScores";
+import { sfx } from "@/audio/sfx";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_KEY_CONFIG: KeyConfig = {
   rotate: "d",
@@ -186,6 +188,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           position: { x: state.gridSize / 2, y: state.gridSize / 2 },
           id: animationCounter++,
           clearValue: clearValue,
+          lines: linesCleared,
         });
         clearedGrid = clearRowsAndCols(state.grid, rows, cols);
         // Check if the entire grid was cleared
@@ -196,7 +199,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             value: 5000,
             position: { x: state.gridSize / 2, y: state.gridSize / 2 },
             id: animationCounter++,
-            clearValue: 7, // Use 7 for the special full grid clear animation
+            clearValue: 7,
+            bonus: true,
           });
         }
       }
@@ -305,7 +309,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           ...state,
           currentPiece: state.nextQueue[0],
           heldPiece: state.currentPiece,
-          nextQueue: [...state.nextQueue.slice(1), state.nextQueue[0]],
+          nextQueue: [...state.nextQueue.slice(1), getNextTetromino(state.gridSize)],
           canHold: false,
         };
       }
@@ -461,48 +465,112 @@ function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
+/** Counts smoothly up to a number instead of jumping. */
+function useCountUp(target: number) {
+  const [shown, setShown] = useState(target);
+  const from = useRef(target);
+  useEffect(() => {
+    if (target < shown) {
+      // New game: snap straight back to zero.
+      from.current = target;
+      setShown(target);
+      return;
+    }
+    from.current = shown;
+    const start = performance.now();
+    const dur = Math.min(700, 250 + (target - shown) / 20);
+    let raf = 0;
+    const tick = (now: number) => {
+      const k = Math.min(1, (now - start) / dur);
+      const eased = 1 - (1 - k) ** 3;
+      setShown(Math.round(from.current + (target - from.current) * eased));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+  return shown;
+}
+
+/** "GridPop", with POP spelled in game tiles. */
+const Logo: React.FC<{ className?: string }> = ({ className }) => {
+  const tiles: [string, string, string, string][] = [
+    ["P", "#FFD45E", "#D9A12A", "#6E4300"],
+    ["O", "#7CCBFF", "#3A93D2", "#08436B"],
+    ["P", "#FF5A6E", "#C92841", "#FFFFFF"],
+  ];
+  return (
+    <h1 className={cn("gp-logo flex items-center leading-none", className)} aria-label="GridPop">
+      <span>Grid</span>
+      {tiles.map(([ch, f, e, t], i) => (
+        <motion.span
+          key={i}
+          className="gp-logo-tile"
+          style={{ ["--f" as string]: f, ["--e" as string]: e, ["--t" as string]: t }}
+          initial={{ y: -14, scale: 0.6, opacity: 0 }}
+          animate={{ y: 0, scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 14, delay: 0.1 + i * 0.08 }}
+        >
+          {ch}
+        </motion.span>
+      ))}
+    </h1>
+  );
+};
+
+const TimerBar: React.FC<{ remaining: number; total: number }> = ({ remaining, total }) => {
+  const low = remaining < 3000;
+  return (
+    <div className="w-full">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="gp-label flex items-center gap-1">
+          <Timer size={13} strokeWidth={3} /> Time
+        </span>
+        <span className={cn("gp-value text-base", low && "text-[#FF5A6E]")}>{Math.ceil(remaining / 1000)}s</span>
+      </div>
+      <div className="h-2.5 overflow-hidden rounded-full bg-[#F1E7DA]">
+        <div
+          className={cn("h-full rounded-full transition-[background-color]", low ? "bg-[#FF5A6E]" : "bg-[#7C5CFF]")}
+          style={{ width: `${Math.max(0, Math.min(100, (remaining / total) * 100))}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
 const GridPopGame: React.FC = () => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [showHighScores, setShowHighScores] = useState(false);
+  const [muted, setMuted] = useState(sfx.muted);
+  const [bumpKey, setBumpKey] = useState(0);
+  const [levelToast, setLevelToast] = useState<number | null>(null);
   const isMobile = useIsMobile();
-  const scorePanelRef = useRef<HTMLDivElement>(null);
+  const score = useCountUp(state.score);
+  // The best score when this game began, to tell a new record at game over.
+  const bestAtStart = useRef(state.bestScore);
+  if (state.turnsPlayed === 0) bestAtStart.current = state.bestScore;
 
   useEffect(() => {
     const { keyConfig, gridSize } = loadGameSettings();
-
-    if (keyConfig) {
-      dispatch({ type: "UPDATE_KEY_CONFIG", config: keyConfig });
-    }
-
-    if (gridSize && gridSize !== state.gridSize) {
-      dispatch({ type: "CHANGE_GRID_SIZE", size: gridSize });
-    }
+    if (keyConfig) dispatch({ type: "UPDATE_KEY_CONFIG", config: keyConfig });
+    if (gridSize && gridSize !== state.gridSize) dispatch({ type: "CHANGE_GRID_SIZE", size: gridSize });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-start game on mount
+  // Start straight away (and again after a reset).
   useEffect(() => {
-    if (!state.hasStarted) {
-      dispatch({ type: "START_GAME" });
-    }
+    if (!state.hasStarted) dispatch({ type: "START_GAME" });
   }, [state.hasStarted]);
 
   useEffect(() => {
-    if (state.scoreAnimations.length > 0) {
-      state.scoreAnimations.forEach((anim) => {
-        setTimeout(() => {
-          dispatch({ type: "REMOVE_SCORE_ANIMATION", id: anim.id });
-        }, 1500);
-      });
-    }
+    const timers = state.scoreAnimations.map((anim) => setTimeout(() => dispatch({ type: "REMOVE_SCORE_ANIMATION", id: anim.id }), 1500));
+    return () => timers.forEach(clearTimeout);
   }, [state.scoreAnimations]);
 
   useEffect(() => {
     if (!state.hasStarted || state.gameOver || !state.isTimed) return;
-
-    const timerInterval = setInterval(() => {
-      dispatch({ type: "TICK_TIMER" });
-    }, 16);
-
+    const timerInterval = setInterval(() => dispatch({ type: "TICK_TIMER" }), 16);
     return () => clearInterval(timerInterval);
   }, [state.hasStarted, state.gameOver, state.isTimed]);
 
@@ -511,420 +579,341 @@ const GridPopGame: React.FC = () => {
     dispatch({ type: "AUTO_PLACE" });
   }, [state.timeRemaining, state.gameOver, state.isTimed, state.hasStarted]);
 
+  // Completed lines flash for a beat, then clear.
   useEffect(() => {
-    if (state.pendingClear) {
-      const timeout = setTimeout(() => {
-        dispatch({ type: "CLEAR_LINES" });
-      }, 100);
-      return () => clearTimeout(timeout);
+    if (!state.pendingClear) return;
+    const timeout = setTimeout(() => dispatch({ type: "CLEAR_LINES" }), checkLinesToClear(state.grid).clearValue > 0 ? 260 : 60);
+    return () => clearTimeout(timeout);
+  }, [state.pendingClear, state.grid]);
+
+  // ---------- sound: one place that listens to the game and plays what just happened ----------
+
+  const prev = useRef(state);
+  useEffect(() => {
+    const p = prev.current;
+    prev.current = state;
+    if (!state.hasStarted || !p.hasStarted) return;
+
+    if (state.gameOver && !p.gameOver) {
+      const best = state.score > 0 && state.score > bestAtStart.current;
+      sfx.play(best ? "best" : "gameover", { delay: 0.25 });
+      return;
     }
-  }, [state.pendingClear]);
+    if (state.pendingClear && !p.pendingClear) sfx.play("place", { jitter: 0.06 });
+
+    const seen = new Set(p.scoreAnimations.map((a) => a.id));
+    for (const a of state.scoreAnimations) {
+      if (seen.has(a.id)) continue;
+      if (a.bonus) {
+        sfx.play("boardclear", { delay: 0.15 });
+        continue;
+      }
+      // Higher numbers ring higher; more lines at once add a flourish.
+      sfx.play("clear", { rate: 0.8 + a.clearValue * 0.09 });
+      if ((a.lines ?? 1) >= 2) sfx.play("combo", { delay: 0.09, rate: 0.95 + (a.lines ?? 2) * 0.05 });
+    }
+
+    if (state.level > p.level && !state.gameOver) {
+      sfx.play("levelup", { delay: 0.3 });
+      setLevelToast(state.level);
+    }
+
+    const sixes = (g: typeof state.grid) => g.reduce((n, row) => n + row.filter((v) => v === 6).length, 0);
+    if (sixes(state.grid) > sixes(p.grid) && !state.pendingClear) sfx.play("danger", { delay: 0.12 });
+
+    const samePiece = p.currentPiece && state.currentPiece && p.turnsPlayed === state.turnsPlayed && p.canHold === state.canHold;
+    if (p.canHold && !state.canHold) sfx.play("hold");
+    else if (samePiece && p.currentPiece!.rotation !== state.currentPiece!.rotation) sfx.play("rotate", { rate: 1.15, jitter: 0.04 });
+    else if (samePiece && (p.currentPiece!.position.x !== state.currentPiece!.position.x || p.currentPiece!.position.y !== state.currentPiece!.position.y))
+      sfx.play("move", { jitter: 0.08 });
+  }, [state]);
+
+  useEffect(() => {
+    if (levelToast === null) return;
+    const t = setTimeout(() => setLevelToast(null), 1400);
+    return () => clearTimeout(t);
+  }, [levelToast]);
+
+  // ---------- controls ----------
+
+  const canAct = () => !state.showOptionsMenu && !!state.currentPiece && !state.gameOver && state.hasStarted && !state.pendingClear;
+
+  const bump = () => {
+    sfx.play("bump", { jitter: 0.05 });
+    setBumpKey((k) => k + 1);
+  };
 
   const handleDirectionalMove = (direction: "left" | "right" | "up" | "down") => {
-    if (state.showOptionsMenu || !state.currentPiece || state.gameOver || !state.hasStarted) return;
-
+    if (!canAct() || !state.currentPiece) return;
     const { x, y } = state.currentPiece.position;
-    let newPosition: Position;
-
-    switch (direction) {
-      case "left":
-        newPosition = { x: x - 1, y };
-        break;
-      case "right":
-        newPosition = { x: x + 1, y };
-        break;
-      case "up":
-        newPosition = { x, y: y - 1 };
-        break;
-      case "down":
-        newPosition = { x, y: y + 1 };
-        break;
-    }
-
-    dispatch({ type: "MOVE_PIECE", position: newPosition });
+    const delta = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[direction];
+    const position: Position = { x: x + delta[0], y: y + delta[1] };
+    if (!isValidPosition(state.grid, { ...state.currentPiece, position })) return bump();
+    dispatch({ type: "MOVE_PIECE", position });
   };
 
   const handlePieceRotate = (direction: "clockwise" | "counterclockwise") => {
-    if (state.showOptionsMenu || !state.hasStarted) return;
+    if (!canAct() || !state.currentPiece) return;
+    const piece = state.currentPiece;
+    const max = piece.shape.rotations.length;
+    const next = (piece.rotation + (direction === "clockwise" ? 1 : -1) + max) % max;
+    // tryWallKick tries the new rotation on a copy, nudging it if it doesn't fit.
+    if (!tryWallKick(state.grid, { ...piece, rotation: next }, next)) return bump();
     dispatch({ type: "ROTATE_PIECE", direction });
-
-    // After rotation, check if the piece is in a valid position
-    // If not, try to adjust it
-    if (state.currentPiece) {
-      const currentPiece = state.currentPiece;
-      const currentRotation = currentPiece.rotation;
-      const maxRotations = currentPiece.shape.rotations.length;
-      const newRotation = (currentRotation + (direction === "clockwise" ? 1 : -1) + maxRotations) % maxRotations;
-
-      // Check if we need to adjust position after rotation
-      const newShape = currentPiece.shape.rotations[newRotation];
-      const pieceWidth = newShape[0].length;
-      const pieceHeight = newShape.length;
-
-      // Make sure piece isn't going out of bounds after rotation
-      let newX = currentPiece.position.x;
-      let newY = currentPiece.position.y;
-
-      if (newX + pieceWidth > state.gridSize) {
-        newX = state.gridSize - pieceWidth;
-      }
-
-      if (newY + pieceHeight > state.gridSize) {
-        newY = state.gridSize - pieceHeight;
-      }
-
-      if (newX !== currentPiece.position.x || newY !== currentPiece.position.y) {
-        dispatch({
-          type: "MOVE_PIECE",
-          position: { x: newX, y: newY },
-        });
-      }
-    }
   };
 
-  const handlePieceMove = (
-    e: React.MouseEvent | React.TouchEvent | React.KeyboardEvent,
-    boardRef: React.RefObject<HTMLDivElement>
-  ) => {
-    if (state.showOptionsMenu || !state.currentPiece || state.gameOver || !state.hasStarted) return;
+  const handlePlace = () => {
+    if (canAct()) dispatch({ type: "PLACE_PIECE" });
+  };
 
-    if ("key" in e) {
-      return;
-    }
+  const handleHold = () => {
+    if (!canAct()) return;
+    if (!state.canHold) return bump();
+    dispatch({ type: "HOLD_PIECE" });
   };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent default for arrow keys and spacebar to stop page scrolling
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
-        e.preventDefault();
-      }
-
-      if (state.showOptionsMenu || !state.hasStarted || state.gameOver) return;
-
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
+      if (state.showOptionsMenu || !state.hasStarted || state.gameOver || e.repeat && e.key === state.keyConfig.drop) return;
       const key = e.key.toLowerCase();
       const { rotate, drop, hold, moveLeft, moveRight, moveUp, moveDown, rotateCounter } = state.keyConfig;
-
-      // Skip empty key bindings
-      if (key === rotate?.toLowerCase() && rotate) {
-        handlePieceRotate("clockwise");
-      } else if (key === rotateCounter?.toLowerCase() && rotateCounter) {
-        handlePieceRotate("counterclockwise");
-      } else if (key === drop?.toLowerCase() && drop) {
-        dispatch({ type: "PLACE_PIECE" });
-      } else if (key === hold?.toLowerCase() && hold) {
-        dispatch({ type: "HOLD_PIECE" });
-      } else if (key === moveLeft?.toLowerCase() && moveLeft) {
-        handleDirectionalMove("left");
-      } else if (key === moveRight?.toLowerCase() && moveRight) {
-        handleDirectionalMove("right");
-      } else if (key === moveUp?.toLowerCase() && moveUp) {
-        handleDirectionalMove("up");
-      } else if (key === moveDown?.toLowerCase() && moveDown) {
-        handleDirectionalMove("down");
-      }
+      const is = (k?: string) => !!k && key === k.toLowerCase();
+      if (is(rotate)) handlePieceRotate("clockwise");
+      else if (is(rotateCounter)) handlePieceRotate("counterclockwise");
+      else if (is(drop)) handlePlace();
+      else if (is(hold)) handleHold();
+      else if (is(moveLeft)) handleDirectionalMove("left");
+      else if (is(moveRight)) handleDirectionalMove("right");
+      else if (is(moveUp)) handleDirectionalMove("up");
+      else if (is(moveDown)) handleDirectionalMove("down");
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    state.hasStarted,
-    state.gameOver,
-    state.keyConfig,
-    state.showOptionsMenu,
-    handlePieceRotate,
-    handleDirectionalMove,
-    dispatch,
-  ]);
+  });
 
   const handleNewGame = () => {
+    sfx.play("click");
     dispatch({ type: "RESET_GAME" });
     dispatch({ type: "START_GAME" });
   };
 
-  const handleUpdateKeyConfig = (config: Partial<KeyConfig>) => {
-    dispatch({ type: "UPDATE_KEY_CONFIG", config });
+  const openOptions = () => {
+    sfx.play("open");
+    dispatch({ type: "SET_OPTIONS_MENU", isOpen: true });
   };
 
-  const handleChangeGridSize = (size: 4 | 5) => {
-    dispatch({ type: "CHANGE_GRID_SIZE", size });
+  const openHighScores = () => {
+    sfx.play("open");
+    setShowHighScores(true);
   };
 
-  const handleToggleTimed = (isTimed: boolean) => {
-    dispatch({ type: "TOGGLE_TIMED_MODE", isTimed });
+  const toggleMute = () => {
+    sfx.setMuted(!muted);
+    setMuted(!muted);
+    if (muted) sfx.play("click");
   };
 
-  const handleGameOver = useCallback(() => {
-    if (state.score > 0) {
-      const updatedHighScores = saveHighScore(state.score, state.gridSize, state.isTimed, state.linesCleared);
-      dispatch({ type: "UPDATE_HIGH_SCORES", highScores: updatedHighScores });
-    }
-    dispatch({ type: "RESET_GAME" });
-  }, [state.score, state.gridSize, state.isTimed, state.linesCleared]);
+  // ---------- layout ----------
 
-  useEffect(() => {
-    if (!isMobile || !scorePanelRef.current) return;
-    const el = scorePanelRef.current;
-    const preventScroll = (e: TouchEvent) => {
-      e.preventDefault();
-    };
-    el.addEventListener("touchmove", preventScroll, { passive: false });
-    return () => {
-      el.removeEventListener("touchmove", preventScroll);
-    };
-  }, [isMobile]);
+  const pieceKey = `${state.turnsPlayed}-${state.canHold ? 0 : 1}-${state.currentPiece?.shape.type}`;
+  const mode = `${state.gridSize}×${state.gridSize} · ${state.isTimed ? "Timed" : "Untimed"}`;
+
+  const board = (
+    <div className="relative">
+      <GameBoard
+        className="gp-board-wrap aspect-square w-full"
+        grid={state.grid}
+        currentPiece={state.hasStarted ? state.currentPiece : null}
+        pieceKey={pieceKey}
+        pendingClear={state.pendingClear}
+        bumpKey={bumpKey}
+        scoreAnimations={state.scoreAnimations}
+        onPieceMove={handleDirectionalMove}
+        onPiecePlace={handlePlace}
+        onPieceRotate={handlePieceRotate}
+        gameOver={state.gameOver}
+      />
+      <AnimatePresence>
+        {levelToast !== null && (
+          <motion.div
+            key={levelToast}
+            className="pointer-events-none absolute inset-x-0 -top-5 z-30 flex justify-center"
+            initial={{ y: 12, opacity: 0, scale: 0.8 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -10, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 22 }}
+          >
+            <span className="gp-pop-label !m-0 !rotate-0 bg-[#45D486] shadow-[0_3px_0_#2BA864]">Level {levelToast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  const holdWell = (
+    <div className={cn("gp-well", state.canHold && "gp-well-tap")} onClick={handleHold} title="Hold (S)">
+      <PieceDisplay piece={state.heldPiece} dim={!state.canHold} />
+    </div>
+  );
+
+  const muteIcon = muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />;
 
   return (
-    <div className="max-w-6xl mx-auto p-4">
+    <div className="mx-auto w-full">
       {isMobile ? (
-        <div className="flex flex-col items-center w-full px-2">
-          {/* Top section with stats and next pieces */}
-          <div className="flex justify-between items-end w-full max-w-[340px] mb-3">
-            {/* Stats panel left-aligned */}
-            <div className="bg-white rounded-xl p-3 shadow-sm">
-              <div className="flex gap-4">
-                <div className="flex-2">
-                  <div className="text-xs text-gray-500 font-medium">Score</div>
-                  <div className="text-lg font-bold text-gray-800">{state.score.toLocaleString()}</div>
+        <div className="mx-auto flex min-h-[calc(100dvh-60px)] w-full max-w-[440px] flex-col gap-3 px-4 pb-6 pt-3">
+          <header className="flex items-center justify-between">
+            <Logo className="text-[30px]" />
+            <div className="flex gap-2">
+              <button className="gp-icon-btn" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
+                {muteIcon}
+              </button>
+              <button className="gp-icon-btn" onClick={openOptions} aria-label="Options">
+                <Settings2 size={20} strokeWidth={2.5} />
+              </button>
+            </div>
+          </header>
+
+          {/* Everything under the header sits in the middle of the screen on tall phones. */}
+          <div className="flex flex-1 flex-col justify-center gap-3">
+          <div className="flex items-stretch gap-2.5">
+            <div className="gp-card flex flex-1 items-center justify-between gap-2 px-3.5 py-2.5">
+              <div className="min-w-0">
+                <div className="gp-label">Score</div>
+                <div className="gp-value truncate text-[28px]">{score.toLocaleString()}</div>
+              </div>
+              <div className="flex gap-3 text-right">
+                <div>
+                  <div className="gp-label">Lvl</div>
+                  <div className="gp-value text-xl">{state.level}</div>
                 </div>
-                <div className="flex-1">
-                  <div className="text-xs text-gray-500 font-medium">Level</div>
-                  <div className="text-lg font-bold text-gray-800">{state.level}</div>
-                </div>
-                <div className="flex-1">
-                  <div className="text-xs text-gray-500 font-medium">Lines</div>
-                  <div className="text-lg font-bold text-gray-800">{state.linesCleared}</div>
+                <div>
+                  <div className="gp-label">Lines</div>
+                  <div className="gp-value text-xl">{state.linesCleared}</div>
                 </div>
               </div>
             </div>
-
-            {/* Hold and Next right-aligned */}
-            <div className="flex gap-3">
-              {/* Hold Box */}
-              <div className="flex flex-col items-center">
-                <span className="text-gray-600 text-sm font-medium mb-1">Hold</span>
-                <div
-                  onClick={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
-                  className="w-[65px] h-[65px] p-1.5 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                >
-                  <PieceDisplay piece={state.heldPiece} label="" size="large" gridSize={3} />
-                </div>
-              </div>
-              {/* Next Piece */}
-              <div className="flex flex-col items-center">
-                <span className="text-gray-600 text-sm font-medium mb-1">Next</span>
-                <div className="w-[65px] h-[65px] p-1.5 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm">
-                  {state.nextQueue.length === 0 ? (
-                    <PieceDisplay piece={null} label="" size="large" gridSize={3} />
-                  ) : (
-                    <PieceDisplay piece={state.nextQueue[0]} label="" size="large" gridSize={3} />
-                  )}
-                </div>
+            <div className="flex w-[68px] flex-col items-center">
+              <div className="gp-label mb-1">Hold</div>
+              <div className="w-full">{holdWell}</div>
+            </div>
+            <div className="flex w-[68px] flex-col items-center">
+              <div className="gp-label mb-1">Next</div>
+              <div className="gp-well w-full">
+                <PieceDisplay piece={state.nextQueue[0] ?? null} />
               </div>
             </div>
           </div>
 
-          {/* Board centered */}
-          <div className="flex justify-center w-full">
-            <GameBoard
-              grid={state.grid}
-              currentPiece={state.hasStarted ? state.currentPiece : null}
-              scoreAnimations={state.scoreAnimations}
-              onPieceMove={handleDirectionalMove}
-              onPiecePlace={() => state.hasStarted && dispatch({ type: "PLACE_PIECE" })}
-              onPieceRotate={handlePieceRotate}
-              onPieceHold={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
-              gameOver={state.gameOver}
-              hasStarted={state.hasStarted}
-              showOptionsMenu={state.showOptionsMenu}
-            />
+          <div className="mx-auto w-full" style={{ maxWidth: "min(100%, calc(100dvh - 330px))", minWidth: 260 }}>
+            {board}
           </div>
 
-          {/* Timer if in timed mode */}
           {state.isTimed && (
-            <div className="w-full max-w-[340px] mt-3">
-              <div className="bg-white rounded-xl p-2 shadow-sm">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center">
-                    <Timer size={16} className="mr-1" />
-                    <span className="text-xs text-gray-500 font-medium">Time</span>
-                  </div>
-                  <span className="text-base font-bold text-gray-800">{Math.ceil(state.timeRemaining / 1000)}s</span>
-                </div>
-                <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
-                  <div
-                    style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
-                    className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
-                      state.timeRemaining < 3000 ? "bg-red-500" : "bg-blue-500"
-                    }`}
-                  />
-                </div>
-              </div>
+            <div className="gp-card px-4 py-3">
+              <TimerBar remaining={state.timeRemaining} total={getTimerForLevel(state.level)} />
             </div>
           )}
 
-          {/* Mobile buttons */}
-          <div className="w-full max-w-[340px] mt-3 flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowHighScores(true)}
-              className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 hover:bg-gray-50"
-            >
-              <Trophy size={16} className="text-yellow-400" />
-              <span className="font-bold">{state.bestScore}</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
-              className="flex-1 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800"
-            >
-              Options
-            </Button>
-            <Button onClick={handleNewGame} className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] text-white">
-              New Game
-            </Button>
+          <div className="flex gap-2.5">
+            <button className="gp-btn flex-1" onClick={openHighScores}>
+              <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" />
+              <span className="gp-value text-lg">{state.bestScore.toLocaleString()}</span>
+            </button>
+            <button className="gp-btn gp-btn-primary flex-[1.4]" onClick={handleNewGame}>
+              <RotateCcw size={18} strokeWidth={3} /> New Game
+            </button>
+          </div>
           </div>
         </div>
       ) : (
-        <>
-          <div className="flex justify-between items-center mb-4">
-            <div></div>
-            <Button
-              variant="outline"
-              onClick={() => setShowHighScores(true)}
-              className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50"
-            >
-              <Trophy size={16} className="text-yellow-400" />
-              <span className="font-bold">{state.bestScore}</span>
-              <span className="text-sm text-gray-500">
-                ({state.gridSize}x{state.gridSize} {state.isTimed ? "Timed" : "Untimed"})
-              </span>
-            </Button>
-          </div>
+        <div className="mx-auto w-full max-w-[920px] px-6 pb-10 pt-7">
+          <header className="mb-7 flex items-center justify-between">
+            <Logo className="text-[44px]" />
+            <div className="flex gap-2.5">
+              <button className="gp-btn" onClick={openHighScores}>
+                <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" />
+                <span className="gp-value text-lg">{state.bestScore.toLocaleString()}</span>
+                <span className="text-sm font-bold text-[color:var(--gp-muted)]">{mode}</span>
+              </button>
+              <button className="gp-icon-btn" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"} title={muted ? "Unmute" : "Mute"}>
+                {muteIcon}
+              </button>
+            </div>
+          </header>
 
-          <div className="flex flex-row justify-center items-center w-full relative" style={{ minHeight: "500px" }}>
-            {/* Hold box (top left) */}
-            <div className="flex flex-col items-center mr-8" style={{ width: "100px" }}>
-              <span className="text-gray-500 text-base font-bold mb-2">Hold</span>
-              <div className="w-[100px] h-[100px] bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center mb-2">
-                <div className="w-full h-full p-2">
-                  <PieceDisplay piece={state.heldPiece} label="" size="large" />
+          <div className="grid grid-cols-[164px_minmax(0,1fr)_164px] items-start gap-7">
+            <aside className="flex flex-col gap-4">
+              <div className="gp-card p-4">
+                <div className="gp-label mb-2 flex justify-between">
+                  Hold <kbd className="font-sans text-[10px] opacity-70">{(state.keyConfig.hold || "").toUpperCase()}</kbd>
                 </div>
+                {holdWell}
               </div>
-              {/* Score/Lines panel at bottom left, aligned with board */}
-              <div className="flex-col items-center h-[400px] w-full">
-                <div className="w-full bg-white bg-opacity-90 rounded-xl shadow p-2 mt-auto flex flex-col text-xs font-bold text-gray-700">
-                  <div className="mb-2">
-                    Score
-                    <br />
-                    <span className="text-lg text-black">{state.score}</span>
-                  </div>
-                  <div className="mb-2">
-                    Level
-                    <br />
-                    <span className="text-lg text-black">{state.level}</span>
-                  </div>
-                  <div className="mb-2">
-                    Lines
-                    <br />
-                    <span className="text-lg text-black">{state.linesCleared}</span>
-                  </div>
-                  {state.isTimed && (
-                    <div className="w-full">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center">
-                          <Timer size={16} className="mr-1" />
-                          <span>Time</span>
-                        </div>
-                        <span>{Math.ceil(state.timeRemaining / 1000)}s</span>
-                      </div>
-                      <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
-                        <div
-                          style={{ width: `${(state.timeRemaining / getTimerForLevel(state.level)) * 100}%` }}
-                          className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
-                            state.timeRemaining < 3000 ? "bg-red-500" : "bg-blue-500"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  )}
+              <div className="gp-card flex flex-col gap-3.5 p-4">
+                <div>
+                  <div className="gp-label">Score</div>
+                  <div className="gp-value text-[34px]">{score.toLocaleString()}</div>
                 </div>
-                <div className="flex flex-col gap-2 mt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: true })}
-                    className="flex-1 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800"
-                  >
-                    Options
-                  </Button>
-                  <Button onClick={handleNewGame} className="flex-1 bg-[#3B82F6] hover:bg-[#2563EB] text-white">
-                    New Game
-                  </Button>
+                <div className="flex justify-between">
+                  <div>
+                    <div className="gp-label">Level</div>
+                    <div className="gp-value text-2xl">{state.level}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="gp-label">Lines</div>
+                    <div className="gp-value text-2xl">{state.linesCleared}</div>
+                  </div>
                 </div>
+                {state.isTimed && <TimerBar remaining={state.timeRemaining} total={getTimerForLevel(state.level)} />}
               </div>
-            </div>
-            {/* Board center */}
-            <div className="relative">
-              <GameBoard
-                grid={state.grid}
-                currentPiece={state.hasStarted ? state.currentPiece : null}
-                scoreAnimations={state.scoreAnimations}
-                onPieceMove={handleDirectionalMove}
-                onPiecePlace={() => state.hasStarted && dispatch({ type: "PLACE_PIECE" })}
-                onPieceRotate={handlePieceRotate}
-                onPieceHold={() => state.hasStarted && dispatch({ type: "HOLD_PIECE" })}
-                gameOver={state.gameOver}
-                hasStarted={state.hasStarted}
-                showOptionsMenu={state.showOptionsMenu}
-              />
-            </div>
-            {/* Next queue (top right) */}
-            <div className="flex flex-col self-start ml-8" style={{ width: "100px" }}>
-              <span className="text-gray-500 text-base font-bold mb-2">Next</span>
-              <div className="w-[100px] h-[400px] bg-white border-2 border-gray-200 rounded-xl flex flex-col items-center justify-between py-2">
-                {state.nextQueue.length === 0 &&
-                  [1, 2, 3, 4].map((piece, i) => {
-                    return (
-                      <div key={i} className="mb-2 last:mb-0 flex justify-center w-full px-2">
-                        <PieceDisplay piece={null} label="" size="large" />
-                      </div>
-                    );
-                  })}
-                {state.nextQueue.map((piece, i) => (
-                  <div key={i} className="mb-2 last:mb-0 flex justify-center w-full px-2">
-                    <PieceDisplay piece={piece} label="" size="large" />
+              <button className="gp-btn gp-btn-primary w-full" onClick={handleNewGame}>
+                <RotateCcw size={18} strokeWidth={3} /> New Game
+              </button>
+              <button className="gp-btn w-full" onClick={openOptions}>
+                <Settings2 size={18} strokeWidth={2.5} /> Options
+              </button>
+            </aside>
+
+            {board}
+
+            <aside className="gp-card p-4">
+              <div className="gp-label mb-2">Next</div>
+              <div className="flex flex-col gap-2.5">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className={cn("gp-well", i > 0 && "mx-3 opacity-80")}>
+                    <PieceDisplay piece={state.nextQueue[i] ?? null} />
                   </div>
                 ))}
               </div>
-            </div>
+            </aside>
           </div>
-        </>
+        </div>
       )}
 
       {state.gameOver && (
         <GameOverModal
           score={state.score}
           level={state.level}
-          highScores={state.highScores}
-          onRestart={handleNewGame}
-          onViewBoard={() => dispatch({ type: "TOGGLE_SHOW_BOARD" })}
-          showBoard={state.showBoard}
-          gridSize={state.gridSize}
-          isTimed={state.isTimed}
-          onClose={() => {}}
           linesCleared={state.linesCleared}
+          isNewBest={state.score > 0 && state.score > bestAtStart.current}
+          onRestart={handleNewGame}
+          onClose={() => {}}
         />
       )}
 
       <OptionsMenu
         isOpen={state.showOptionsMenu}
         onClose={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: false })}
-        onUpdateKeyConfig={handleUpdateKeyConfig}
+        onUpdateKeyConfig={(config: Partial<KeyConfig>) => dispatch({ type: "UPDATE_KEY_CONFIG", config })}
         keyConfig={state.keyConfig}
-        onChangeGridSize={handleChangeGridSize}
+        onChangeGridSize={(size: 4 | 5) => dispatch({ type: "CHANGE_GRID_SIZE", size })}
         currentGridSize={state.gridSize}
         isTimed={state.isTimed}
-        onToggleTimed={handleToggleTimed}
+        onToggleTimed={(isTimed: boolean) => dispatch({ type: "TOGGLE_TIMED_MODE", isTimed })}
+        muted={muted}
+        onToggleMute={toggleMute}
       />
 
       <HighScoresModal

@@ -2,189 +2,290 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-neutral-50;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-
-}
-
-@keyframes row-clear {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.05);
-    opacity: 0.8;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes super-clear {
-  0% {
-    transform: scale(1);
-    filter: brightness(1);
-  }
-
-  50% {
-    transform: scale(1.1);
-    filter: brightness(1.2);
-  }
-
-  100% {
-    transform: scale(1);
-    filter: brightness(1);
-  }
-}
-
-@keyframes game-over {
-  0% {
-    filter: brightness(1);
-  }
-
-  25% {
-    filter: brightness(1.2) contrast(1.1);
-  }
-
-  50% {
-    filter: brightness(1);
-  }
-
-  75% {
-    filter: brightness(1.2) contrast(1.1);
-  }
-
-  100% {
-    filter: brightness(1);
-  }
-}
-
-@keyframes piece-place {
-  0% {
-    transform: translateY(-3px);
-    opacity: 0.8;
-  }
-
-  40% {
-    transform: translateY(2px);
-  }
-
-  70% {
-    transform: translateY(-1px);
-  }
-
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes float-up {
-  0% {
-    transform: translate(-50%, -50%);
-    opacity: 1;
-  }
-
-  100% {
-    transform: translate(-50%, -150%);
-    opacity: 0;
-  }
-}
+/* ---------- design tokens ---------- */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* GridPop palette: warm cream page, deep plum board, candy tiles. */
+    --gp-bg: #fff6ea;
+    --gp-ink: #2e2346;
+    --gp-muted: #8c7fa3;
+    --gp-line: #eadfce;
+    --gp-board: #3b2e5a;
+    --gp-board-edge: #271d40;
+    --gp-socket: #4a3c6e;
+    --gp-accent: #7c5cff;
+    --gp-accent-edge: #5a3ed6;
 
+    /* shadcn tokens (dialogs, switches, selects) tuned to the palette. */
+    --background: 36 100% 96%;
+    --foreground: 258 33% 21%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 258 33% 21%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --popover-foreground: 258 33% 21%;
+    --primary: 253 100% 68%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 36 60% 94%;
+    --secondary-foreground: 258 33% 21%;
+    --muted: 36 60% 94%;
+    --muted-foreground: 262 14% 57%;
+    --accent: 36 60% 94%;
+    --accent-foreground: 258 33% 21%;
+    --destructive: 353 100% 64%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 36 40% 86%;
+    --input: 36 40% 86%;
+    --ring: 253 100% 68%;
+    --radius: 1rem;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-}
-
-@layer base {
   * {
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  html {
+    -webkit-tap-highlight-color: transparent;
   }
+
+  body {
+    font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--gp-ink);
+    background:
+      radial-gradient(60rem 30rem at 10% -10%, #ffe3c9 0%, transparent 60%),
+      radial-gradient(50rem 30rem at 110% 10%, #e7dcff 0%, transparent 60%),
+      radial-gradient(40rem 30rem at 50% 120%, #d9f3ff 0%, transparent 60%),
+      var(--gp-bg);
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: "Fredoka", "Nunito", system-ui, sans-serif;
+  }
+}
+
+/* ---------- surfaces and buttons ---------- */
+
+@layer components {
+  .gp-card {
+    @apply rounded-[22px] bg-white;
+    box-shadow: 0 4px 0 var(--gp-line), 0 12px 28px rgba(46, 35, 70, 0.08);
+  }
+
+  .gp-label {
+    @apply text-[11px] font-extrabold uppercase tracking-[0.12em];
+    color: var(--gp-muted);
+  }
+
+  .gp-value {
+    font-family: "Fredoka", system-ui, sans-serif;
+    @apply font-semibold leading-none tabular-nums;
+    color: var(--gp-ink);
+  }
+
+  /* Chunky, pressable buttons: they sink when you press them. */
+  .gp-btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-2xl bg-white px-4 text-[15px] font-extrabold transition-[transform,box-shadow,background-color] duration-100;
+    min-height: 46px;
+    color: var(--gp-ink);
+    box-shadow: 0 4px 0 var(--gp-line), 0 8px 18px rgba(46, 35, 70, 0.06);
+  }
+  .gp-btn:hover { background: #fffaf3; }
+  .gp-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--gp-line); }
+  .gp-btn:focus-visible { outline: 3px solid var(--gp-accent); outline-offset: 2px; }
+
+  .gp-btn-primary {
+    @apply text-white;
+    background: var(--gp-accent);
+    box-shadow: 0 4px 0 var(--gp-accent-edge), 0 10px 22px rgba(124, 92, 255, 0.35);
+  }
+  .gp-btn-primary:hover { background: #8a6dff; }
+  .gp-btn-primary:active { box-shadow: 0 1px 0 var(--gp-accent-edge); }
+
+  .gp-icon-btn {
+    @apply gp-btn px-0;
+    width: 46px;
+  }
+
+  /* Hold / Next wells. */
+  .gp-well {
+    @apply rounded-[18px] p-2.5;
+    background: #f6eee2;
+    box-shadow: inset 0 3px 0 rgba(46, 35, 70, 0.06);
+  }
+  .gp-well-tap { @apply cursor-pointer transition-transform active:scale-95; }
+
+  .gp-mini {
+    background: var(--pc);
+    box-shadow: 0 2px 0 color-mix(in srgb, var(--pc) 70%, black), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  }
+}
+
+/* ---------- the board ---------- */
+
+/* The board sizes itself from its container, so tiles, numbers and gaps scale together. */
+.gp-board-wrap {
+  container-type: inline-size;
+}
+
+.gp-board {
+  position: relative;
+  padding: 3.4cqw;
+  gap: 2.4cqw;
+  border-radius: 6cqw;
+  background: linear-gradient(180deg, #43356a 0%, var(--gp-board) 100%);
+  box-shadow: 0 1.6cqw 0 var(--gp-board-edge), 0 4cqw 8cqw rgba(46, 35, 70, 0.35), inset 0 0.5cqw 0 rgba(255, 255, 255, 0.08);
+}
+
+.gp-socket {
+  border-radius: 22%;
+  background: var(--gp-socket);
+  box-shadow: inset 0 0.7cqw 0 rgba(0, 0, 0, 0.25);
+}
+
+.gp-tile {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 22%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--face) 82%, white) 0%, var(--face) 55%);
+  box-shadow: 0 1cqw 0 var(--edge), inset 0 0.6cqw 0 rgba(255, 255, 255, 0.4);
+  transition: filter 0.6s ease var(--delay, 0ms);
+}
+
+.gp-num {
+  font-family: "Fredoka", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: calc(100cqw / var(--n, 4) * 0.42);
+  line-height: 1;
+}
+
+/* A 6 is one step from game over: it breathes red. */
+.gp-danger { animation: gp-danger 1.1s ease-in-out infinite; }
+@keyframes gp-danger {
+  0%, 100% { box-shadow: 0 1cqw 0 var(--edge), inset 0 0.6cqw 0 rgba(255, 255, 255, 0.4), 0 0 0 0 rgba(255, 90, 110, 0); }
+  50% { box-shadow: 0 1cqw 0 var(--edge), inset 0 0.6cqw 0 rgba(255, 255, 255, 0.4), 0 0 3cqw 0.4cqw rgba(255, 90, 110, 0.75); }
+}
+
+.gp-skull { animation: gp-skull 0.6s ease-in-out infinite alternate; }
+@keyframes gp-skull { to { transform: scale(1.06) rotate(-3deg); } }
+
+.gp-dead { filter: grayscale(0.75) brightness(0.7); }
+
+/* The beat between placing and clearing: completed lines flash white. */
+.gp-flash {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.55) 60%, rgba(255, 255, 255, 0) 100%);
+  animation: gp-flash 0.25s ease-out both;
+}
+@keyframes gp-flash { from { opacity: 0; } to { opacity: 1; } }
+
+/* Lines the piece would complete where it stands. */
+.gp-will-clear {
+  border-radius: 22%;
+  box-shadow: inset 0 0 0 0.7cqw rgba(255, 255, 255, 0.85), 0 0 2.2cqw rgba(255, 255, 255, 0.55);
+  animation: gp-shimmer 0.9s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes gp-shimmer { from { opacity: 0.45; } to { opacity: 1; } }
+
+/* The piece you're moving. */
+.gp-piece {
+  position: absolute;
+  inset: -0.5cqw;
+  display: grid;
+  place-items: center;
+  border-radius: 24%;
+  border: 0.8cqw solid color-mix(in srgb, var(--pc) 75%, white);
+  /* Mostly solid, so it never blends with the tile underneath into a misleading colour. */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 80%, white) 0%, color-mix(in srgb, var(--pc) 88%, #3b2e5a) 100%);
+  box-shadow: 0 0 3cqw color-mix(in srgb, var(--pc) 70%, transparent), inset 0 0 0 0.5cqw rgba(255, 255, 255, 0.35);
+  opacity: 0.94;
+}
+/* The piece is live: its glow breathes, so it never reads as a placed tile. */
+.gp-piece:not(.gp-piece-deadly) { animation: gp-live 1.4s ease-in-out infinite alternate; }
+@keyframes gp-live {
+  from { box-shadow: 0 0 1.5cqw color-mix(in srgb, var(--pc) 45%, transparent), inset 0 0 0 0.5cqw rgba(255, 255, 255, 0.35); }
+  to { box-shadow: 0 0 4.5cqw color-mix(in srgb, var(--pc) 90%, transparent), inset 0 0 0 0.5cqw rgba(255, 255, 255, 0.6); }
+}
+.gp-piece-num {
+  color: #fff;
+  text-shadow: 0 0.5cqw 0 rgba(30, 20, 50, 0.35);
+}
+.gp-piece-deadly { animation: gp-shimmer 0.35s ease-in-out infinite alternate; }
+
+/* Cleared tile: a ring and sparks. */
+.gp-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 26%;
+  border: 0.9cqw solid var(--c);
+  animation: gp-ring 0.55s ease-out both;
+}
+@keyframes gp-ring {
+  from { transform: scale(0.9); opacity: 1; }
+  to { transform: scale(1.7); opacity: 0; }
+}
+.gp-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.2cqw;
+  height: 2.2cqw;
+  margin: -1.1cqw;
+  border-radius: 30%;
+}
+
+/* Score pops. */
+.gp-pop {
+  font-family: "Fredoka", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(34px, 11cqw, 64px);
+  line-height: 1;
+  color: var(--c);
+  text-shadow: 0 3px 0 #2e2346, 3px 0 0 #2e2346, -3px 0 0 #2e2346, 0 -3px 0 #2e2346, 2px 2px 0 #2e2346, -2px 2px 0 #2e2346, 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+.gp-pop-label {
+  font-family: "Fredoka", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(14px, 4.2cqw, 22px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--gp-accent);
+  padding: 0.2em 0.7em;
+  border-radius: 999px;
+  transform: rotate(-4deg);
+  margin-bottom: 6px;
+  box-shadow: 0 3px 0 var(--gp-accent-edge);
+}
+.gp-pop-bonus { background: #ff5a6e; box-shadow: 0 3px 0 #c92841; }
+
+/* ---------- logo ---------- */
+
+.gp-logo {
+  font-family: "Fredoka", system-ui, sans-serif;
+  font-weight: 700;
+  color: var(--gp-ink);
+  letter-spacing: -0.02em;
+}
+.gp-logo-tile {
+  display: inline-grid;
+  place-items: center;
+  width: 1.15em;
+  height: 1.15em;
+  margin-left: 0.08em;
+  border-radius: 26%;
+  color: var(--t);
+  background: var(--f);
+  box-shadow: 0 0.09em 0 var(--e), inset 0 0.06em 0 rgba(255, 255, 255, 0.4);
+  font-size: 0.82em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gp-danger, .gp-skull, .gp-will-clear, .gp-piece, .gp-piece-deadly { animation: none; }
 }

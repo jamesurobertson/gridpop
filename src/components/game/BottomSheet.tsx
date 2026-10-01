@@ -98,7 +98,7 @@ const BottomSheet: React.FC<BottomSheetProps> = ({ children, label }) => {
         }}
       >
         <div
-          className="w-full max-w-md bg-white rounded-t-2xl shadow-[0_-2px_12px_0_rgba(0,0,0,0.10)] flex flex-col items-center max-h-[70vh]"
+          className="w-full max-w-md bg-white rounded-t-[26px] shadow-[0_-6px_24px_rgba(46,35,70,0.12)] flex flex-col items-center max-h-[70vh] pb-[env(safe-area-inset-bottom)]"
           style={{ maxWidth: "100vw" }}
         >
           {/* Header */}
@@ -109,8 +109,8 @@ const BottomSheet: React.FC<BottomSheetProps> = ({ children, label }) => {
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-2" />
-            <div className="font-bold text-lg select-none pb-2 border-b w-full text-center">
+            <div className="w-10 h-1.5 bg-[#E3D6C4] rounded-full mb-2" />
+            <div className="font-display font-bold text-lg select-none pb-2.5 border-b border-[color:var(--gp-line)] w-full text-center">
               {label}
             </div>
           </div>

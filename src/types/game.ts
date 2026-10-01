@@ -39,6 +39,10 @@ export interface ScoreAnimation {
   position: Position;
   id: number;
   clearValue: CellValue;
+  /** Lines cleared at once (2+ get a combo label). */
+  lines?: number;
+  /** The whole-board-clear bonus. */
+  bonus?: boolean;
 }
 
 export interface HighScore {

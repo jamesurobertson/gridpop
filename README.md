@@ -30,10 +30,7 @@ npm run build
 
 The built files will be in the `dist` directory.
 
-## Custom Domain
+## Credits
 
-To set up a custom domain:
-
-1. Configure your DNS settings to point to your hosting provider
-2. Update your hosting provider's settings to serve the built files
-3. Ensure SSL is properly configured for secure connections
+Sound effects: [Interface Sounds](https://kenney.nl/assets/interface-sounds) and
+[Music Jingles](https://kenney.nl/assets/music-jingles) by Kenney (CC0). Fonts: Fredoka and Nunito (Google Fonts, OFL).
