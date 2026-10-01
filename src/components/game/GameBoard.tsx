@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
-import { motion, useAnimate } from "framer-motion";
+import { animate as animateValue, motion, useAnimate, useMotionValue, useTransform } from "framer-motion";
 import { GridType, Tetromino, ScoreAnimation } from "@/types/game";
 import { TILES, pieceColor } from "@/utils/gameCellVisuals";
 import { checkLinesToClear, getCurrentShape, placeTetromino, MAX_CELL_VALUE } from "@/utils/gameLogic";
@@ -15,8 +15,6 @@ interface GameBoardProps {
   pendingClear: boolean;
   /** Bumped each time a move is blocked: the piece wobbles. */
   bumpKey: number;
-  /** Bumped on every rotation, with its direction: the whole piece turns that way. */
-  spin: { key: number; dir: 1 | -1 };
   scoreAnimations: ScoreAnimation[];
   onPieceMove: (direction: "left" | "right" | "up" | "down") => void;
   onPiecePlace: () => void;
@@ -41,7 +39,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
   pieceKey,
   pendingClear,
   bumpKey,
-  spin,
   scoreAnimations,
   onPieceMove,
   onPiecePlace,
@@ -87,6 +84,28 @@ const GameBoard: React.FC<GameBoardProps> = ({
     for (const c of cols) for (let y = 0; y < n; y++) set.add(`${c},${y}`);
     return set;
   }, [grid, pendingClear, n]);
+
+  // ---------- turning: the piece spins about the centre of its rotation square ----------
+
+  // The shapes are stored as quarter-turns of one another inside a fixed square, so drawing the
+  // first orientation and rotating the square shows exactly the right shape at every step.
+  const angle = useMotionValue(0);
+  const counter = useTransform(angle, (a) => -a);
+  const lastPieceKey = useRef("");
+  const rotation = currentPiece?.rotation ?? 0;
+  useEffect(() => {
+    const target = rotation * 90;
+    if (lastPieceKey.current !== pieceKey) {
+      // A new piece (or one swapped from Hold) appears already facing the right way.
+      lastPieceKey.current = pieceKey;
+      angle.set(target);
+      return;
+    }
+    // Take the short way round, so 270° → 0° is one more clockwise quarter-turn, not three back.
+    const now = angle.get();
+    const nearest = target + 360 * Math.round((now - target) / 360);
+    void animateValue(angle, nearest, { type: "spring", stiffness: 520, damping: 26 });
+  }, [rotation, pieceKey, angle]);
 
   // ---------- clear effects: bursts where tiles vanished ----------
 
@@ -233,53 +252,67 @@ const GameBoard: React.FC<GameBoardProps> = ({
               return <div key={`w${key}`} className="gp-will-clear" style={{ ...cellArea(x, y), zIndex: 2 }} />;
             })}
 
-          {/* The piece you're moving, as one block over its own patch of the board. It glides when it moves
-              and turns as a whole (clockwise or counterclockwise) when it rotates. Each cell shows the tile it
-              would become. */}
-          {preview && preview.cells.length > 0 && (() => {
-            const xs = preview.cells.map((c) => c.x);
-            const ys = preview.cells.map((c) => c.y);
-            const minX = Math.min(...xs);
-            const minY = Math.min(...ys);
-            const w = Math.max(...xs) - minX + 1;
-            const h = Math.max(...ys) - minY + 1;
+          {/* The piece you're moving. It sits in its rotation square, glides when it moves and spins about
+              the square's centre when it rotates; each block turns back so its number stays upright. Every
+              block shows the tile it would become. */}
+          {preview && currentPiece && (() => {
+            const base = currentPiece.shape.rotations[0];
+            const size = base.length;
+            // Board geometry in container units (matches .gp-board: 3cqw padding, 2.2cqw gaps, 0.9cqw border).
+            const cell = (92.2 - (n - 1) * 2.2) / n;
+            const step = cell + 2.2;
+            const next = new Map(preview.cells.map((c) => [`${c.x},${c.y}`, c.next]));
+            const k = ((rotation % 4) + 4) % 4;
+            const blocks: { r: number; c: number; v: number }[] = [];
+            base.forEach((row, r) =>
+              row.forEach((on, c) => {
+                if (!on) return;
+                // Where this block lands after k clockwise quarter-turns: (r, c) -> (c, size-1-r) each turn.
+                let rr = r;
+                let cc = c;
+                for (let i = 0; i < k; i++) [rr, cc] = [cc, size - 1 - rr];
+                const v = next.get(`${currentPiece.position.x + cc},${currentPiece.position.y + rr}`);
+                if (v !== undefined) blocks.push({ r, c, v });
+              })
+            );
             return (
               <motion.div
                 key={pieceKey}
-                layout="position"
-                className="relative"
-                style={{ gridColumn: `${minX + 1} / span ${w}`, gridRow: `${minY + 1} / span ${h}`, zIndex: 3 }}
+                className="gp-piece-box pointer-events-none"
+                style={{
+                  left: `${3 + currentPiece.position.x * step}cqw`,
+                  top: `${3 + currentPiece.position.y * step}cqw`,
+                  width: `${size * cell + (size - 1) * 2.2}cqw`,
+                  height: `${size * cell + (size - 1) * 2.2}cqw`,
+                }}
                 initial={{ scale: 0.4, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ layout: { type: "spring", stiffness: 700, damping: 40 }, default: { type: "spring", stiffness: 500, damping: 22 } }}
+                transition={{ type: "spring", stiffness: 500, damping: 22 }}
               >
                 <motion.div
-                  key={spin.key}
-                  className="grid h-full w-full"
-                  style={{ gridTemplateColumns: `repeat(${w}, 1fr)`, gridTemplateRows: `repeat(${h}, 1fr)`, gap: "var(--gp-gap)" }}
-                  initial={spin.key ? { rotate: -90 * spin.dir } : false}
-                  animate={{ rotate: 0 }}
-                  transition={{ type: "spring", stiffness: 420, damping: 24 }}
+                  key={bumpKey}
+                  className="h-full w-full"
+                  initial={bumpKey ? { x: 0 } : false}
+                  animate={bumpKey ? { x: [0, -5, 5, -3, 0] } : undefined}
+                  transition={{ duration: 0.22 }}
                 >
-                  {preview.cells.map((c) => {
-                    const deadly = c.next >= MAX_CELL_VALUE;
-                    // Coloured as the tile it would become, so colour patterns (and clears) read at a glance.
-                    const look = TILES[c.next];
-                    return (
-                      <div key={`${c.x},${c.y}`} className="relative" style={{ gridColumn: c.x - minX + 1, gridRow: c.y - minY + 1 }}>
-                        <motion.div
-                          key={bumpKey}
-                          className={cn("gp-piece", deadly && "gp-piece-deadly")}
-                          style={{ ["--face" as string]: look.face, color: look.text }}
-                          initial={bumpKey ? { x: 0 } : false}
-                          animate={bumpKey ? { x: [0, -5, 5, -3, 0] } : undefined}
-                          transition={{ duration: 0.22 }}
-                        >
-                          <span className="gp-num gp-piece-num">{deadly ? "💀" : c.next}</span>
+                  <motion.div
+                    className="grid h-full w-full"
+                    style={{ rotate: angle, gridTemplateColumns: `repeat(${size}, 1fr)`, gridTemplateRows: `repeat(${size}, 1fr)`, gap: "var(--gp-gap)" }}
+                  >
+                    {blocks.map(({ r, c, v }) => {
+                      const deadly = v >= MAX_CELL_VALUE;
+                      // Coloured as the tile it would become, so colour patterns (and clears) read at a glance.
+                      const look = TILES[v];
+                      return (
+                        <motion.div key={`${r},${c}`} className="relative" style={{ gridColumn: c + 1, gridRow: r + 1, rotate: counter }}>
+                          <div className={cn("gp-piece", deadly && "gp-piece-deadly")} style={{ ["--face" as string]: look.face, color: look.text }}>
+                            <span className="gp-num gp-piece-num">{deadly ? "💀" : v}</span>
+                          </div>
                         </motion.div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </motion.div>
                 </motion.div>
               </motion.div>
             );

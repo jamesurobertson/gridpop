@@ -217,6 +217,13 @@
 }
 @keyframes gp-shimmer { from { opacity: 0.4; } to { opacity: 1; } }
 
+/* The square the moving piece turns in: placed over the board, gliding as the piece moves. */
+.gp-piece-box {
+  position: absolute;
+  z-index: 3;
+  transition: left 0.14s cubic-bezier(0.2, 0.8, 0.3, 1), top 0.14s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
 /* The piece you're moving: each cell looks like the tile it would become, ringed in solid white. */
 .gp-piece {
   position: absolute;
