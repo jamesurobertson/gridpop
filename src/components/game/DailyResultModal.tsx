@@ -75,24 +75,28 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92dvh] max-w-[88vw] overflow-y-auto rounded-[28px] border-[2.5px] border-[#1F1633] bg-white p-0 sm:max-w-sm">
-        <div className="bg-[#3B2E5A] px-6 pb-6 pt-7 text-center text-white">
+      <DialogContent
+        className="max-h-[calc(100dvh-24px)] max-w-[min(92vw,384px)] gap-0 overflow-y-auto rounded-[28px] border-[2.5px] border-[#1F1633] bg-white p-0 [&>button:last-child]:text-white [&>button:last-child]:opacity-80"
+        // Focusing the bottom button would scroll a tall card past its own heading.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="bg-[#3B2E5A] px-6 pb-4 pt-5 text-center text-white">
           <motion.div
             key={heading.emoji}
-            className="text-5xl"
+            className="text-4xl"
             initial={{ scale: 0, rotate: -30 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 400, damping: 12, delay: 0.1 }}
           >
             {heading.emoji}
           </motion.div>
-          <DialogTitle className="font-display mt-2 text-[28px] font-bold tracking-tight">{heading.title}</DialogTitle>
+          <DialogTitle className="font-display mt-1 text-[26px] font-bold tracking-tight">{heading.title}</DialogTitle>
           <DialogDescription className="mt-1 text-sm font-bold text-white/60">{puzzleName}</DialogDescription>
         </div>
 
-        <div className="px-6 pb-6 pt-5 text-center">
+        <div className="px-5 pb-5 pt-4 text-center">
           {solved && (
-            <div className="mb-5 grid grid-cols-4 gap-2">
+            <div className="mb-4 grid grid-cols-4 gap-2">
               <Stat label="Moves" value={run.moves} />
               <Stat label="Restarts" value={run.restarts ?? 0} />
               <Stat label="Goal" value={run.par} />
@@ -107,13 +111,13 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                 <Stat label="Streak" value={`🔥 ${stats.streak}`} />
                 <Stat label="Best" value={stats.bestStreak} />
               </div>
-              <div className="mt-4 space-y-1.5">
+              <div className="mt-3 space-y-1">
                 {stats.overPar.map((count, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm font-extrabold">
                     <span className="w-8 text-left text-[color:var(--gp-muted)]">{OVER_GOAL_LABELS[i]}</span>
                     <span className="flex-1">
                       <span
-                        className={cn("block min-w-[28px] rounded-lg px-2 py-0.5 text-right text-white", i === overPar ? "bg-[#45D486]" : "bg-[#B8A3FF]")}
+                        className={cn("block min-w-[28px] rounded-md px-2 text-right text-[13px] leading-5 text-white", i === overPar ? "bg-[#45D486]" : "bg-[#B8A3FF]")}
                         style={{ width: `${Math.max(12, (count / mostAtOneScore) * 100)}%` }}
                       >
                         {count}
@@ -123,24 +127,25 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                 ))}
               </div>
               {extra}
-              <div className="mt-4">
+              <div className="mt-3">
                 <div className="gp-label">Next puzzle</div>
                 <div className="gp-value mt-1 text-xl">{formatClock(msLeft)}</div>
               </div>
             </>
           )}
 
-          <div className="mt-6 flex flex-col gap-2.5">
+          {/* Kept in view at the bottom of a card that scrolls on short screens. */}
+          <div className="sticky bottom-0 -mx-5 -mb-5 mt-4 flex flex-col gap-2.5 bg-white px-5 pb-5 pt-2">
             {solved ? (
-              <button className="gp-btn gp-btn-primary w-full text-base" onClick={handleShare} autoFocus>
+              <button className="gp-btn gp-btn-primary w-full text-base" onClick={handleShare}>
                 <Share2 size={18} strokeWidth={2.5} /> {copied ? "Copied!" : "Share"}
               </button>
             ) : outcome ? (
-              <button className="gp-btn gp-btn-primary w-full text-base" onClick={onRestart} autoFocus>
+              <button className="gp-btn gp-btn-primary w-full text-base" onClick={onRestart}>
                 <RotateCcw size={18} strokeWidth={3} /> Try again
               </button>
             ) : (
-              <button className="gp-btn gp-btn-primary w-full text-base" onClick={onClose} autoFocus>
+              <button className="gp-btn gp-btn-primary w-full text-base" onClick={onClose}>
                 Keep playing
               </button>
             )}
