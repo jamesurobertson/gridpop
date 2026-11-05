@@ -11,7 +11,8 @@ Stack pieces, match the numbers, and pop the lines before a tile hits 7.
 ## Daily puzzle
 
 The game opens on the daily puzzle: everyone gets the same pieces in the same order and tries to
-build the target board in as few placements as possible, with time breaking ties. A new puzzle
+build the target board in as few placements as possible (each restart counts as one more), with time breaking ties. The
+fewest possible is shown as the goal. A new puzzle
 starts at midnight UTC. Unlimited and Timed are the endless modes.
 
 Puzzles live in `src/data/dailyPuzzles.json`, made ahead of time by
@@ -20,10 +21,27 @@ Puzzles live in `src/data/dailyPuzzles.json`, made ahead of time by
 node scripts/generate-daily.mjs 2027-05-04 60   # first date, number of days
 ```
 
-which builds each day's target from its seeded pieces and searches every line of play for par. Days
+which builds each day's target from its seeded pieces and searches every line of play for the fewest placements that reach it (the goal). Days
 already in the file are kept, so it only adds new ones. Each day has three puzzles: Easy, Normal and
 Hard are built from 3, 4 and 5 pieces (`LEVELS` in the script), each with its own streak.
 Like Wordle, each puzzle is played once: after solving it you see your result until the next day.
+
+## Reddit (r/gridpop)
+
+`reddit/` is a [Devvit](https://developers.reddit.com/) app that runs the daily puzzle inside Reddit
+posts, reusing the board, rules and puzzles from `src/`. Every day at 00:01 UTC it posts and pins
+that day's puzzle; mods can also use "Post today's GridPop" from the subreddit menu. The server
+replays each submitted run against the day's pieces before it counts, then keeps results, streaks
+and a leaderboard (score, then time) in Redis per Reddit user.
+
+```bash
+npm install                 # in the repo root first: the app uses its React and UI libraries
+cd reddit && npm install
+npx devvit login            # once
+npm run deploy              # build and upload a new version
+npx devvit install gridpop  # install or update it on r/gridpop
+npm run dev                 # playtest: live-reloads on r/gridpop while you edit
+```
 
 ## Getting Started
 

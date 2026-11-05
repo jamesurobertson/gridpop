@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { RotateCcw, Share2 } from "lucide-react";
 import { DailyOutcome } from "@/types/game";
-import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
+import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyScore, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
 import { cn } from "@/lib/utils";
 
 interface DailyResultModalProps {
@@ -15,10 +15,14 @@ interface DailyResultModalProps {
   run: DailyResult | null;
   stats: DailyStats;
   onRestart: () => void;
+  /** Shown under the stats, e.g. a leaderboard. */
+  extra?: React.ReactNode;
+  /** Replaces the browser share (the Reddit app uses its own share sheet). */
+  onShare?: (text: string) => void;
 }
 
 const SITE = "https://jamesurobertson.github.io/gridpop/";
-const OVER_PAR_LABELS = ["Par", "+1", "+2", "+3"];
+const OVER_GOAL_LABELS = ["Goal", "+1", "+2", "+3"];
 
 function useCountdown(active: boolean) {
   const [msLeft, setMsLeft] = useState(msUntilNextPuzzle);
@@ -38,23 +42,26 @@ const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
   </div>
 );
 
-const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart }) => {
+const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare }) => {
   const [copied, setCopied] = useState(false);
   const msLeft = useCountdown(isOpen);
   const solved = outcome === "solved" && run;
-  const overPar = solved ? Math.min(3, run.moves - run.par) : -1;
+  const score = run ? dailyScore(run) : 0;
+  const overPar = solved ? Math.min(3, Math.max(0, score - run.par)) : -1;
   const puzzleName = `Daily #${setup.number} · ${DAILY_LEVELS.find((option) => option.level === setup.level)?.label}`;
 
   const heading =
     outcome === "seven" ? { emoji: "💀", title: "A tile reached 7" } :
     outcome === "empty" ? { emoji: "🫙", title: "Out of pieces" } :
-    solved ? { emoji: run.moves <= run.par ? "⛳" : "🎉", title: run.moves <= run.par ? "Par!" : "Solved" } :
+    solved ? { emoji: score <= run.par ? "🎯" : "🎉", title: score <= run.par ? "Perfect!" : "Solved" } :
     { emoji: "📅", title: puzzleName };
 
   function handleShare() {
     if (!run) return;
     const text = dailyShareText(setup, run);
-    if (navigator.share) {
+    if (onShare) {
+      onShare(text);
+    } else if (navigator.share) {
       navigator.share({ text: `${text}\n${SITE}` }).catch(() => undefined);
     } else if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(`${text}\n${SITE}`).then(() => {
@@ -85,9 +92,10 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
 
         <div className="px-6 pb-6 pt-5 text-center">
           {solved && (
-            <div className="mb-5 flex justify-center gap-8">
+            <div className="mb-5 grid grid-cols-4 gap-2">
               <Stat label="Moves" value={run.moves} />
-              <Stat label="Par" value={run.par} />
+              <Stat label="Restarts" value={run.restarts ?? 0} />
+              <Stat label="Goal" value={run.par} />
               <Stat label="Time" value={formatClock(run.timeMs)} />
             </div>
           )}
@@ -102,7 +110,7 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
               <div className="mt-4 space-y-1.5">
                 {stats.overPar.map((count, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm font-extrabold">
-                    <span className="w-8 text-left text-[color:var(--gp-muted)]">{OVER_PAR_LABELS[i]}</span>
+                    <span className="w-8 text-left text-[color:var(--gp-muted)]">{OVER_GOAL_LABELS[i]}</span>
                     <span className="flex-1">
                       <span
                         className={cn("block min-w-[28px] rounded-lg px-2 py-0.5 text-right text-white", i === overPar ? "bg-[#45D486]" : "bg-[#B8A3FF]")}
@@ -114,6 +122,7 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                   </div>
                 ))}
               </div>
+              {extra}
               <div className="mt-4">
                 <div className="gp-label">Next puzzle</div>
                 <div className="gp-value mt-1 text-xl">{formatClock(msLeft)}</div>

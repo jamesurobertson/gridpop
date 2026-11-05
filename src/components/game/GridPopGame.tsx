@@ -36,9 +36,9 @@ import {
   gridsMatch,
   isToday,
   utcDateKey,
-  loadDailyClock,
+  loadDailyProgress,
   loadDailyResults,
-  saveDailyClock,
+  saveDailyProgress,
   saveDailyResult,
   loadDailyLevel,
   saveDailyLevel,
@@ -48,6 +48,7 @@ import {
   DailySetup,
 } from "@/utils/daily";
 import DailyResultModal from "./DailyResultModal";
+import { Logo } from "./Logo";
 import TargetGrid from "./TargetGrid";
 import { Trophy, Timer, Settings2, Volume2, VolumeX, RotateCcw, CalendarDays, Infinity as InfinityIcon, Flame } from "lucide-react";
 import HighScoresModal from "./HighScoresModal";
@@ -551,51 +552,6 @@ function useCountUp(target: number) {
   return shown;
 }
 
-/** The GridPop wordmark: a little tile grid, "Grid", and POP spelled in game tiles that hop now and then. */
-const Logo: React.FC<{ className?: string }> = ({ className }) => {
-  // letter, face, edge, text colour, tilt
-  const tiles: [string, string, string, string, number][] = [
-    ["P", "#FFD45E", "#D9A12A", "#6E4300", -7],
-    ["O", "#7CCBFF", "#3A93D2", "#08436B", 4],
-    ["P", "#FF5A6E", "#C92841", "#FFFFFF", -3],
-  ];
-  const mark = ["#FFD45E", "#7CCBFF", "#7BDEA3", "#FF5A6E"];
-  return (
-    <h1 className={cn("gp-logo", className)} aria-label="GridPop">
-      <motion.span
-        className="gp-logo-mark"
-        aria-hidden
-        initial={{ scale: 0.4, rotate: -20, opacity: 0 }}
-        animate={{ scale: 1, rotate: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 420, damping: 14 }}
-      >
-        {mark.map((c, i) => (
-          <i key={i} style={{ background: c }} className={i === 3 ? "gp-logo-mark-pop" : undefined} />
-        ))}
-      </motion.span>
-      <span className="gp-logo-word">Grid</span>
-      <span className="gp-logo-pop" aria-hidden>
-        {tiles.map(([ch, f, e, t, r], i) => (
-          <motion.span
-            key={i}
-            className="inline-block"
-            initial={{ y: -18, scale: 0.5, opacity: 0 }}
-            animate={{ y: 0, scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 520, damping: 13, delay: 0.15 + i * 0.09 }}
-          >
-            <span
-              className="gp-logo-tile"
-              style={{ ["--f" as string]: f, ["--e" as string]: e, ["--t" as string]: t, ["--r" as string]: `${r}deg`, ["--d" as string]: `${1.2 + i * 0.12}s` }}
-            >
-              {ch}
-            </span>
-          </motion.span>
-        ))}
-      </span>
-    </h1>
-  );
-};
-
 const TimerBar: React.FC<{ remaining: number; total: number }> = ({ remaining, total }) => {
   const low = remaining < 3000;
   return (
@@ -670,7 +626,8 @@ const GridPopGame: React.FC = () => {
   const [dailyResults, setDailyResults] = useState(loadDailyResults);
   const [showDailyModal, setShowDailyModal] = useState(false);
   const [lastDailyRun, setLastDailyRun] = useState<DailyResult | null>(null);
-  const [dailyClockMs, setDailyClockMs] = useState(() => (daily && !dailyResults[daily.level][daily.date] ? loadDailyClock(daily) : 0));
+  const [dailyClockMs, setDailyClockMs] = useState(() => (daily && !dailyResults[daily.level][daily.date] ? loadDailyProgress(daily).elapsedMs : 0));
+  const [dailyAttempts, setDailyAttempts] = useState(() => (daily && !dailyResults[daily.level][daily.date] ? loadDailyProgress(daily).attempts : 0));
   const [dailyClockArmed, setDailyClockArmed] = useState(false);
   const savedDailyResult = daily ? dailyResults[daily.level][daily.date] : undefined;
   // False once the puzzle is done, or if the page was left open into the next day.
@@ -691,13 +648,13 @@ const GridPopGame: React.FC = () => {
   }, [daily, dailyClockArmed, state.dailyOutcome]);
 
   useEffect(() => {
-    if (dailyCounts && dailyClockMs > 0) saveDailyClock(daily, dailyClockMs);
-  }, [dailyCounts, dailyClockMs, daily]);
+    if (dailyCounts && dailyClockMs > 0) saveDailyProgress(daily, { elapsedMs: dailyClockMs, attempts: dailyAttempts });
+  }, [dailyCounts, dailyClockMs, dailyAttempts, daily]);
 
   useEffect(() => {
     if (!daily || !state.dailyOutcome) return;
     if (state.dailyOutcome === "solved" && !daily.showSolved) {
-      const run = { moves: state.turnsPlayed, par: daily.par, timeMs: dailyClockMs };
+      const run = { moves: state.turnsPlayed, restarts: Math.max(0, dailyAttempts - 1), par: daily.par, timeMs: dailyClockMs };
       setLastDailyRun(run);
       if (dailyCounts) setDailyResults(saveDailyResult(daily.level, daily.date, run));
     }
@@ -715,7 +672,11 @@ const GridPopGame: React.FC = () => {
     setShowDailyModal(false);
     setLastDailyRun(null);
     setDailyClockArmed(false);
-    if (setup) setDailyClockMs(dailyResults[setup.level][setup.date] ? 0 : loadDailyClock(setup));
+    if (setup) {
+      const progress = dailyResults[setup.level][setup.date] ? { elapsedMs: 0, attempts: 0 } : loadDailyProgress(setup);
+      setDailyClockMs(progress.elapsedMs);
+      setDailyAttempts(progress.attempts);
+    }
   };
 
   const switchMode = (mode: PlayMode) => {
@@ -870,6 +831,7 @@ const GridPopGame: React.FC = () => {
   const handlePlace = () => {
     if (!canAct()) return;
     armDailyClock();
+    if (daily && state.turnsPlayed === 0) setDailyAttempts((attempts) => attempts + 1);
     dispatch({ type: "PLACE_PIECE" });
   };
 
@@ -929,6 +891,7 @@ const GridPopGame: React.FC = () => {
   const pieceKey = `${state.turnsPlayed}-${state.canHold ? 0 : 1}-${state.currentPiece?.shape.type}`;
   const mode = `${state.gridSize}×${state.gridSize} · ${state.isTimed ? "Timed" : "Untimed"}`;
   const dailyMoves = daily?.showSolved ? savedDailyResult?.moves ?? 0 : state.turnsPlayed;
+  const dailyRestarts = daily?.showSolved ? savedDailyResult?.restarts ?? 0 : Math.max(0, dailyAttempts - (state.turnsPlayed > 0 ? 1 : 0));
   const dailyClock = formatClock(daily?.showSolved ? savedDailyResult?.timeMs ?? 0 : dailyClockMs);
   const restartLabel = daily ? "Restart" : "New Game";
   const canRestart = state.dailyOutcome !== "solved";
@@ -996,10 +959,14 @@ const GridPopGame: React.FC = () => {
             <div className={cn("gp-value", compact ? "text-xl" : "text-2xl")}>{dailyMoves}</div>
           </div>
           <div className={cn(!compact && "text-right")}>
-            <div className="gp-label">Par</div>
+            <div className="gp-label">Goal</div>
             <div className={cn("gp-value", compact ? "text-xl" : "text-2xl")}>{daily.par}</div>
           </div>
-          <div className="col-span-2">
+          <div>
+            <div className="gp-label">Restarts</div>
+            <div className={cn("gp-value", compact ? "text-xl" : "text-2xl")}>{dailyRestarts}</div>
+          </div>
+          <div className={cn(!compact && "text-right")}>
             <div className="gp-label">Time</div>
             <div className={cn("gp-value", compact ? "text-xl" : "text-2xl")}>{dailyClock}</div>
           </div>
