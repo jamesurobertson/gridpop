@@ -910,6 +910,7 @@ const GridPopGame: React.FC = () => {
         onPiecePlace={handlePlace}
         onPieceRotate={handlePieceRotate}
         gameOver={state.gameOver && state.dailyOutcome !== "solved"}
+        showPoints={!daily}
       />
       <AnimatePresence>
         {levelToast !== null && (

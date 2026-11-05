@@ -28,7 +28,7 @@ function useLandscape() {
   return landscape;
 }
 
-const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " ", hold: "s" };
+const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " " };
 
 export const Game = () => {
   const [puzzle, setPuzzle] = useState<PuzzleResponse | null>(null);
@@ -234,14 +234,6 @@ export const Game = () => {
     dispatch({ type: "place" });
   };
 
-  const hold = () => {
-    if (!playable) return;
-    startClock();
-    if (!run.canHold || (!run.held && !run.queue[0])) return bump();
-    sfx.play("hold");
-    dispatch({ type: "hold" });
-  };
-
   const restart = () => {
     if (!levelPuzzle) return;
     sfx.play("click");
@@ -262,7 +254,6 @@ export const Game = () => {
       else if (key === KEYS.rotate) rotate("clockwise");
       else if (key === KEYS.rotateBack) rotate("counterclockwise");
       else if (key === KEYS.place) place();
-      else if (key === KEYS.hold) hold();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -289,9 +280,9 @@ export const Game = () => {
   const restarts = result ? result.restarts ?? 0 : Math.max(0, attempts - (run.moves > 0 ? 1 : 0));
   const setup = { date: puzzle.date, level, number: puzzle.number, pieces: levelPuzzle.pieces, target, par: levelPuzzle.par, showSolved: !!result };
   const stat = (label: string, value: ReactNode) => (
-    <div>
+    <div className="text-center">
       <div className="gp-label">{label}</div>
-      <div className="gp-value text-xl">{value}</div>
+      <div className="gp-value mt-1 text-xl">{value}</div>
     </div>
   );
 
@@ -306,7 +297,7 @@ export const Game = () => {
   );
 
   const statsCard = (
-    <div className="gp-card grid grid-cols-4 gap-x-1 px-3 py-2.5">
+    <div className="gp-card grid grid-cols-4 gap-x-1 px-2 py-2.5">
       {stat("Moves", result ? result.moves : run.moves)}
       {stat("Goal", <span className="text-[#7C5CFF]">{levelPuzzle.par}</span>)}
       {stat("Restarts", restarts)}
@@ -315,32 +306,19 @@ export const Game = () => {
   );
 
   const targetCard = (
-    <div className="gp-card p-2.5">
-      <div className="gp-label mb-1.5">Target</div>
+    <div className="gp-card flex flex-col p-3">
+      <div className="gp-label mb-2">Target</div>
       <TargetGrid grid={target} className="w-full" />
     </div>
   );
 
-  // Hold and the next piece large, then the three after it.
-  const pieces = (
-    <div className="flex h-full flex-col justify-between gap-2">
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <div className="gp-label mb-1">Hold</div>
-          <div className={cn("gp-well", run.canHold && "gp-well-tap")} onClick={hold}>
-            <PieceDisplay piece={run.held} dim={!run.canHold} />
-          </div>
-        </div>
-        <div>
-          <div className="gp-label mb-1">Next</div>
-          <div className="gp-well">
-            <PieceDisplay piece={run.queue[0] ?? null} />
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="gp-well !p-2 opacity-80">
+  // The next four pieces in order, the first one ringed: enough to see a whole Hard solve.
+  const nextCard = (
+    <div className="gp-card flex flex-col p-3">
+      <div className="gp-label mb-2">Next</div>
+      <div className="grid flex-1 grid-cols-2 gap-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={cn("gp-well grid place-items-center !p-2", i === 0 ? "ring-[2.5px] ring-inset ring-[#7C5CFF]" : "opacity-70")}>
             <PieceDisplay piece={run.queue[i] ?? null} />
           </div>
         ))}
@@ -373,7 +351,7 @@ export const Game = () => {
           className="gp-board-wrap aspect-square w-full"
           grid={run.grid}
           currentPiece={run.current}
-          pieceKey={`${runNumber}-${run.moves}-${run.canHold ? 0 : 1}-${run.current?.shape.type}`}
+          pieceKey={`${runNumber}-${run.moves}-${run.current?.shape.type}`}
           pendingClear={run.pendingClear}
           bumpKey={bumpKey}
           scoreAnimations={run.scoreAnimations}
@@ -381,6 +359,7 @@ export const Game = () => {
           onPiecePlace={place}
           onPieceRotate={rotate}
           gameOver={!!run.outcome && !solved}
+          showPoints={false}
         />
       </div>
     </div>
@@ -396,7 +375,7 @@ export const Game = () => {
             {statsCard}
             <div className="grid grid-cols-2 gap-2.5">
               {targetCard}
-              {pieces}
+              {nextCard}
             </div>
             {buttons}
           </aside>
@@ -407,7 +386,7 @@ export const Game = () => {
           {statsCard}
           <div className="grid grid-cols-2 gap-2.5">
             {targetCard}
-            {pieces}
+            {nextCard}
           </div>
           {boardArea}
           {buttons}

@@ -20,8 +20,6 @@ export type RunState = {
   grid: GridType;
   current: Tetromino | null;
   queue: Tetromino[];
-  held: Tetromino | null;
-  canHold: boolean;
   moves: number;
   /** The piece is down and complete lines are about to pop. */
   pendingClear: boolean;
@@ -36,7 +34,6 @@ type RunEvent =
   | { type: "showSolved"; target: GridType }
   | { type: "move"; position: Position }
   | { type: "rotate"; direction: "clockwise" | "counterclockwise" }
-  | { type: "hold" }
   | { type: "place" }
   | { type: "clear"; target: GridType }
   | { type: "removeAnimation"; id: number };
@@ -49,8 +46,6 @@ const fresh = (pieces: TetrominoType[]): RunState => {
     grid: createEmptyGrid(4),
     current: queue[0] ?? null,
     queue: queue.slice(1),
-    held: null,
-    canHold: true,
     moves: 0,
     pendingClear: false,
     outcome: null,
@@ -78,13 +73,6 @@ function reduce(state: RunState, event: RunEvent): RunState {
       const rotation = (piece.rotation + (event.direction === "clockwise" ? 1 : -1) + count) % count;
       const position = tryWallKick(state.grid, { ...piece, rotation }, rotation);
       return position ? { ...state, current: { ...piece, rotation, position } } : state;
-    }
-    case "hold": {
-      if (!playable || !state.canHold) return state;
-      const actions: RunAction[] = [...state.actions, { type: "hold" }];
-      if (state.held) return { ...state, current: state.held, held: state.current, canHold: false, actions };
-      if (!state.queue[0]) return state;
-      return { ...state, current: state.queue[0], queue: state.queue.slice(1), held: state.current, canHold: false, actions };
     }
     case "place": {
       if (!playable) return state;
@@ -116,7 +104,6 @@ function reduce(state: RunState, event: RunEvent): RunState {
         grid,
         current: outcome ? null : next,
         queue: state.queue.slice(1),
-        canHold: true,
         moves: state.moves + 1,
         pendingClear: false,
         outcome,

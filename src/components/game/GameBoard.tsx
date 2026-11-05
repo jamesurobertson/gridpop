@@ -20,6 +20,8 @@ interface GameBoardProps {
   onPiecePlace: () => void;
   onPieceRotate: (direction: "clockwise" | "counterclockwise") => void;
   gameOver: boolean;
+  /** Off in the daily, where clears are worth nothing: only combo labels pop. */
+  showPoints?: boolean;
   className?: string;
 }
 
@@ -44,6 +46,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   onPiecePlace,
   onPieceRotate,
   gameOver,
+  showPoints = true,
   className,
 }) => {
   const n = grid.length;
@@ -348,6 +351,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
       {scoreAnimations.map((a) => {
         const label = a.bonus ? "Board Clear!" : COMBO_LABEL[a.lines ?? 1];
         const t = TILES[a.clearValue] ?? TILES[1];
+        if (!showPoints && !label) return null;
         return (
           <motion.div
             key={a.id}
@@ -362,9 +366,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
             }}
           >
             {label && <span className={cn("gp-pop-label", a.bonus && "gp-pop-bonus")}>{label}</span>}
-            <span className="gp-pop" style={{ ["--c" as string]: a.bonus ? "#FFD45E" : t.face }}>
-              +{a.value.toLocaleString()}
-            </span>
+            {showPoints && (
+              <span className="gp-pop" style={{ ["--c" as string]: a.bonus ? "#FFD45E" : t.face }}>
+                +{a.value.toLocaleString()}
+              </span>
+            )}
           </motion.div>
         );
       })}
