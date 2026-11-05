@@ -17,16 +17,22 @@ import { useDailyRun } from "./useDailyRun";
 
 const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0, 0, 0, 0] };
 
-/** Wide, short views (desktop and fullscreen) put the board beside everything else. */
-function useLandscape() {
-  const read = () => window.innerWidth >= 600 && window.innerWidth > window.innerHeight * 1.15;
-  const [landscape, setLandscape] = useState(read);
+// Wide views lay out a fixed "stage" (board, Next column, side panel) and scale it as one piece,
+// so the parts keep their proportions from a small desktop modal up to fullscreen.
+const STAGE = { width: 900, height: 468, margin: 24 };
+const BOARD = 468;
+
+function useViewport() {
+  const read = () => ({ width: window.innerWidth, height: window.innerHeight });
+  const [size, setSize] = useState(read);
   useEffect(() => {
-    const onResize = () => setLandscape(read());
+    const onResize = () => setSize(read());
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  return landscape;
+  const landscape = size.width >= 600 && size.width > size.height * 1.15;
+  const scale = Math.min((size.width - STAGE.margin * 2) / STAGE.width, (size.height - STAGE.margin * 2) / STAGE.height);
+  return { landscape, scale };
 }
 
 const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " " };
@@ -46,7 +52,7 @@ export const Game = () => {
   const [bumpKey, setBumpKey] = useState(0);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(sfx.muted);
-  const landscape = useLandscape();
+  const { landscape, scale } = useViewport();
   const [showRules, setShowRules] = useState(firstVisit);
 
   const levelPuzzle = puzzle?.levels[level];
@@ -299,7 +305,7 @@ export const Game = () => {
   );
 
   const statsCard = (
-    <div className={cn("gp-card grid flex-1 content-center gap-y-2.5 px-2 py-2.5", landscape ? "grid-cols-4" : "grid-cols-2")}>
+    <div className={cn("gp-card grid content-center gap-y-2.5 px-2 py-2.5", landscape ? "grid-cols-4" : "flex-1 grid-cols-2")}>
       {stat("Moves", result ? result.moves : run.moves)}
       {stat("Goal", <span className="text-[#7C5CFF]">{levelPuzzle.par}</span>)}
       {stat("Restarts", restarts)}
@@ -310,19 +316,19 @@ export const Game = () => {
   const targetCard = (
     <div className={cn("gp-card p-2.5", landscape ? "w-full" : "w-[38%] max-w-[150px] shrink-0")}>
       <div className="gp-label mb-1.5">Target</div>
-      <TargetGrid grid={target} className="w-full" />
+      <TargetGrid grid={target} className={cn("w-full", landscape && "mx-auto max-w-[236px]")} />
     </div>
   );
 
   // Tetris-style: the next piece on top and ringed, the three after it below, smaller and fading.
   const nextColumn = (
-    <div className="flex w-[68px] shrink-0 flex-col items-center gap-2">
+    <div className={cn("flex shrink-0 flex-col items-center gap-2", landscape ? "w-[92px]" : "w-[68px]")}>
       <div className="gp-label">Next</div>
       <div className="gp-well w-full !p-2 ring-[2.5px] ring-inset ring-[#7C5CFF]">
         <PieceDisplay piece={run.queue[0] ?? null} />
       </div>
       {[1, 2, 3].map((i) => (
-        <div key={i} className="gp-well w-[52px] !p-1.5" style={{ opacity: 1 - i * 0.18 }}>
+        <div key={i} className={cn("gp-well !p-1.5", landscape ? "w-[72px]" : "w-[52px]")} style={{ opacity: 1 - i * 0.18 }}>
           <PieceDisplay piece={run.queue[i] ?? null} />
         </div>
       ))}
@@ -330,7 +336,7 @@ export const Game = () => {
   );
 
   const buttons = (
-    <div className={cn("flex gap-2", landscape && "flex-wrap")}>
+    <div className="flex gap-2">
       <button className="gp-btn flex-1 !px-3" onClick={() => setShowResult(true)} aria-label="Stats">
         <Flame size={18} strokeWidth={2.5} className="text-[#FF7A3D]" />
         <span className="gp-value text-lg">{stats.streak}</span>
@@ -342,7 +348,7 @@ export const Game = () => {
         {muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />}
       </button>
       {!solved && (
-        <button className={cn("gp-btn gp-btn-primary", landscape ? "w-full" : "flex-[1.6]")} onClick={restart}>
+        <button className="gp-btn gp-btn-primary flex-[1.6]" onClick={restart}>
           <RotateCcw size={18} strokeWidth={3} /> Restart
         </button>
       )}
@@ -351,10 +357,7 @@ export const Game = () => {
 
   // The board and its Next column share whatever room is left; the board stays square, sized to
   // the space's width (less the column) or its height, whichever is smaller.
-  const playArea = (
-    <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-      <div className="flex items-start gap-2.5">
-        <div style={{ width: "min(calc(100cqw - 78px), 100cqh)" }}>
+  const gameBoard = (
           <GameBoard
             className="gp-board-wrap aspect-square w-full"
             grid={run.grid}
@@ -369,7 +372,12 @@ export const Game = () => {
             gameOver={!!run.outcome && !solved}
             showPoints={false}
           />
-        </div>
+  );
+
+  const playArea = (
+    <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
+      <div className="flex items-start gap-2.5">
+        <div style={{ width: "min(calc(100cqw - 78px), 100cqh)" }}>{gameBoard}</div>
         {nextColumn}
       </div>
     </div>
@@ -378,14 +386,19 @@ export const Game = () => {
   return (
     <div className="h-[100dvh] overflow-hidden">
       {landscape ? (
-        <div className="mx-auto flex h-full max-w-[1040px] flex-col gap-3 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-[260px] shrink-0">{tabs}</div>
-            {statsCard}
-          </div>
-          <div className="flex min-h-0 flex-1 gap-4">
-            {playArea}
-            <aside className="flex w-[180px] shrink-0 flex-col justify-center gap-2.5">
+        <div className="relative h-full">
+          {/* Centred from its midpoint, so a stage wider than the window still scales down in place. */}
+          <div
+            className="absolute left-1/2 top-1/2 flex items-start gap-4"
+            style={{ width: STAGE.width, height: STAGE.height, transform: `translate(-50%, -50%) scale(${scale})` }}
+          >
+            <div className="shrink-0" style={{ width: BOARD }}>
+              {gameBoard}
+            </div>
+            {nextColumn}
+            <aside className="flex h-full min-w-0 flex-1 flex-col justify-between gap-2.5">
+              {tabs}
+              {statsCard}
               {targetCard}
               {buttons}
             </aside>
