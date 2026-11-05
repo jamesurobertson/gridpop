@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "gridpop",
+  "name": "gridpopgame",
   "post": {
     "dir": "dist/client",
     "entrypoints": {
@@ -20,7 +20,9 @@
   },
   "permissions": {
     "redis": true,
-    "reddit": { "enable": true }
+    "reddit": {
+      "enable": true
+    }
   },
   "menu": {
     "items": [
@@ -45,9 +47,12 @@
     }
   },
   "dev": {
-    "subreddit": "gridpop"
+    "subreddit": "gridpopgame_dev"
   },
-  "additionalSourceRoots": ["../src", "../public"],
+  "additionalSourceRoots": [
+    "../src",
+    "../public"
+  ],
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build"

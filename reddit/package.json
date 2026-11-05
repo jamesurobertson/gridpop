@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "gridpop-reddit",
+  "name": "gridpopgame",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -26,5 +26,6 @@
     "@types/node": "^24.13.3",
     "@vitejs/plugin-react": "6.2.1",
     "vite": "8.3.5"
-  }
+  },
+  "license": "BSD-3-Clause"
 }

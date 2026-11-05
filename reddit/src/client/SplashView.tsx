@@ -6,7 +6,7 @@ import type { PuzzleResponse } from "../shared/api";
 import { fetchPuzzle, saveLevel } from "./api";
 
 const postDate = () => {
-  const date = (context.postData as { date?: unknown } | undefined)?.date;
+  const date = (context?.postData as { date?: unknown } | undefined)?.date;
   return typeof date === "string" ? date : utcDateKey();
 };
 

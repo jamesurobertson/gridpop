@@ -5,7 +5,6 @@ import GameBoard from "@/components/game/GameBoard";
 import PieceDisplay from "@/components/game/PieceDisplay";
 import TargetGrid from "@/components/game/TargetGrid";
 import DailyResultModal from "@/components/game/DailyResultModal";
-import { Logo } from "@/components/game/Logo";
 import { isValidPosition, tryWallKick } from "@/utils/gameLogic";
 import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, parseTarget } from "@/utils/dailyCore";
 import { sfx } from "@/audio/sfx";
@@ -16,6 +15,18 @@ import { Leaderboard } from "./Leaderboard";
 import { useDailyRun } from "./useDailyRun";
 
 const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0, 0, 0, 0] };
+
+/** Wide, short views (desktop and fullscreen) put the board beside everything else. */
+function useLandscape() {
+  const read = () => window.innerWidth >= 600 && window.innerWidth > window.innerHeight * 1.15;
+  const [landscape, setLandscape] = useState(read);
+  useEffect(() => {
+    const onResize = () => setLandscape(read());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return landscape;
+}
 
 const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " ", hold: "s" };
 
@@ -34,6 +45,7 @@ export const Game = () => {
   const [bumpKey, setBumpKey] = useState(0);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(sfx.muted);
+  const landscape = useLandscape();
 
   const levelPuzzle = puzzle?.levels[level];
   const target = levelPuzzle ? parseTarget(levelPuzzle.target) : null;
@@ -271,7 +283,7 @@ export const Game = () => {
   // ---------- layout ----------
 
   if (loadFailed) return <p className="p-8 text-center font-bold text-[color:var(--gp-muted)]">Couldn't load today's puzzle.</p>;
-  if (!puzzle || !levelPuzzle || !target) return <div className="min-h-[100dvh]" />;
+  if (!puzzle || !levelPuzzle || !target) return <div className="h-[100dvh]" />;
 
   const solved = run.outcome === "solved";
   const restarts = result ? result.restarts ?? 0 : Math.max(0, attempts - (run.moves > 0 ? 1 : 0));
@@ -283,84 +295,124 @@ export const Game = () => {
     </div>
   );
 
-  return (
-    <div className="mx-auto flex min-h-[100dvh] w-full max-w-[440px] flex-col gap-3 px-4 pb-5 pt-3">
-      <header className="flex items-center justify-between">
-        <Logo className="text-[28px]" />
-        <button className="gp-icon-btn" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
-          {muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />}
+  const tabs = (
+    <div role="tablist" aria-label="Difficulty" className="gp-tabs gp-tabs-sm w-full">
+      {DAILY_LEVELS.map((option) => (
+        <button key={option.level} role="tab" aria-selected={option.level === level} className={cn("gp-tab", option.level === level && "gp-tab-on")} onClick={() => switchLevel(option.level)}>
+          {option.label}
         </button>
-      </header>
+      ))}
+    </div>
+  );
 
-      <div role="tablist" aria-label="Difficulty" className="gp-tabs gp-tabs-sm w-full">
-        {DAILY_LEVELS.map((option) => (
-          <button key={option.level} role="tab" aria-selected={option.level === level} className={cn("gp-tab", option.level === level && "gp-tab-on")} onClick={() => switchLevel(option.level)}>
-            {option.label}
-          </button>
+  const statsCard = (
+    <div className="gp-card grid grid-cols-4 gap-x-1 px-3 py-2.5">
+      {stat("Moves", result ? result.moves : run.moves)}
+      {stat("Goal", <span className="text-[#7C5CFF]">{levelPuzzle.par}</span>)}
+      {stat("Restarts", restarts)}
+      {stat("Time", formatClock(clockMs))}
+    </div>
+  );
+
+  const targetCard = (
+    <div className="gp-card p-2.5">
+      <div className="gp-label mb-1.5">Target</div>
+      <TargetGrid grid={target} className="w-full" />
+    </div>
+  );
+
+  // Hold and the next piece large, then the three after it.
+  const pieces = (
+    <div className="flex h-full flex-col justify-between gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <div className="gp-label mb-1">Hold</div>
+          <div className={cn("gp-well", run.canHold && "gp-well-tap")} onClick={hold}>
+            <PieceDisplay piece={run.held} dim={!run.canHold} />
+          </div>
+        </div>
+        <div>
+          <div className="gp-label mb-1">Next</div>
+          <div className="gp-well">
+            <PieceDisplay piece={run.queue[0] ?? null} />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="gp-well !p-2 opacity-80">
+            <PieceDisplay piece={run.queue[i] ?? null} />
+          </div>
         ))}
       </div>
+    </div>
+  );
 
-      <div className="flex flex-1 flex-col justify-center gap-3">
-        <div className="flex items-stretch gap-2.5">
-          <div className="gp-card flex flex-1 items-center gap-2.5 px-3 py-2.5">
-            <TargetGrid grid={target} className="w-[56px] shrink-0" />
-            <div className="grid flex-1 grid-cols-[auto_auto] justify-between gap-x-2 gap-y-1.5">
-              {stat("Moves", result ? result.moves : run.moves)}
-              {stat("Goal", levelPuzzle.par)}
-              {stat("Restarts", restarts)}
-              {stat("Time", formatClock(clockMs))}
-            </div>
-          </div>
-          <div className="flex w-[64px] flex-col items-center">
-            <div className="gp-label mb-1">Hold</div>
-            <div className={cn("gp-well w-full", run.canHold && "gp-well-tap")} onClick={hold}>
-              <PieceDisplay piece={run.held} dim={!run.canHold} />
-            </div>
-          </div>
-          <div className="flex w-[64px] flex-col items-center">
-            <div className="gp-label mb-1">Next</div>
-            <div className="gp-well w-full">
-              <PieceDisplay piece={run.queue[0] ?? null} />
-            </div>
-          </div>
-        </div>
+  const buttons = (
+    <div className="flex gap-2">
+      <button className="gp-btn flex-1 !px-3" onClick={() => setShowResult(true)} aria-label="Stats">
+        <Flame size={18} strokeWidth={2.5} className="text-[#FF7A3D]" />
+        <span className="gp-value text-lg">{stats.streak}</span>
+      </button>
+      <button className="gp-icon-btn shrink-0" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
+        {muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />}
+      </button>
+      {!solved && (
+        <button className="gp-btn gp-btn-primary flex-[1.6]" onClick={restart}>
+          <RotateCcw size={18} strokeWidth={3} /> Restart
+        </button>
+      )}
+    </div>
+  );
 
-        <div className="mx-auto w-full" style={{ maxWidth: "min(100%, calc(100dvh - 400px))", minWidth: 240 }}>
-          <GameBoard
-            className="gp-board-wrap aspect-square w-full"
-            grid={run.grid}
-            currentPiece={run.current}
-            pieceKey={`${runNumber}-${run.moves}-${run.canHold ? 0 : 1}-${run.current?.shape.type}`}
-            pendingClear={run.pendingClear}
-            bumpKey={bumpKey}
-            scoreAnimations={run.scoreAnimations}
-            onPieceMove={move}
-            onPiecePlace={place}
-            onPieceRotate={rotate}
-            gameOver={!!run.outcome && !solved}
-          />
-        </div>
-
-        <div className="flex justify-end gap-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="gp-well w-[52px] !p-1.5 opacity-80">
-              <PieceDisplay piece={run.queue[i] ?? null} />
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2.5">
-          <button className="gp-btn flex-1" onClick={() => setShowResult(true)} aria-label="Stats">
-            <Flame size={18} strokeWidth={2.5} className="text-[#FF7A3D]" />
-            <span className="gp-value text-lg">{stats.streak}</span>
-          </button>
-          {!solved && (
-            <button className="gp-btn gp-btn-primary flex-[1.4]" onClick={restart}>
-              <RotateCcw size={18} strokeWidth={3} /> Restart
-            </button>
-          )}
-        </div>
+  // The board takes whatever room is left and stays square: as wide as the space, or as tall.
+  const boardArea = (
+    <div className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
+      <div style={{ width: "min(100cqw, 100cqh)" }}>
+        <GameBoard
+          className="gp-board-wrap aspect-square w-full"
+          grid={run.grid}
+          currentPiece={run.current}
+          pieceKey={`${runNumber}-${run.moves}-${run.canHold ? 0 : 1}-${run.current?.shape.type}`}
+          pendingClear={run.pendingClear}
+          bumpKey={bumpKey}
+          scoreAnimations={run.scoreAnimations}
+          onPieceMove={move}
+          onPiecePlace={place}
+          onPieceRotate={rotate}
+          gameOver={!!run.outcome && !solved}
+        />
       </div>
+    </div>
+  );
+
+  return (
+    <div className="h-[100dvh] overflow-hidden">
+      {landscape ? (
+        <div className="mx-auto flex h-full max-w-[1000px] items-center gap-5 p-5">
+          <div className="flex h-full min-w-0 flex-1">{boardArea}</div>
+          <aside className="flex w-[340px] shrink-0 flex-col gap-3">
+            {tabs}
+            {statsCard}
+            <div className="grid grid-cols-2 gap-2.5">
+              {targetCard}
+              {pieces}
+            </div>
+            {buttons}
+          </aside>
+        </div>
+      ) : (
+        <div className="mx-auto flex h-full max-w-[480px] flex-col gap-2.5 p-3">
+          {tabs}
+          {statsCard}
+          <div className="grid grid-cols-2 gap-2.5">
+            {targetCard}
+            {pieces}
+          </div>
+          {boardArea}
+          {buttons}
+        </div>
+      )}
 
       <DailyResultModal
         isOpen={showResult}
