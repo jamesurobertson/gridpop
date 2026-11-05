@@ -464,11 +464,11 @@ export const Game = () => {
       />
       {!solved && (
         <>
-          <button className="gp-corner-btn -left-1.5 -top-1.5" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Z)">
-            <Undo2 size={18} strokeWidth={2.75} />
+          <button className="gp-corner-btn -left-2 -top-2" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Z)">
+            <Undo2 size={26} strokeWidth={2.75} />
           </button>
-          <button className="gp-corner-btn -right-1.5 -top-1.5" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title="Hint (H)">
-            {hintCoolingMs > 0 ? <span className="gp-value text-sm">{Math.ceil(hintCoolingMs / 1000)}</span> : <Lightbulb size={18} strokeWidth={2.75} className="text-[#E0A21B]" />}
+          <button className="gp-corner-btn -right-2 -top-2" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title="Hint (H)">
+            {hintCoolingMs > 0 ? <span className="gp-value text-xl">{Math.ceil(hintCoolingMs / 1000)}</span> : <Lightbulb size={26} strokeWidth={2.75} className="text-[#E0A21B]" />}
           </button>
         </>
       )}
