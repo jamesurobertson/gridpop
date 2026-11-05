@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { motion } from "framer-motion";
 import { showLoginPrompt, showShareSheet } from "@devvit/web/client";
 import { CircleHelp, Flame, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
 import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, saveClock, saveLevel, submitRun } from "./api";
 import { HowToPlay, firstVisit, markSeen } from "./HowToPlay";
+import { Hand, pieceCenter, usesTouch } from "./Coach";
 import { Leaderboard } from "./Leaderboard";
 import { useDailyRun } from "./useDailyRun";
 
@@ -54,6 +56,15 @@ export const Game = () => {
   const [muted, setMuted] = useState(sfx.muted);
   const { landscape, scale } = useViewport();
   const [showRules, setShowRules] = useState(firstVisit);
+  // The very first game gets pointers: what to match, and how to put a piece down.
+  const [coaching, setCoaching] = useState(() => {
+    try {
+      return localStorage.getItem("gridpop-coached") !== "1";
+    } catch {
+      return false;
+    }
+  });
+  const [touch] = useState(usesTouch);
 
   const levelPuzzle = puzzle?.levels[level];
   const target = levelPuzzle ? parseTarget(levelPuzzle.target) : null;
@@ -239,6 +250,14 @@ export const Game = () => {
           .catch(() => undefined);
     }
     sfx.play("place", { jitter: 0.06 });
+    if (coaching) {
+      setCoaching(false);
+      try {
+        localStorage.setItem("gridpop-coached", "1");
+      } catch {
+        // Storage blocked: the pointers show again next time, which is harmless.
+      }
+    }
     dispatch({ type: "place" });
   };
 
@@ -312,10 +331,24 @@ export const Game = () => {
     </div>
   );
 
+  const showCoach = coaching && !result && run.moves === 0 && !!run.current && !showRules && !showResult;
+
+  const coachPill = (text: string, className?: string) => (
+    <motion.span
+      className={cn("pointer-events-none absolute z-40 whitespace-nowrap rounded-full border-2 border-[#1F1633] bg-[#7C5CFF] px-3 py-1 text-[13px] font-extrabold text-white", className)}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: [0, -4, 0] }}
+      transition={{ opacity: { duration: 0.3 }, y: { duration: 1.2, repeat: Infinity, ease: "easeInOut" } }}
+    >
+      {text}
+    </motion.span>
+  );
+
   const targetCard = (
-    <div className={cn("gp-card p-2.5", landscape ? "w-full" : "w-[38%] max-w-[150px] shrink-0")}>
+    <div className={cn("gp-card relative p-2.5", landscape ? "w-full" : "w-[38%] max-w-[150px] shrink-0", showCoach && "ring-4 ring-[#7C5CFF]/40")}>
       <div className="gp-label mb-1.5">Target</div>
       <TargetGrid grid={target} className={cn("w-full", landscape && "mx-auto max-w-[236px]")} />
+      {showCoach && coachPill("Match this", "-bottom-3.5 left-1/2 -translate-x-1/2")}
     </div>
   );
 
@@ -357,6 +390,7 @@ export const Game = () => {
   // The board and its Next column share whatever room is left; the board stays square, sized to
   // the space's width (less the column) or its height, whichever is smaller.
   const gameBoard = (
+    <div className="relative">
           <GameBoard
             className="gp-board-wrap aspect-square w-full"
             grid={run.grid}
@@ -371,6 +405,13 @@ export const Game = () => {
             gameOver={!!run.outcome && !solved}
             showPoints={false}
           />
+      {showCoach && (
+        <>
+          <Hand at={pieceCenter(run.current)} press={0} />
+          {coachPill(touch ? "Tap to place" : "Space to place", "bottom-3 left-1/2 -translate-x-1/2")}
+        </>
+      )}
+    </div>
   );
 
   const playArea = (
