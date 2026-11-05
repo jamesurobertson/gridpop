@@ -950,10 +950,10 @@ const GridPopGame: React.FC = () => {
 
   const dailyCard = (compact: boolean) =>
     daily && (
-      <div className={cn("gp-card", compact ? "flex flex-1 items-center gap-3 px-3 py-2.5" : "flex flex-col gap-3.5 p-4")}>
+      <div className={cn("gp-card", compact ? "flex flex-1 items-center gap-2.5 px-3 py-2.5" : "flex flex-col gap-3.5 p-4")}>
         {!compact && <div className="gp-label -mb-1.5">Target</div>}
-        <TargetGrid grid={daily.target} className={compact ? "w-[64px] shrink-0" : "w-full"} />
-        <div className={cn("grid grid-cols-2", compact ? "flex-1 gap-x-2 gap-y-1.5" : "gap-y-3.5")}>
+        <TargetGrid grid={daily.target} className={compact ? "w-[56px] shrink-0" : "w-full"} />
+        <div className={cn("grid", compact ? "flex-1 grid-cols-[auto_auto] justify-between gap-x-2 gap-y-1.5" : "grid-cols-2 gap-y-3.5")}>
           <div>
             <div className="gp-label">Moves</div>
             <div className={cn("gp-value", compact ? "text-xl" : "text-2xl")}>{dailyMoves}</div>

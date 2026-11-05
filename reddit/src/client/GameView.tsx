@@ -302,9 +302,9 @@ export const Game = () => {
 
       <div className="flex flex-1 flex-col justify-center gap-3">
         <div className="flex items-stretch gap-2.5">
-          <div className="gp-card flex flex-1 items-center gap-3 px-3 py-2.5">
-            <TargetGrid grid={target} className="w-[64px] shrink-0" />
-            <div className="grid flex-1 grid-cols-2 gap-x-2 gap-y-1.5">
+          <div className="gp-card flex flex-1 items-center gap-2.5 px-3 py-2.5">
+            <TargetGrid grid={target} className="w-[56px] shrink-0" />
+            <div className="grid flex-1 grid-cols-[auto_auto] justify-between gap-x-2 gap-y-1.5">
               {stat("Moves", result ? result.moves : run.moves)}
               {stat("Goal", levelPuzzle.par)}
               {stat("Restarts", restarts)}
