@@ -21,9 +21,9 @@ node scripts/generate-daily.mjs 2027-05-04 60   # first date, number of days
 ```
 
 which builds each day's target from its seeded pieces and searches every line of play for par. Days
-already in the file are kept, so it only adds new ones. Every day is built from 4 pieces for now;
-`DIFFICULTY_BY_WEEKDAY` in the script can make some days longer or require a line pop. Add
-`?date=YYYY-MM-DD` to the URL to play another day's puzzle; only today's counts toward streaks.
+already in the file are kept, so it only adds new ones. Each day has three puzzles: Easy, Normal and
+Hard are built from 3, 4 and 5 pieces (`LEVELS` in the script), each with its own streak.
+Like Wordle, each puzzle is played once: after solving it you see your result until the next day.
 
 ## Getting Started
 

@@ -4,7 +4,7 @@
 //
 //   node scripts/generate-daily.mjs 2026-11-05 14   # start date, number of days
 //
-// Writes src/data/dailyPuzzles.json, keeping any days already in it.
+// Writes src/data/dailyPuzzles.json (one list per difficulty), keeping any days already in it.
 import fs from "node:fs";
 
 const SIZE = 4;
@@ -119,50 +119,58 @@ function solvePar(queue, target, maxMoves, options = { allowPops: true }) {
   return null;
 }
 
-// [pieces used to build the target, clears it must include]. Kept gentle while the daily is new.
-const DIFFICULTY_BY_WEEKDAY = { 1: [4, 0], 2: [4, 0], 3: [4, 0], 4: [4, 0], 5: [4, 0], 6: [4, 0], 0: [4, 0] };
+// How many pieces build each difficulty's target, and how many line pops that build must include
+// (a target that needs a pop is only accepted if no pop-free line reaches it).
+const LEVELS = {
+  easy: { pieces: 3, pops: 0, seed: 7919 },
+  normal: { pieces: 4, pops: 0, seed: 0 },
+  hard: { pieces: 5, pops: 0, seed: 104729 },
+};
 
-function makePuzzle(date) {
-  const [buildLength, clearsWanted] = DIFFICULTY_BY_WEEKDAY[new Date(`${date}T00:00:00Z`).getUTCDay()];
+function makePuzzle(date, level) {
+  const { pieces: buildLength, pops: popsWanted, seed } = LEVELS[level];
   const daySeed = Number(date.replaceAll("-", ""));
   for (let attempt = 0; ; attempt++) {
-    const random = mulberry32(daySeed * 1000 + attempt);
+    const random = mulberry32(daySeed * 1000 + attempt + seed);
     const queue = Array.from({ length: QUEUE_LENGTH }, () => TYPES[Math.floor(random() * TYPES.length)]);
     let grid = Array(CELLS).fill(0);
-    let clears = 0;
+    let pops = 0;
     for (let i = 0; i < buildLength; i++) {
       const options = FOOTPRINTS[queue[i]].map((cells) => place(grid, cells)).filter(Boolean);
       const before = sum(grid);
       grid = options[Math.floor(random() * options.length)];
-      if (sum(grid) < before + PIECE_SIZE[queue[i]]) clears++;
+      if (sum(grid) < before + PIECE_SIZE[queue[i]]) pops++;
     }
-    if (clears < clearsWanted || (clearsWanted === 0 && clears > 0)) continue;
-    // Skip boards that are nearly empty or have a single obvious stack.
-    if (grid.filter(Boolean).length < 6 || sum(grid) === 0) continue;
-    // Hard days only count if the target can't be reached without popping a line.
-    if (clearsWanted > 0 && solvePar(queue, grid, buildLength + 1, { allowPops: false }) !== null) continue;
+    if (pops < popsWanted || (popsWanted === 0 && pops > 0)) continue;
+    // Skip boards that are nearly empty.
+    if (grid.filter(Boolean).length < Math.min(6, buildLength * 2)) continue;
+    if (popsWanted > 0 && solvePar(queue, grid, buildLength + 1, { allowPops: false }) !== null) continue;
     const par = solvePar(queue, grid, buildLength);
     if (par === null || par < 3) continue;
     const target = Array.from({ length: SIZE }, (_, y) => grid.slice(y * SIZE, (y + 1) * SIZE).join("")).join("/");
-    return { date, pieces: queue, target, par, built: buildLength };
+    return { date, pieces: queue, target, par };
   }
 }
 
 const [start = new Date().toISOString().slice(0, 10), days = "14"] = process.argv.slice(2);
-const existing = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, "utf8")) : [];
-const byDate = new Map(existing.map((puzzle) => [puzzle.date, puzzle]));
+const existing = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, "utf8")) : {};
+const byLevel = Object.fromEntries(
+  Object.keys(LEVELS).map((level) => [level, new Map((Array.isArray(existing[level]) ? existing[level] : []).map((p) => [p.date, p]))])
+);
 const save = () => {
-  const puzzles = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const out = Object.fromEntries(Object.entries(byLevel).map(([level, byDate]) => [level, [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date))]));
   fs.mkdirSync(new URL(".", OUT), { recursive: true });
-  fs.writeFileSync(OUT, JSON.stringify(puzzles, null, 1) + "\n");
+  fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + "\n");
 };
 for (let d = 0; d < Number(days); d++) {
   const date = new Date(Date.parse(`${start}T00:00:00Z`) + d * 86_400_000).toISOString().slice(0, 10);
-  if (byDate.has(date)) continue;
-  const startedAt = Date.now();
-  const puzzle = makePuzzle(date);
-  byDate.set(date, puzzle);
-  // Saved as it goes: hard days can take a while to solve.
-  save();
-  console.log(`${date}  built ${puzzle.built}  par ${puzzle.par}  ${puzzle.target}  (${Date.now() - startedAt}ms)`);
+  for (const level of Object.keys(LEVELS)) {
+    if (byLevel[level].has(date)) continue;
+    const startedAt = Date.now();
+    const puzzle = makePuzzle(date, level);
+    byLevel[level].set(date, puzzle);
+    // Saved as it goes: longer puzzles can take a while to solve.
+    save();
+    console.log(`${date}  ${level.padEnd(6)}  par ${puzzle.par}  ${puzzle.target}  (${Date.now() - startedAt}ms)`);
+  }
 }

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { RotateCcw, Share2 } from "lucide-react";
 import { DailyOutcome } from "@/types/game";
-import { DailyResult, DailySetup, DailyStats, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
+import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
 import { cn } from "@/lib/utils";
 
 interface DailyResultModalProps {
@@ -43,12 +43,13 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
   const msLeft = useCountdown(isOpen);
   const solved = outcome === "solved" && run;
   const overPar = solved ? Math.min(3, run.moves - run.par) : -1;
+  const puzzleName = `Daily #${setup.number} · ${DAILY_LEVELS.find((option) => option.level === setup.level)?.label}`;
 
   const heading =
     outcome === "seven" ? { emoji: "💀", title: "A tile reached 7" } :
     outcome === "empty" ? { emoji: "🫙", title: "Out of pieces" } :
     solved ? { emoji: run.moves <= run.par ? "⛳" : "🎉", title: run.moves <= run.par ? "Par!" : "Solved" } :
-    { emoji: "📅", title: `Daily #${setup.number}` };
+    { emoji: "📅", title: puzzleName };
 
   function handleShare() {
     if (!run) return;
@@ -79,7 +80,7 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
             {heading.emoji}
           </motion.div>
           <DialogTitle className="font-display mt-2 text-[28px] font-bold tracking-tight">{heading.title}</DialogTitle>
-          <DialogDescription className="mt-1 text-sm font-bold text-white/60">Daily #{setup.number}</DialogDescription>
+          <DialogDescription className="mt-1 text-sm font-bold text-white/60">{puzzleName}</DialogDescription>
         </div>
 
         <div className="px-6 pb-6 pt-5 text-center">
@@ -122,14 +123,9 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
 
           <div className="mt-6 flex flex-col gap-2.5">
             {solved ? (
-              <>
-                <button className="gp-btn gp-btn-primary w-full text-base" onClick={handleShare} autoFocus>
-                  <Share2 size={18} strokeWidth={2.5} /> {copied ? "Copied!" : "Share"}
-                </button>
-                <button className="gp-btn w-full" onClick={onRestart}>
-                  <RotateCcw size={17} strokeWidth={3} /> Play again
-                </button>
-              </>
+              <button className="gp-btn gp-btn-primary w-full text-base" onClick={handleShare} autoFocus>
+                <Share2 size={18} strokeWidth={2.5} /> {copied ? "Copied!" : "Share"}
+              </button>
             ) : outcome ? (
               <button className="gp-btn gp-btn-primary w-full text-base" onClick={onRestart} autoFocus>
                 <RotateCcw size={18} strokeWidth={3} /> Try again

@@ -1,6 +1,14 @@
 import { CellValue, GridType, TetrominoType } from "@/types/game";
 import puzzles from "@/data/dailyPuzzles.json";
 
+export type DailyLevel = "easy" | "normal" | "hard";
+
+export const DAILY_LEVELS: { level: DailyLevel; label: string }[] = [
+  { level: "easy", label: "Easy" },
+  { level: "normal", label: "Normal" },
+  { level: "hard", label: "Hard" },
+];
+
 export interface DailyPuzzle {
   date: string;
   pieces: TetrominoType[];
@@ -11,11 +19,12 @@ export interface DailyPuzzle {
 
 export interface DailySetup {
   date: string;
+  level: DailyLevel;
   number: number;
   pieces: TetrominoType[];
   target: GridType;
   par: number;
-  /** Today's result is already in: show the finished board instead of a fresh run. */
+  /** This puzzle's result is already in: show the finished board instead of a fresh run. */
   showSolved: boolean;
 }
 
@@ -25,10 +34,13 @@ export interface DailyResult {
   timeMs: number;
 }
 
+type DailyResults = Record<DailyLevel, Record<string, DailyResult>>;
+
 const DAY_MS = 86_400_000;
 const FIRST_DAY = "2026-11-05";
-const RESULTS_KEY = "gridpop-daily-results";
-const CLOCK_KEY = "gridpop-daily-clock";
+const RESULTS_KEY = "gridpop-daily-results-v2";
+const CLOCK_KEY = "gridpop-daily-clock-v2";
+const LEVEL_KEY = "gridpop-daily-level";
 
 export const utcDateKey = (now = Date.now()) => new Date(now).toISOString().slice(0, 10);
 
@@ -36,26 +48,38 @@ const dayIndex = (date: string) => Math.round((Date.parse(`${date}T00:00:00Z`) -
 
 const shiftDate = (date: string, days: number) => utcDateKey(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS);
 
-/** Today's UTC date, or `?date=YYYY-MM-DD` to try another day's puzzle. */
-export function activeDailyDate(): string {
-  const requested = new URLSearchParams(window.location.search).get("date");
-  return requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : utcDateKey();
-}
-
 export const isToday = (date: string) => date === utcDateKey();
 
-export function dailySetup(date: string): DailySetup {
-  const list = puzzles as DailyPuzzle[];
+export function loadDailyLevel(): DailyLevel {
+  try {
+    const saved = localStorage.getItem(LEVEL_KEY);
+    return DAILY_LEVELS.some((option) => option.level === saved) ? (saved as DailyLevel) : "normal";
+  } catch {
+    return "normal";
+  }
+}
+
+export function saveDailyLevel(level: DailyLevel) {
+  try {
+    localStorage.setItem(LEVEL_KEY, level);
+  } catch {
+    // Private mode: Normal again next visit.
+  }
+}
+
+export function dailySetup(date: string, level: DailyLevel): DailySetup {
+  const list = (puzzles as unknown as Record<DailyLevel, DailyPuzzle[]>)[level];
   // Past the end of the generated list, the puzzles come round again rather than stop.
   const index = dayIndex(date);
   const puzzle = list.find((p) => p.date === date) ?? list[((index % list.length) + list.length) % list.length];
   return {
     date,
+    level,
     number: index + 1,
     pieces: puzzle.pieces,
     target: puzzle.target.split("/").map((row) => [...row].map(Number) as CellValue[]),
     par: puzzle.par,
-    showSolved: !!loadDailyResults()[date],
+    showSolved: !!loadDailyResults()[level][date],
   };
 }
 
@@ -75,19 +99,20 @@ export function formatClock(ms: number) {
 
 // ---------- results and streaks ----------
 
-export function loadDailyResults(): Record<string, DailyResult> {
+export function loadDailyResults(): DailyResults {
+  const empty: DailyResults = { easy: {}, normal: {}, hard: {} };
   try {
-    return JSON.parse(localStorage.getItem(RESULTS_KEY) ?? "{}");
+    return { ...empty, ...JSON.parse(localStorage.getItem(RESULTS_KEY) ?? "{}") };
   } catch {
-    return {};
+    return empty;
   }
 }
 
-/** Keeps the first result for a day; replays don't replace it. */
-export function saveDailyResult(date: string, result: DailyResult) {
+/** Keeps the first result for a puzzle; replays don't replace it. */
+export function saveDailyResult(level: DailyLevel, date: string, result: DailyResult) {
   const results = loadDailyResults();
-  if (results[date]) return results;
-  results[date] = result;
+  if (results[level][date]) return results;
+  results[level] = { ...results[level], [date]: result };
   try {
     localStorage.setItem(RESULTS_KEY, JSON.stringify(results));
   } catch {
@@ -124,20 +149,25 @@ export function dailyStats(results: Record<string, DailyResult>, today = utcDate
   return { played: dates.length, streak, bestStreak, overPar };
 }
 
-// ---------- the clock: one running total per day, kept across restarts and reloads ----------
+// ---------- the clock: one running total per puzzle, kept across restarts and reloads ----------
 
-export function loadDailyClock(date: string): number {
+const clockId = (setup: Pick<DailySetup, "date" | "level">) => `${setup.date}/${setup.level}`;
+
+export function loadDailyClock(setup: Pick<DailySetup, "date" | "level">): number {
   try {
-    const saved = JSON.parse(localStorage.getItem(CLOCK_KEY) ?? "null");
-    return saved?.date === date ? saved.elapsedMs : 0;
+    const saved = JSON.parse(localStorage.getItem(CLOCK_KEY) ?? "{}");
+    return saved[clockId(setup)] ?? 0;
   } catch {
     return 0;
   }
 }
 
-export function saveDailyClock(date: string, elapsedMs: number) {
+export function saveDailyClock(setup: Pick<DailySetup, "date" | "level">, elapsedMs: number) {
   try {
-    localStorage.setItem(CLOCK_KEY, JSON.stringify({ date, elapsedMs }));
+    const saved = JSON.parse(localStorage.getItem(CLOCK_KEY) ?? "{}");
+    // Only today's clocks are worth keeping.
+    const kept = Object.fromEntries(Object.entries(saved).filter(([id]) => id.startsWith(setup.date)));
+    localStorage.setItem(CLOCK_KEY, JSON.stringify({ ...kept, [clockId(setup)]: elapsedMs }));
   } catch {
     // Private mode: the clock just starts over on reload.
   }
@@ -148,6 +178,7 @@ export function saveDailyClock(date: string, elapsedMs: number) {
 const TILE_EMOJI = ["⬛", "🟨", "🟦", "🟩", "🟪", "🟧", "🟥"];
 
 export function dailyShareText(setup: DailySetup, result: DailyResult) {
+  const label = DAILY_LEVELS.find((option) => option.level === setup.level)?.label;
   const board = setup.target.map((row) => row.map((value) => TILE_EMOJI[value] ?? "⬛").join("")).join("\n");
-  return `GridPop #${setup.number} ⛳ ${result.moves} (par ${result.par}) ⏱ ${formatClock(result.timeMs)}\n${board}`;
+  return `GridPop #${setup.number} ${label} ⛳ ${result.moves} (par ${result.par}) ⏱ ${formatClock(result.timeMs)}\n${board}`;
 }

@@ -30,17 +30,22 @@ import {
 import { CellValue, Position, GameState, GameAction, KeyConfig, HighScore, Tetromino, PlayMode } from "@/types/game";
 import { TETROMINO_SHAPES } from "@/utils/tetrominoShapes";
 import {
-  activeDailyDate,
   dailySetup,
   dailyStats,
   formatClock,
   gridsMatch,
   isToday,
+  utcDateKey,
   loadDailyClock,
   loadDailyResults,
   saveDailyClock,
   saveDailyResult,
+  loadDailyLevel,
+  saveDailyLevel,
+  DAILY_LEVELS,
+  DailyLevel,
   DailyResult,
+  DailySetup,
 } from "@/utils/daily";
 import DailyResultModal from "./DailyResultModal";
 import TargetGrid from "./TargetGrid";
@@ -87,7 +92,7 @@ const initialState: GameState = {
   nextQueue: [],
   linesCleared: 0,
   pendingClear: false,
-  daily: dailySetup(activeDailyDate()),
+  daily: dailySetup(utcDateKey(), loadDailyLevel()),
   dailyOutcome: null,
 };
 
@@ -429,8 +434,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         hasStarted: false,
         highScores: state.highScores,
         bestScore: state.bestScore,
-        // Starting the daily again after finishing it is a replay.
-        daily: state.daily && { ...state.daily, showSolved: false },
+        daily: state.daily,
       };
     }
 
@@ -629,6 +633,16 @@ const ModeTabs: React.FC<{ mode: PlayMode; onChange: (mode: PlayMode) => void; c
   </div>
 );
 
+const LevelTabs: React.FC<{ level: DailyLevel; onChange: (level: DailyLevel) => void; className?: string }> = ({ level, onChange, className }) => (
+  <div role="tablist" aria-label="Daily difficulty" className={cn("gp-tabs gp-tabs-sm", className)}>
+    {DAILY_LEVELS.map((option) => (
+      <button key={option.level} role="tab" aria-selected={option.level === level} className={cn("gp-tab", option.level === level && "gp-tab-on")} onClick={() => onChange(option.level)}>
+        {option.label}
+      </button>
+    ))}
+  </div>
+);
+
 const GridPopGame: React.FC = () => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [showHighScores, setShowHighScores] = useState(false);
@@ -656,12 +670,12 @@ const GridPopGame: React.FC = () => {
   const [dailyResults, setDailyResults] = useState(loadDailyResults);
   const [showDailyModal, setShowDailyModal] = useState(false);
   const [lastDailyRun, setLastDailyRun] = useState<DailyResult | null>(null);
-  const [dailyClockMs, setDailyClockMs] = useState(() => (daily && !dailyResults[daily.date] ? loadDailyClock(daily.date) : 0));
+  const [dailyClockMs, setDailyClockMs] = useState(() => (daily && !dailyResults[daily.level][daily.date] ? loadDailyClock(daily) : 0));
   const [dailyClockArmed, setDailyClockArmed] = useState(false);
-  const dailyRecorded = !!daily && !!dailyResults[daily.date];
-  // Only today's first finish counts; replays and other days' puzzles are practice.
-  const dailyCounts = !!daily && isToday(daily.date) && !dailyRecorded;
-  const stats = dailyStats(dailyResults);
+  const savedDailyResult = daily ? dailyResults[daily.level][daily.date] : undefined;
+  // False once the puzzle is done, or if the page was left open into the next day.
+  const dailyCounts = !!daily && isToday(daily.date) && !savedDailyResult;
+  const stats = dailyStats(dailyResults[daily?.level ?? "normal"]);
 
   useEffect(() => {
     if (!daily || !dailyClockArmed || state.dailyOutcome) return;
@@ -677,7 +691,7 @@ const GridPopGame: React.FC = () => {
   }, [daily, dailyClockArmed, state.dailyOutcome]);
 
   useEffect(() => {
-    if (dailyCounts && dailyClockMs > 0) saveDailyClock(daily.date, dailyClockMs);
+    if (dailyCounts && dailyClockMs > 0) saveDailyClock(daily, dailyClockMs);
   }, [dailyCounts, dailyClockMs, daily]);
 
   useEffect(() => {
@@ -685,7 +699,7 @@ const GridPopGame: React.FC = () => {
     if (state.dailyOutcome === "solved" && !daily.showSolved) {
       const run = { moves: state.turnsPlayed, par: daily.par, timeMs: dailyClockMs };
       setLastDailyRun(run);
-      if (dailyCounts) setDailyResults(saveDailyResult(daily.date, run));
+      if (dailyCounts) setDailyResults(saveDailyResult(daily.level, daily.date, run));
     }
     setShowDailyModal(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -695,15 +709,33 @@ const GridPopGame: React.FC = () => {
     if (daily && !dailyClockArmed) setDailyClockArmed(true);
   };
 
-  const switchMode = (mode: PlayMode) => {
-    if (mode === playMode) return;
+  const startMode = (mode: PlayMode, setup: DailySetup | null) => {
     sfx.play("click");
-    const setup = mode === "daily" ? dailySetup(activeDailyDate()) : null;
     dispatch({ type: "SET_PLAY_MODE", mode, daily: setup, gridSize: loadGameSettings().gridSize });
     setShowDailyModal(false);
     setLastDailyRun(null);
     setDailyClockArmed(false);
-    if (setup) setDailyClockMs(dailyResults[setup.date] ? 0 : loadDailyClock(setup.date));
+    if (setup) setDailyClockMs(dailyResults[setup.level][setup.date] ? 0 : loadDailyClock(setup));
+  };
+
+  const switchMode = (mode: PlayMode) => {
+    if (mode !== playMode) startMode(mode, mode === "daily" ? dailySetup(utcDateKey(), loadDailyLevel()) : null);
+  };
+
+  // A page left open past midnight UTC moves on to the new puzzle, unless a run is under way.
+  const checkForNewDay = useRef<() => void>();
+  checkForNewDay.current = () => {
+    if (daily && daily.date !== utcDateKey() && (state.turnsPlayed === 0 || state.dailyOutcome)) startMode("daily", dailySetup(utcDateKey(), daily.level));
+  };
+  useEffect(() => {
+    const id = setInterval(() => checkForNewDay.current?.(), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const switchLevel = (level: DailyLevel) => {
+    if (!daily || level === daily.level) return;
+    saveDailyLevel(level);
+    startMode("daily", dailySetup(daily.date, level));
   };
 
   useEffect(() => {
@@ -871,11 +903,6 @@ const GridPopGame: React.FC = () => {
   const handleNewGame = () => {
     sfx.play("click");
     setShowDailyModal(false);
-    if (daily && !dailyCounts) {
-      // Practice runs time themselves from zero; the counted run's clock carries on.
-      setDailyClockMs(0);
-      setDailyClockArmed(false);
-    }
     dispatch({ type: "RESET_GAME" });
     dispatch({ type: "START_GAME" });
   };
@@ -901,10 +928,10 @@ const GridPopGame: React.FC = () => {
   const showGestureHint = isMobile && !gestureHintDone && state.hasStarted && !state.gameOver;
   const pieceKey = `${state.turnsPlayed}-${state.canHold ? 0 : 1}-${state.currentPiece?.shape.type}`;
   const mode = `${state.gridSize}×${state.gridSize} · ${state.isTimed ? "Timed" : "Untimed"}`;
-  const savedDailyResult = daily ? dailyResults[daily.date] : undefined;
   const dailyMoves = daily?.showSolved ? savedDailyResult?.moves ?? 0 : state.turnsPlayed;
   const dailyClock = formatClock(daily?.showSolved ? savedDailyResult?.timeMs ?? 0 : dailyClockMs);
-  const restartLabel = !daily ? "New Game" : state.dailyOutcome === "solved" ? "Play again" : "Restart";
+  const restartLabel = daily ? "Restart" : "New Game";
+  const canRestart = state.dailyOutcome !== "solved";
 
   const board = (
     <div className="relative">
@@ -999,6 +1026,7 @@ const GridPopGame: React.FC = () => {
           </header>
 
           <ModeTabs mode={playMode} onChange={switchMode} className="w-full" />
+          {daily && <LevelTabs level={daily.level} onChange={switchLevel} className="-mt-1 w-full" />}
 
           {/* Everything under the header sits in the middle of the screen on tall phones. */}
           <div className="flex flex-1 flex-col justify-center gap-3">
@@ -1033,7 +1061,7 @@ const GridPopGame: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative mx-auto w-full" style={{ maxWidth: `min(100%, calc(100dvh - ${daily ? 440 : 380}px))`, minWidth: 260 }}>
+          <div className="relative mx-auto w-full" style={{ maxWidth: `min(100%, calc(100dvh - ${daily ? 484 : 380}px))`, minWidth: 260 }}>
             {board}
             <AnimatePresence>
               {showGestureHint && (
@@ -1071,15 +1099,17 @@ const GridPopGame: React.FC = () => {
 
           <div className="flex gap-2.5">
             {scoresButton("flex-1")}
-            <button className="gp-btn gp-btn-primary flex-[1.4]" onClick={handleNewGame}>
-              <RotateCcw size={18} strokeWidth={3} /> {restartLabel}
-            </button>
+            {canRestart && (
+              <button className="gp-btn gp-btn-primary flex-[1.4]" onClick={handleNewGame}>
+                <RotateCcw size={18} strokeWidth={3} /> {restartLabel}
+              </button>
+            )}
           </div>
           </div>
         </div>
       ) : (
         <div className="mx-auto w-full max-w-[920px] px-6 pb-10 pt-7">
-          <header className="mb-7 flex items-center justify-between">
+          <header className={cn("flex items-center justify-between", daily ? "mb-4" : "mb-7")}>
             <Logo className="text-[44px]" />
             <ModeTabs mode={playMode} onChange={switchMode} />
             <div className="flex gap-2.5">
@@ -1089,6 +1119,11 @@ const GridPopGame: React.FC = () => {
               </button>
             </div>
           </header>
+          {daily && (
+            <div className="mb-6 flex justify-center">
+              <LevelTabs level={daily.level} onChange={switchLevel} className="w-[300px]" />
+            </div>
+          )}
 
           <div className="grid grid-cols-[164px_minmax(0,1fr)_164px] items-start gap-7">
             <aside className="flex flex-col gap-4">
@@ -1117,9 +1152,11 @@ const GridPopGame: React.FC = () => {
                 {state.isTimed && <TimerBar remaining={state.timeRemaining} total={getTimerForLevel(state.level)} />}
               </div>
               )}
-              <button className="gp-btn gp-btn-primary w-full" onClick={handleNewGame}>
-                <RotateCcw size={18} strokeWidth={3} /> {restartLabel}
-              </button>
+              {canRestart && (
+                <button className="gp-btn gp-btn-primary w-full" onClick={handleNewGame}>
+                  <RotateCcw size={18} strokeWidth={3} /> {restartLabel}
+                </button>
+              )}
               <button className="gp-btn w-full" onClick={openOptions}>
                 <Settings2 size={18} strokeWidth={2.5} /> Options
               </button>

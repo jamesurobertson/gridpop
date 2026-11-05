@@ -385,6 +385,7 @@
 .gp-tab:hover { background: #fff3e2; }
 .gp-tab:active { transform: scale(0.96); }
 .gp-tab:focus-visible { outline: 3px solid var(--gp-accent); outline-offset: 2px; }
+.gp-tabs-sm .gp-tab { min-height: 30px; font-size: 13px; }
 .gp-tab-on, .gp-tab-on:hover {
   @apply text-white;
   background: var(--gp-accent);
