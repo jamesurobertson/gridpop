@@ -25,9 +25,26 @@ import {
   saveGameSettings,
   loadGameSettings,
   DEFAULT_GRID_SIZE,
+  createTetromino,
 } from "@/utils/gameLogic";
-import { CellValue, Position, GameState, GameAction, KeyConfig, HighScore } from "@/types/game";
-import { Trophy, Timer, Settings2, Volume2, VolumeX, RotateCcw } from "lucide-react";
+import { CellValue, Position, GameState, GameAction, KeyConfig, HighScore, Tetromino, PlayMode } from "@/types/game";
+import { TETROMINO_SHAPES } from "@/utils/tetrominoShapes";
+import {
+  activeDailyDate,
+  dailySetup,
+  dailyStats,
+  formatClock,
+  gridsMatch,
+  isToday,
+  loadDailyClock,
+  loadDailyResults,
+  saveDailyClock,
+  saveDailyResult,
+  DailyResult,
+} from "@/utils/daily";
+import DailyResultModal from "./DailyResultModal";
+import TargetGrid from "./TargetGrid";
+import { Trophy, Timer, Settings2, Volume2, VolumeX, RotateCcw, CalendarDays, Infinity as InfinityIcon, Flame } from "lucide-react";
 import HighScoresModal from "./HighScoresModal";
 import { loadHighScores } from "@/utils/highScores";
 import { sfx } from "@/audio/sfx";
@@ -62,13 +79,16 @@ const initialState: GameState = {
   gameMode: "standard",
   keyConfig: loadKeyConfig(),
   showBoard: false,
-  gridSize: loadGridSize(),
-  isTimed: loadIsTimed(),
+  // The daily puzzle is what opens first, and it's always 4×4 and untimed.
+  gridSize: 4,
+  isTimed: false,
   hasStarted: false,
   showOptionsMenu: false,
   nextQueue: [],
   linesCleared: 0,
   pendingClear: false,
+  daily: dailySetup(activeDailyDate()),
+  dailyOutcome: null,
 };
 
 let animationCounter = 0;
@@ -85,14 +105,10 @@ function loadKeyConfig(): KeyConfig {
   return DEFAULT_KEY_CONFIG;
 }
 
-function loadGridSize(): 4 | 5 {
-  const savedSize = localStorage.getItem("gridSize");
-  return savedSize === "5" ? 5 : 4;
-}
-
-function loadIsTimed(): boolean {
-  const savedIsTimed = localStorage.getItem("isTimed");
-  return savedIsTimed === null ? false : savedIsTimed === "true";
+/** The queue after the front piece is taken; the daily queue is fixed, so it just runs down. */
+function advanceQueue(state: GameState): Tetromino[] {
+  const rest = state.nextQueue.slice(1);
+  return state.daily ? rest : [...rest, getNextTetromino(state.gridSize)];
 }
 
 /** Save a finished game to the high scores (zero scores aren't kept) and return the updated list and best. */
@@ -109,6 +125,30 @@ function recordScore(state: GameState, score: number, linesCleared: number) {
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "START_GAME": {
+      if (state.daily) {
+        const pieces = state.daily.pieces.map((type) => createTetromino(TETROMINO_SHAPES[type], 4));
+        const fresh: GameState = {
+          ...state,
+          grid: createEmptyGrid(4),
+          currentPiece: pieces[0],
+          nextPiece: pieces[1],
+          nextQueue: pieces.slice(1),
+          heldPiece: null,
+          canHold: true,
+          timeRemaining: Infinity,
+          hasStarted: true,
+          gameOver: false,
+          score: 0,
+          level: 1,
+          turnsPlayed: 0,
+          scoreAnimations: [],
+          linesCleared: 0,
+          pendingClear: false,
+          dailyOutcome: null,
+        };
+        if (!state.daily.showSolved) return fresh;
+        return { ...fresh, grid: state.daily.target.map((row) => [...row]), currentPiece: null, nextQueue: [], gameOver: true, dailyOutcome: "solved" };
+      }
       const currentPiece = getNextTetromino(state.gridSize);
       const nextPiece = getNextTetromino(state.gridSize);
       const startHighScores = loadHighScores();
@@ -221,6 +261,24 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const newScore = state.score + scoreGain;
       const isGameOver = checkGameOver(clearedGrid);
       const turnsPlayed = state.turnsPlayed + 1;
+      if (state.daily) {
+        const nextPiece = state.nextQueue[0] ?? null;
+        const dailyOutcome = gridsMatch(clearedGrid, state.daily.target) ? "solved" : isGameOver ? "seven" : nextPiece ? null : "empty";
+        return {
+          ...state,
+          grid: clearedGrid,
+          currentPiece: dailyOutcome ? null : nextPiece,
+          nextQueue: advanceQueue(state),
+          canHold: true,
+          score: newScore,
+          turnsPlayed,
+          gameOver: dailyOutcome !== null,
+          dailyOutcome,
+          scoreAnimations,
+          linesCleared: state.linesCleared + linesCleared,
+          pendingClear: false,
+        };
+      }
       const level = Math.floor(turnsPlayed / TURNS_PER_LEVEL) + 1;
       let updatedHighScores = state.highScores;
       let updatedBestScore = state.bestScore;
@@ -235,7 +293,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         grid: clearedGrid,
         currentPiece: state.nextQueue[0],
-        nextQueue: [...state.nextQueue.slice(1), getNextTetromino(state.gridSize)],
+        nextQueue: advanceQueue(state),
         canHold: true,
         score: newScore,
         bestScore: updatedBestScore,
@@ -297,11 +355,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         return state;
 
       if (!state.heldPiece) {
+        if (!state.nextQueue[0]) return state;
         return {
           ...state,
           currentPiece: state.nextQueue[0],
           heldPiece: state.currentPiece,
-          nextQueue: [...state.nextQueue.slice(1), getNextTetromino(state.gridSize)],
+          nextQueue: advanceQueue(state),
           canHold: false,
         };
       }
@@ -370,6 +429,24 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         hasStarted: false,
         highScores: state.highScores,
         bestScore: state.bestScore,
+        // Starting the daily again after finishing it is a replay.
+        daily: state.daily && { ...state.daily, showSolved: false },
+      };
+    }
+
+    case "SET_PLAY_MODE": {
+      const isTimed = action.mode === "timed";
+      const gridSize = action.daily ? 4 : action.gridSize;
+      const highScores = loadHighScores();
+      return {
+        ...initialState,
+        keyConfig: state.keyConfig,
+        gridSize,
+        isTimed,
+        daily: action.daily,
+        hasStarted: false,
+        highScores,
+        bestScore: getBestScore(highScores, gridSize, isTimed),
       };
     }
 
@@ -412,25 +489,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         gridSize: action.size,
         grid: createEmptyGrid(action.size),
         timeRemaining: state.isTimed ? getTimerForLevel(1) : Infinity,
-        currentPiece: null,
-        nextPiece: null,
-        heldPiece: null,
-        hasStarted: false,
-        nextQueue: [],
-        highScores,
-        bestScore,
-      };
-    }
-
-    case "TOGGLE_TIMED_MODE": {
-      saveGameSettings(state.keyConfig, state.gridSize);
-      localStorage.setItem("isTimed", action.isTimed.toString());
-      const highScores = loadHighScores();
-      const bestScore = getBestScore(highScores, state.gridSize, action.isTimed);
-      return {
-        ...state,
-        isTimed: action.isTimed,
-        timeRemaining: action.isTimed ? getTimerForLevel(1) : Infinity,
         currentPiece: null,
         nextPiece: null,
         heldPiece: null,
@@ -554,6 +612,23 @@ const TimerBar: React.FC<{ remaining: number; total: number }> = ({ remaining, t
   );
 };
 
+const PLAY_MODES: { mode: PlayMode; label: string; icon: React.ReactNode }[] = [
+  { mode: "daily", label: "Daily", icon: <CalendarDays size={16} strokeWidth={2.75} /> },
+  { mode: "unlimited", label: "Unlimited", icon: <InfinityIcon size={17} strokeWidth={2.75} /> },
+  { mode: "timed", label: "Timed", icon: <Timer size={16} strokeWidth={2.75} /> },
+];
+
+const ModeTabs: React.FC<{ mode: PlayMode; onChange: (mode: PlayMode) => void; className?: string }> = ({ mode, onChange, className }) => (
+  <div role="tablist" aria-label="Game mode" className={cn("gp-tabs", className)}>
+    {PLAY_MODES.map((option) => (
+      <button key={option.mode} role="tab" aria-selected={option.mode === mode} className={cn("gp-tab", option.mode === mode && "gp-tab-on")} onClick={() => onChange(option.mode)}>
+        {option.icon}
+        {option.label}
+      </button>
+    ))}
+  </div>
+);
+
 const GridPopGame: React.FC = () => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [showHighScores, setShowHighScores] = useState(false);
@@ -574,10 +649,67 @@ const GridPopGame: React.FC = () => {
   const bestAtStart = useRef(state.bestScore);
   if (state.turnsPlayed === 0) bestAtStart.current = state.bestScore;
 
+  // ---------- daily puzzle ----------
+
+  const daily = state.daily;
+  const playMode: PlayMode = daily ? "daily" : state.isTimed ? "timed" : "unlimited";
+  const [dailyResults, setDailyResults] = useState(loadDailyResults);
+  const [showDailyModal, setShowDailyModal] = useState(false);
+  const [lastDailyRun, setLastDailyRun] = useState<DailyResult | null>(null);
+  const [dailyClockMs, setDailyClockMs] = useState(() => (daily && !dailyResults[daily.date] ? loadDailyClock(daily.date) : 0));
+  const [dailyClockArmed, setDailyClockArmed] = useState(false);
+  const dailyRecorded = !!daily && !!dailyResults[daily.date];
+  // Only today's first finish counts; replays and other days' puzzles are practice.
+  const dailyCounts = !!daily && isToday(daily.date) && !dailyRecorded;
+  const stats = dailyStats(dailyResults);
+
+  useEffect(() => {
+    if (!daily || !dailyClockArmed || state.dailyOutcome) return;
+    let last = performance.now();
+    const id = setInterval(() => {
+      const now = performance.now();
+      // Capped so time in a background tab (where timers stall) doesn't land all at once.
+      const delta = document.hidden ? 0 : Math.min(now - last, 1000);
+      last = now;
+      setDailyClockMs((ms) => ms + delta);
+    }, 250);
+    return () => clearInterval(id);
+  }, [daily, dailyClockArmed, state.dailyOutcome]);
+
+  useEffect(() => {
+    if (dailyCounts && dailyClockMs > 0) saveDailyClock(daily.date, dailyClockMs);
+  }, [dailyCounts, dailyClockMs, daily]);
+
+  useEffect(() => {
+    if (!daily || !state.dailyOutcome) return;
+    if (state.dailyOutcome === "solved" && !daily.showSolved) {
+      const run = { moves: state.turnsPlayed, par: daily.par, timeMs: dailyClockMs };
+      setLastDailyRun(run);
+      if (dailyCounts) setDailyResults(saveDailyResult(daily.date, run));
+    }
+    setShowDailyModal(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.dailyOutcome]);
+
+  const armDailyClock = () => {
+    if (daily && !dailyClockArmed) setDailyClockArmed(true);
+  };
+
+  const switchMode = (mode: PlayMode) => {
+    if (mode === playMode) return;
+    sfx.play("click");
+    const setup = mode === "daily" ? dailySetup(activeDailyDate()) : null;
+    dispatch({ type: "SET_PLAY_MODE", mode, daily: setup, gridSize: loadGameSettings().gridSize });
+    setShowDailyModal(false);
+    setLastDailyRun(null);
+    setDailyClockArmed(false);
+    if (setup) setDailyClockMs(dailyResults[setup.date] ? 0 : loadDailyClock(setup.date));
+  };
+
   useEffect(() => {
     const { keyConfig, gridSize } = loadGameSettings();
     if (keyConfig) dispatch({ type: "UPDATE_KEY_CONFIG", config: keyConfig });
-    if (gridSize && gridSize !== state.gridSize) dispatch({ type: "CHANGE_GRID_SIZE", size: gridSize });
+    if (!state.daily && gridSize && gridSize !== state.gridSize) dispatch({ type: "CHANGE_GRID_SIZE", size: gridSize });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -617,6 +749,10 @@ const GridPopGame: React.FC = () => {
     prev.current = state;
     if (!state.hasStarted || !p.hasStarted) return;
 
+    if (state.gameOver && !p.gameOver && state.daily) {
+      sfx.play(state.dailyOutcome === "solved" ? "best" : "gameover", { delay: 0.25 });
+      return;
+    }
     if (state.gameOver && !p.gameOver) {
       const best = state.score > 0 && state.score > bestAtStart.current;
       sfx.play(best ? "best" : "gameover", { delay: 0.25 });
@@ -680,6 +816,7 @@ const GridPopGame: React.FC = () => {
 
   const handleDirectionalMove = (direction: "left" | "right" | "up" | "down") => {
     if (!canAct() || !state.currentPiece) return;
+    armDailyClock();
     const { x, y } = state.currentPiece.position;
     const delta = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[direction];
     const position: Position = { x: x + delta[0], y: y + delta[1] };
@@ -689,6 +826,7 @@ const GridPopGame: React.FC = () => {
 
   const handlePieceRotate = (direction: "clockwise" | "counterclockwise") => {
     if (!canAct() || !state.currentPiece) return;
+    armDailyClock();
     const piece = state.currentPiece;
     const max = piece.shape.rotations.length;
     const next = (piece.rotation + (direction === "clockwise" ? 1 : -1) + max) % max;
@@ -698,11 +836,14 @@ const GridPopGame: React.FC = () => {
   };
 
   const handlePlace = () => {
-    if (canAct()) dispatch({ type: "PLACE_PIECE" });
+    if (!canAct()) return;
+    armDailyClock();
+    dispatch({ type: "PLACE_PIECE" });
   };
 
   const handleHold = () => {
     if (!canAct()) return;
+    armDailyClock();
     if (!state.canHold) return bump();
     dispatch({ type: "HOLD_PIECE" });
   };
@@ -729,6 +870,12 @@ const GridPopGame: React.FC = () => {
 
   const handleNewGame = () => {
     sfx.play("click");
+    setShowDailyModal(false);
+    if (daily && !dailyCounts) {
+      // Practice runs time themselves from zero; the counted run's clock carries on.
+      setDailyClockMs(0);
+      setDailyClockArmed(false);
+    }
     dispatch({ type: "RESET_GAME" });
     dispatch({ type: "START_GAME" });
   };
@@ -754,6 +901,10 @@ const GridPopGame: React.FC = () => {
   const showGestureHint = isMobile && !gestureHintDone && state.hasStarted && !state.gameOver;
   const pieceKey = `${state.turnsPlayed}-${state.canHold ? 0 : 1}-${state.currentPiece?.shape.type}`;
   const mode = `${state.gridSize}×${state.gridSize} · ${state.isTimed ? "Timed" : "Untimed"}`;
+  const savedDailyResult = daily ? dailyResults[daily.date] : undefined;
+  const dailyMoves = daily?.showSolved ? savedDailyResult?.moves ?? 0 : state.turnsPlayed;
+  const dailyClock = formatClock(daily?.showSolved ? savedDailyResult?.timeMs ?? 0 : dailyClockMs);
+  const restartLabel = !daily ? "New Game" : state.dailyOutcome === "solved" ? "Play again" : "Restart";
 
   const board = (
     <div className="relative">
@@ -768,7 +919,7 @@ const GridPopGame: React.FC = () => {
         onPieceMove={handleDirectionalMove}
         onPiecePlace={handlePlace}
         onPieceRotate={handlePieceRotate}
-        gameOver={state.gameOver}
+        gameOver={state.gameOver && state.dailyOutcome !== "solved"}
       />
       <AnimatePresence>
         {levelToast !== null && (
@@ -793,6 +944,42 @@ const GridPopGame: React.FC = () => {
     </div>
   );
 
+  const scoresButton = (className?: string, withMode = false) =>
+    daily ? (
+      <button className={cn("gp-btn", className)} onClick={() => setShowDailyModal(true)} aria-label="Daily stats">
+        <Flame size={18} strokeWidth={2.5} className="text-[#FF7A3D]" />
+        <span className="gp-value text-lg">{stats.streak}</span>
+      </button>
+    ) : (
+      <button className={cn("gp-btn", className)} onClick={openHighScores}>
+        <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" />
+        <span className="gp-value text-lg">{state.bestScore.toLocaleString()}</span>
+        {withMode && <span className="text-sm font-bold text-[color:var(--gp-muted)]">{mode}</span>}
+      </button>
+    );
+
+  const dailyCard = (compact: boolean) =>
+    daily && (
+      <div className={cn("gp-card", compact ? "flex flex-1 items-center gap-3 px-3 py-2.5" : "flex flex-col gap-3.5 p-4")}>
+        {!compact && <div className="gp-label -mb-1.5">Target</div>}
+        <TargetGrid grid={daily.target} className={compact ? "w-[64px] shrink-0" : "w-full"} />
+        <div className={cn("grid grid-cols-2", compact ? "flex-1 gap-x-2 gap-y-1.5" : "gap-y-3.5")}>
+          <div>
+            <div className="gp-label">Moves</div>
+            <div className={cn("gp-value", compact ? "text-xl" : "text-2xl")}>{dailyMoves}</div>
+          </div>
+          <div className={cn(!compact && "text-right")}>
+            <div className="gp-label">Par</div>
+            <div className={cn("gp-value", compact ? "text-xl" : "text-2xl")}>{daily.par}</div>
+          </div>
+          <div className="col-span-2">
+            <div className="gp-label">Time</div>
+            <div className={cn("gp-value", compact ? "text-xl" : "text-2xl")}>{dailyClock}</div>
+          </div>
+        </div>
+      </div>
+    );
+
   const muteIcon = muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />;
 
   return (
@@ -811,9 +998,12 @@ const GridPopGame: React.FC = () => {
             </div>
           </header>
 
+          <ModeTabs mode={playMode} onChange={switchMode} className="w-full" />
+
           {/* Everything under the header sits in the middle of the screen on tall phones. */}
           <div className="flex flex-1 flex-col justify-center gap-3">
           <div className="flex items-stretch gap-2.5">
+            {daily ? dailyCard(true) : (
             <div className="gp-card flex flex-1 items-center justify-between gap-2 px-3.5 py-2.5">
               <div className="min-w-0">
                 <div className="gp-label">Score</div>
@@ -830,6 +1020,7 @@ const GridPopGame: React.FC = () => {
                 </div>
               </div>
             </div>
+            )}
             <div className="flex w-[68px] flex-col items-center">
               <div className="gp-label mb-1">Hold</div>
               <div className="w-full">{holdWell}</div>
@@ -842,7 +1033,7 @@ const GridPopGame: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative mx-auto w-full" style={{ maxWidth: "min(100%, calc(100dvh - 330px))", minWidth: 260 }}>
+          <div className="relative mx-auto w-full" style={{ maxWidth: `min(100%, calc(100dvh - ${daily ? 440 : 380}px))`, minWidth: 260 }}>
             {board}
             <AnimatePresence>
               {showGestureHint && (
@@ -861,6 +1052,17 @@ const GridPopGame: React.FC = () => {
             </AnimatePresence>
           </div>
 
+          {daily && (
+            // With the Next box, the same four upcoming pieces the desktop layout shows.
+            <div className="flex justify-end gap-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="gp-well w-[52px] !p-1.5 opacity-80">
+                  <PieceDisplay piece={state.nextQueue[i] ?? null} />
+                </div>
+              ))}
+            </div>
+          )}
+
           {state.isTimed && (
             <div className="gp-card px-4 py-3">
               <TimerBar remaining={state.timeRemaining} total={getTimerForLevel(state.level)} />
@@ -868,12 +1070,9 @@ const GridPopGame: React.FC = () => {
           )}
 
           <div className="flex gap-2.5">
-            <button className="gp-btn flex-1" onClick={openHighScores}>
-              <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" />
-              <span className="gp-value text-lg">{state.bestScore.toLocaleString()}</span>
-            </button>
+            {scoresButton("flex-1")}
             <button className="gp-btn gp-btn-primary flex-[1.4]" onClick={handleNewGame}>
-              <RotateCcw size={18} strokeWidth={3} /> New Game
+              <RotateCcw size={18} strokeWidth={3} /> {restartLabel}
             </button>
           </div>
           </div>
@@ -882,12 +1081,9 @@ const GridPopGame: React.FC = () => {
         <div className="mx-auto w-full max-w-[920px] px-6 pb-10 pt-7">
           <header className="mb-7 flex items-center justify-between">
             <Logo className="text-[44px]" />
+            <ModeTabs mode={playMode} onChange={switchMode} />
             <div className="flex gap-2.5">
-              <button className="gp-btn" onClick={openHighScores}>
-                <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" />
-                <span className="gp-value text-lg">{state.bestScore.toLocaleString()}</span>
-                <span className="text-sm font-bold text-[color:var(--gp-muted)]">{mode}</span>
-              </button>
+              {scoresButton(undefined, true)}
               <button className="gp-icon-btn" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"} title={muted ? "Unmute" : "Mute"}>
                 {muteIcon}
               </button>
@@ -902,6 +1098,7 @@ const GridPopGame: React.FC = () => {
                 </div>
                 {holdWell}
               </div>
+              {daily ? dailyCard(false) : (
               <div className="gp-card flex flex-col gap-3.5 p-4">
                 <div>
                   <div className="gp-label">Score</div>
@@ -919,8 +1116,9 @@ const GridPopGame: React.FC = () => {
                 </div>
                 {state.isTimed && <TimerBar remaining={state.timeRemaining} total={getTimerForLevel(state.level)} />}
               </div>
+              )}
               <button className="gp-btn gp-btn-primary w-full" onClick={handleNewGame}>
-                <RotateCcw size={18} strokeWidth={3} /> New Game
+                <RotateCcw size={18} strokeWidth={3} /> {restartLabel}
               </button>
               <button className="gp-btn w-full" onClick={openOptions}>
                 <Settings2 size={18} strokeWidth={2.5} /> Options
@@ -943,7 +1141,19 @@ const GridPopGame: React.FC = () => {
         </div>
       )}
 
-      {state.gameOver && (
+      {daily && (
+        <DailyResultModal
+          isOpen={showDailyModal}
+          onClose={() => setShowDailyModal(false)}
+          setup={daily}
+          outcome={state.dailyOutcome}
+          run={daily.showSolved ? savedDailyResult ?? null : lastDailyRun}
+          stats={stats}
+          onRestart={handleNewGame}
+        />
+      )}
+
+      {state.gameOver && !daily && (
         <GameOverModal
           score={state.score}
           level={state.level}
@@ -961,12 +1171,10 @@ const GridPopGame: React.FC = () => {
         keyConfig={state.keyConfig}
         defaultKeyConfig={DEFAULT_KEY_CONFIG}
         currentGridSize={state.gridSize}
-        isTimed={state.isTimed}
-        onApplyMode={(size: 4 | 5, timed: boolean) => {
-          // Both reset the board; the game then starts fresh with the new settings.
+        showBoardSize={!daily}
+        onApplyBoardSize={(size: 4 | 5) => {
           sfx.play("click");
-          if (size !== state.gridSize) dispatch({ type: "CHANGE_GRID_SIZE", size });
-          if (timed !== state.isTimed) dispatch({ type: "TOGGLE_TIMED_MODE", isTimed: timed });
+          dispatch({ type: "CHANGE_GRID_SIZE", size });
         }}
         muted={muted}
         onToggleMute={toggleMute}

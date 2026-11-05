@@ -370,3 +370,46 @@
 @media (prefers-reduced-motion: reduce) {
   .gp-danger, .gp-skull, .gp-will-clear, .gp-logo-tile, .gp-logo-mark-pop { animation: none; }
 }
+
+/* ---------- mode tabs ---------- */
+
+.gp-tabs {
+  @apply inline-flex gap-1 rounded-[18px] bg-white p-1;
+  border: var(--gp-ui-stroke) solid var(--gp-stroke);
+}
+.gp-tab {
+  @apply flex flex-1 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-[13px] px-3 text-sm font-extrabold transition-[transform,background-color] duration-100;
+  min-height: 36px;
+  color: var(--gp-ink);
+}
+.gp-tab:hover { background: #fff3e2; }
+.gp-tab:active { transform: scale(0.96); }
+.gp-tab:focus-visible { outline: 3px solid var(--gp-accent); outline-offset: 2px; }
+.gp-tab-on, .gp-tab-on:hover {
+  @apply text-white;
+  background: var(--gp-accent);
+}
+
+/* ---------- the daily target ---------- */
+
+.gp-target-wrap { container-type: inline-size; }
+.gp-target {
+  display: grid;
+  gap: 4cqw;
+  padding: 5cqw;
+  border-radius: 12cqw;
+  background: var(--gp-board);
+  border: 2px solid var(--gp-stroke);
+}
+.gp-target-cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 5cqw;
+  background: var(--gp-socket);
+  font-family: "Fredoka", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 11cqw;
+  line-height: 1;
+}
+.gp-target-tile { border: 1.5px solid var(--gp-stroke); }

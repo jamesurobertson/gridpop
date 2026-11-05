@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import KeyConfigPanel from "./KeyConfigPanel";
 import { KeyConfig } from "@/types/game";
-import { Check, ChevronDown, Infinity as InfinityIcon, Timer, Volume2, X } from "lucide-react";
+import { Check, ChevronDown, Volume2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -14,9 +14,10 @@ interface OptionsMenuProps {
   keyConfig: KeyConfig;
   defaultKeyConfig: KeyConfig;
   currentGridSize: 4 | 5;
-  isTimed: boolean;
-  /** Start a new game with these settings. */
-  onApplyMode: (size: 4 | 5, timed: boolean) => void;
+  /** The daily puzzle is always 4×4. */
+  showBoardSize: boolean;
+  /** Start a new game on this board size. */
+  onApplyBoardSize: (size: 4 | 5) => void;
   muted: boolean;
   onToggleMute: () => void;
 }
@@ -81,14 +82,13 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
   keyConfig,
   defaultKeyConfig,
   currentGridSize,
-  isTimed,
-  onApplyMode,
+  showBoardSize,
+  onApplyBoardSize,
   muted,
   onToggleMute,
 }) => {
   const isMobile = useIsMobile();
   const [size, setSize] = useState(currentGridSize);
-  const [timed, setTimed] = useState(isTimed);
   const [editingKeys, setEditingKeys] = useState(false);
   const [attemptedClose, setAttemptedClose] = useState(false);
 
@@ -96,13 +96,12 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     setSize(currentGridSize);
-    setTimed(isTimed);
     setEditingKeys(false);
     setAttemptedClose(false);
-  }, [isOpen, currentGridSize, isTimed]);
+  }, [isOpen, currentGridSize]);
 
   const emptyKeys = KEY_FIELDS.filter((k) => !keyConfig[k]);
-  const modeChanged = size !== currentGridSize || timed !== isTimed;
+  const modeChanged = showBoardSize && size !== currentGridSize;
 
   const handleClose = () => {
     if (!isMobile && emptyKeys.length > 0) {
@@ -130,39 +129,22 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
 
         <div className="flex-1 space-y-7 overflow-y-auto px-6 py-5">
           {/* ---------- the game you play ---------- */}
-          <section className="space-y-4">
-            <div>
-              <h3 className="gp-label mb-2">Board size</h3>
-              <div role="radiogroup" aria-label="Board size" className="grid gap-2">
-                <Choice selected={size === 4} onSelect={() => setSize(4)} title="4 × 4" desc="The classic. Tight and tense." icon={<Badge><GridGlyph n={4} /></Badge>} />
-                <Choice selected={size === 5} onSelect={() => setSize(5)} title="5 × 5" desc="More room, plus the long piece." icon={<Badge><GridGlyph n={5} /></Badge>} />
+          {showBoardSize && (
+            <section className="space-y-4">
+              <div>
+                <h3 className="gp-label mb-2">Board size</h3>
+                <div role="radiogroup" aria-label="Board size" className="grid gap-2">
+                  <Choice selected={size === 4} onSelect={() => setSize(4)} title="4 × 4" desc="The classic. Tight and tense." icon={<Badge><GridGlyph n={4} /></Badge>} />
+                  <Choice selected={size === 5} onSelect={() => setSize(5)} title="5 × 5" desc="More room, plus the long piece." icon={<Badge><GridGlyph n={5} /></Badge>} />
+                </div>
               </div>
-            </div>
-            <div>
-              <h3 className="gp-label mb-2">Pace</h3>
-              <div role="radiogroup" aria-label="Pace" className="grid gap-2">
-                <Choice
-                  selected={!timed}
-                  onSelect={() => setTimed(false)}
-                  title="Relaxed"
-                  desc="No clock. Think as long as you like."
-                  icon={<Badge><InfinityIcon size={22} strokeWidth={2.75} /></Badge>}
-                />
-                <Choice
-                  selected={timed}
-                  onSelect={() => setTimed(true)}
-                  title="Timed"
-                  desc="Beat the clock on every piece. It speeds up each level."
-                  icon={<Badge><Timer size={21} strokeWidth={2.75} /></Badge>}
-                />
-              </div>
-            </div>
-            {modeChanged && (
-              <p className="rounded-2xl bg-[#FFF3D6] px-4 py-3 text-[13px] font-bold text-[#6E4300]">
-                These apply when you start a new game. Your current game will end.
-              </p>
-            )}
-          </section>
+              {modeChanged && (
+                <p className="rounded-2xl bg-[#FFF3D6] px-4 py-3 text-[13px] font-bold text-[#6E4300]">
+                  These apply when you start a new game. Your current game will end.
+                </p>
+              )}
+            </section>
+          )}
 
           {/* ---------- sound ---------- */}
           <section>
@@ -249,17 +231,14 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({
             <>
               <button
                 className="gp-btn flex-1"
-                onClick={() => {
-                  setSize(currentGridSize);
-                  setTimed(isTimed);
-                }}
+                onClick={() => setSize(currentGridSize)}
               >
                 Keep playing
               </button>
               <button
                 className="gp-btn gp-btn-primary flex-[1.4]"
                 onClick={() => {
-                  onApplyMode(size, timed);
+                  onApplyBoardSize(size);
                   onClose();
                 }}
               >

@@ -37,6 +37,7 @@ const HowToPlayContent = ({ isMobile }: { isMobile: boolean }) => (
         <Rule chips={[6, 7]}>Let any tile reach 7 and it's game over.</Rule>
       </ul>
       <p className="mt-4 text-sm text-[color:var(--gp-muted)]">Pop several lines at once for a combo, and clear the whole board for a big bonus.</p>
+      <p className="mt-2 text-sm text-[color:var(--gp-muted)]">Daily: build the target board in as few pieces as you can. Everyone gets the same pieces.</p>
     </section>
     <section>
       <h3 className="gp-label mb-3">Controls</h3>

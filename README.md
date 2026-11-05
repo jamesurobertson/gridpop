@@ -8,6 +8,23 @@ Stack pieces, match the numbers, and pop the lines before a tile hits 7.
 ![GridPop on desktop](docs/screenshot.png)
 
 
+## Daily puzzle
+
+The game opens on the daily puzzle: everyone gets the same pieces in the same order and tries to
+build the target board in as few placements as possible, with time breaking ties. A new puzzle
+starts at midnight UTC. Unlimited and Timed are the endless modes.
+
+Puzzles live in `src/data/dailyPuzzles.json`, made ahead of time by
+
+```bash
+node scripts/generate-daily.mjs 2027-05-04 60   # first date, number of days
+```
+
+which builds each day's target from its seeded pieces and searches every line of play for par. Days
+already in the file are kept, so it only adds new ones. Every day is built from 4 pieces for now;
+`DIFFICULTY_BY_WEEKDAY` in the script can make some days longer or require a line pop. Add
+`?date=YYYY-MM-DD` to the URL to play another day's puzzle; only today's counts toward streaks.
+
 ## Getting Started
 
 1. Clone the repository

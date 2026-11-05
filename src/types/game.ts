@@ -1,3 +1,5 @@
+import type { DailySetup } from "@/utils/daily";
+
 // Game Types
 export type CellValue = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type GridType = CellValue[][];
@@ -22,6 +24,10 @@ export interface Tetromino {
 }
 
 export type GameMode = "standard" | "challenge";
+
+export type PlayMode = "daily" | "unlimited" | "timed";
+
+export type DailyOutcome = "solved" | "seven" | "empty";
 
 export interface KeyConfig {
   rotate: string;
@@ -83,6 +89,9 @@ export interface GameState {
   nextQueue: Tetromino[];
   linesCleared: number;
   pendingClear: boolean;
+  /** Set while playing the daily puzzle. */
+  daily: DailySetup | null;
+  dailyOutcome: DailyOutcome | null;
 }
 
 export type GameAction =
@@ -101,6 +110,6 @@ export type GameAction =
   | { type: "UPDATE_KEY_CONFIG"; config: Partial<KeyConfig> }
   | { type: "REMOVE_SCORE_ANIMATION"; id: number }
   | { type: "CHANGE_GRID_SIZE"; size: 4 | 5 }
-  | { type: "TOGGLE_TIMED_MODE"; isTimed: boolean }
   | { type: "UPDATE_HIGH_SCORES"; highScores: HighScore[] }
-  | { type: "SET_OPTIONS_MENU"; isOpen: boolean };
+  | { type: "SET_OPTIONS_MENU"; isOpen: boolean }
+  | { type: "SET_PLAY_MODE"; mode: PlayMode; daily: DailySetup | null; gridSize: 4 | 5 };
