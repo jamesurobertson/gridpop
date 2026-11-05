@@ -19,6 +19,8 @@ interface DailyResultModalProps {
   extra?: React.ReactNode;
   /** Replaces the browser share (the Reddit app uses its own share sheet). */
   onShare?: (text: string) => void;
+  /** Keep the fewest possible secret (on Reddit the leaderboard says what's good). */
+  hideGoal?: boolean;
 }
 
 const SITE = "https://jamesurobertson.github.io/gridpop/";
@@ -42,7 +44,7 @@ const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
   </div>
 );
 
-const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare }) => {
+const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, hideGoal }) => {
   const [copied, setCopied] = useState(false);
   const msLeft = useCountdown(isOpen);
   const solved = outcome === "solved" && run;
@@ -53,12 +55,12 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
   const heading =
     outcome === "seven" ? { emoji: "💀", title: "A tile reached 7" } :
     outcome === "empty" ? { emoji: "🫙", title: "Out of pieces" } :
-    solved ? { emoji: score <= run.par ? "🎯" : "🎉", title: score <= run.par ? "Perfect!" : "Solved" } :
+    solved ? { emoji: !hideGoal && score <= run.par ? "🎯" : "🎉", title: !hideGoal && score <= run.par ? "Perfect!" : "Solved" } :
     { emoji: "📅", title: puzzleName };
 
   function handleShare() {
     if (!run) return;
-    const text = dailyShareText(setup, run);
+    const text = dailyShareText(setup, run, { withGoal: !hideGoal });
     if (onShare) {
       onShare(text);
     } else if (navigator.share) {
@@ -97,9 +99,10 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
         <div className="px-5 pb-5 pt-4 text-center">
           {solved && (
             <div className="mb-4 grid grid-cols-4 gap-2">
+              {hideGoal && <Stat label="Score" value={score} />}
               <Stat label="Moves" value={run.moves} />
               <Stat label="Restarts" value={run.restarts ?? 0} />
-              <Stat label="Goal" value={run.par} />
+              {!hideGoal && <Stat label="Goal" value={run.par} />}
               <Stat label="Time" value={formatClock(run.timeMs)} />
             </div>
           )}
@@ -111,7 +114,7 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                 <Stat label="Streak" value={`🔥 ${stats.streak}`} />
                 <Stat label="Best" value={stats.bestStreak} />
               </div>
-              <div className="mt-3 space-y-1">
+              <div className={cn("mt-3 space-y-1", hideGoal && "hidden")}>
                 {stats.overPar.map((count, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm font-extrabold">
                     <span className="w-8 text-left text-[color:var(--gp-muted)]">{OVER_GOAL_LABELS[i]}</span>

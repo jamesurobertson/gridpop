@@ -157,8 +157,9 @@ export function saveDailyProgress(setup: Pick<DailySetup, "date" | "level">, pro
 // ---------- sharing ----------
 
 
-export function dailyShareText(setup: DailySetup, result: DailyResult) {
+export function dailyShareText(setup: DailySetup, result: DailyResult, { withGoal = true } = {}) {
   const label = DAILY_LEVELS.find((option) => option.level === setup.level)?.label;
   const board = emojiBoard(setup.target);
-  return `GridPop #${setup.number} ${label} · Score ${dailyScore(result)} · Goal ${result.par} · ${formatClock(result.timeMs)}\n${board}`;
+  const goal = withGoal ? ` · Goal ${result.par}` : "";
+  return `GridPop #${setup.number} ${label} · Score ${dailyScore(result)}${goal} · ${formatClock(result.timeMs)}\n${board}`;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { TILES } from "@/utils/gameCellVisuals";
+import { TILES, pieceColor } from "@/utils/gameCellVisuals";
 import { cn } from "@/lib/utils";
 
 const SEEN_KEY = "gridpop-how-to-play-seen";
@@ -22,89 +22,124 @@ export function markSeen() {
   }
 }
 
-type Cell = [x: number, y: number];
+// Board geometry in px: four cells with gaps, inside padding.
+const CELL = 36;
+const GAP = 6;
+const PAD = 8;
+const STEP = CELL + GAP;
+const BOARD_SIZE = PAD * 2 + CELL * 4 + GAP * 3;
+
+type Action = "move" | "rotate" | "place";
 type Frame = {
   board: string;
-  /** Where the next piece is about to land. */
-  ghost?: Cell[];
-  /** Cells lit white as their line pops. */
-  flash?: Cell[];
+  /** The three-long piece: its 3×3 box's top-left cell and quarter turns. Absent once placed. */
+  piece?: { id: number; x: number; y: number; turns: number };
+  action?: Action;
   done?: boolean;
   ms: number;
 };
 
+const TARGET = "0100/1210/0100/0000";
+
+// One piece moves and lands; the next turns, moves and lands, matching the target.
+const FRAMES: Frame[] = [
+  { board: "0000/0000/0000/0000", piece: { id: 1, x: 0, y: -1, turns: 0 }, ms: 700 },
+  { board: "0000/0000/0000/0000", piece: { id: 1, x: 0, y: 0, turns: 0 }, action: "move", ms: 800 },
+  { board: "0000/1110/0000/0000", action: "place", ms: 800 },
+  { board: "0000/1110/0000/0000", piece: { id: 2, x: 0, y: -1, turns: 0 }, ms: 600 },
+  { board: "0000/1110/0000/0000", piece: { id: 2, x: 0, y: -1, turns: 1 }, action: "rotate", ms: 800 },
+  { board: "0000/1110/0000/0000", piece: { id: 2, x: 0, y: 0, turns: 1 }, action: "move", ms: 800 },
+  { board: TARGET, action: "place", done: true, ms: 2000 },
+];
+
+const usesTouch = () => window.matchMedia?.("(pointer: coarse)").matches ?? false;
+
+const CONTROLS: Record<Action, [touch: string, keys: string]> = {
+  move: ["Drag", "← → ↑ ↓"],
+  rotate: ["Double-tap", "A / D"],
+  place: ["Tap", "Space"],
+};
+
 const rows = (board: string) => board.split("/").map((row) => [...row].map(Number));
-const line = (cells: string) => cells.split(" ").map((cell) => [Number(cell[0]), Number(cell[1])] as Cell);
 
-// Two pieces build the target.
-const BUILD_TARGET = "0100/1210/0100/0000";
-const BUILD: Frame[] = [
-  { board: "0000/0000/0000/0000", ms: 700 },
-  { board: "0000/0000/0000/0000", ghost: line("01 11 21"), ms: 900 },
-  { board: "0000/1110/0000/0000", ms: 600 },
-  { board: "0000/1110/0000/0000", ghost: line("10 11 12"), ms: 900 },
-  { board: BUILD_TARGET, done: true, ms: 1800 },
-];
-
-// Completing a row of 1s pops it.
-const POP: Frame[] = [
-  { board: "0000/1110/0000/0000", ms: 700 },
-  { board: "0000/1110/0000/0000", ghost: line("30 31 32"), ms: 900 },
-  { board: "0001/1111/0001/0000", flash: line("01 11 21 31"), ms: 500 },
-  { board: "0001/0000/0001/0000", ms: 1600 },
-];
-
-// A tile reaching 7 ends the run.
-const SEVEN: Frame[] = [
-  { board: "0000/0600/0000/0000", ms: 700 },
-  { board: "0000/0600/0000/0000", ghost: line("01 11 21"), ms: 900 },
-  { board: "0000/1710/0000/0000", ms: 1800 },
-];
-
-function useFrame(frames: Frame[]) {
-  const [index, setIndex] = useState(0);
-  useEffect(() => {
-    const id = setTimeout(() => setIndex((i) => (i + 1) % frames.length), frames[index].ms);
-    return () => clearTimeout(id);
-  }, [index, frames]);
-  return frames[index];
-}
-
-const has = (cells: Cell[] | undefined, x: number, y: number) => !!cells?.some(([cx, cy]) => cx === x && cy === y);
-
-const MiniBoard = ({ board, ghost, flash, done, className }: Omit<Frame, "ms"> & { className?: string }) => (
-  <div className={cn("gp-target-wrap", className)}>
-    <div className={cn("gp-target transition-shadow", done && "ring-4 ring-[#45D486]")} style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-      {rows(board).flatMap((row, y) =>
-        row.map((value, x) => {
-          const lit = has(flash, x, y);
-          const aiming = has(ghost, x, y);
-          return (
-            <span
-              key={`${x}-${y}`}
-              className={cn("gp-target-cell transition-colors duration-200", value > 0 && "gp-target-tile")}
-              style={{
-                background: lit ? "#FFFFFF" : value > 0 ? TILES[value].face : aiming ? "#7C5CFF66" : undefined,
-                color: value > 0 ? TILES[value].text : undefined,
-                outline: aiming ? "2px dashed #B8A3FF" : undefined,
-                outlineOffset: -2,
-              }}
-            >
-              {value > 0 ? TILES[value].label : ""}
-            </span>
-          );
-        })
-      )}
-    </div>
+const Board = ({ frame }: { frame: Frame }) => (
+  <div className="relative overflow-hidden rounded-[18px] border-2 border-[#1F1633] bg-[var(--gp-board)]" style={{ width: BOARD_SIZE, height: BOARD_SIZE }}>
+    {rows(frame.board).flatMap((row, y) =>
+      row.map((value, x) => (
+        <span
+          key={`${x}-${y}`}
+          className={cn("font-display absolute grid place-items-center rounded-[10px] text-lg font-bold transition-all duration-200", value > 0 && "border-2 border-[#1F1633]")}
+          style={{
+            left: PAD + x * STEP,
+            top: PAD + y * STEP,
+            width: CELL,
+            height: CELL,
+            background: value > 0 ? TILES[value].face : "var(--gp-socket)",
+            color: value > 0 ? TILES[value].text : undefined,
+          }}
+        >
+          {value > 0 ? TILES[value].label : ""}
+        </span>
+      ))
+    )}
+    {frame.piece && (
+      <div
+        key={frame.piece.id}
+        className="absolute transition-transform duration-300 ease-out"
+        style={{
+          left: PAD,
+          top: PAD,
+          width: CELL * 3 + GAP * 2,
+          height: CELL * 3 + GAP * 2,
+          transform: `translate(${frame.piece.x * STEP}px, ${frame.piece.y * STEP}px) rotate(${frame.piece.turns * 90}deg)`,
+        }}
+      >
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="absolute rounded-[10px] border-2 border-[#1F1633] opacity-90"
+            style={{ left: i * STEP, top: STEP, width: CELL, height: CELL, background: pieceColor("I3") }}
+          />
+        ))}
+      </div>
+    )}
   </div>
 );
 
-const Demo = ({ frames, children }: { frames: Frame[]; children?: (frame: Frame) => React.ReactNode }) => {
-  const frame = useFrame(frames);
+const Demo = () => {
+  const [index, setIndex] = useState(0);
+  const [touch] = useState(usesTouch);
+  const frame = FRAMES[index];
+  useEffect(() => {
+    const id = setTimeout(() => setIndex((i) => (i + 1) % FRAMES.length), frame.ms);
+    return () => clearTimeout(id);
+  }, [index, frame.ms]);
+  const control = frame.action && CONTROLS[frame.action][touch ? 0 : 1];
   return (
-    <div className="relative flex items-center justify-center gap-3 rounded-2xl bg-[#FBF6EE] p-3">
-      <MiniBoard {...frame} className="w-[108px]" />
-      {children?.(frame)}
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex items-center gap-3">
+        <Board frame={frame} />
+        <div className={cn("rounded-[14px] p-1 transition-colors", frame.done ? "bg-[#45D486]" : "bg-transparent")}>
+          <div className="gp-target-wrap w-[64px]">
+            <div className="gp-target" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+              {rows(TARGET).flatMap((row, y) =>
+                row.map((value, x) => (
+                  <span
+                    key={`${x}-${y}`}
+                    className={cn("gp-target-cell", value > 0 && "gp-target-tile")}
+                    style={value > 0 ? { background: TILES[value].face, color: TILES[value].text } : undefined}
+                  >
+                    {value > 0 ? TILES[value].label : ""}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      <span className={cn("rounded-full border-2 border-[#1F1633] bg-white px-3 py-1 text-sm font-extrabold transition-opacity", control ? "opacity-100" : "opacity-0")}>
+        {control ?? " "}
+      </span>
     </div>
   );
 };
@@ -112,33 +147,13 @@ const Demo = ({ frames, children }: { frames: Frame[]; children?: (frame: Frame)
 export const HowToPlay = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => (
   <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
     <DialogContent
-      className="max-h-[calc(100dvh-24px)] max-w-[min(92vw,360px)] gap-0 overflow-y-auto rounded-[28px] border-[2.5px] border-[#1F1633] bg-white p-4 outline-none"
+      className="max-h-[calc(100dvh-24px)] max-w-[min(92vw,340px)] gap-0 overflow-y-auto rounded-[28px] border-[2.5px] border-[#1F1633] bg-white p-5 outline-none"
       onOpenAutoFocus={(e) => e.preventDefault()}
     >
       <DialogTitle className="sr-only">How to play</DialogTitle>
       <DialogDescription className="sr-only">Build the target board in as few pieces as you can.</DialogDescription>
-
-      <Demo frames={BUILD}>
-        {(frame: Frame) => (
-          <>
-            <span className={cn("font-display text-2xl font-bold transition-colors", frame.done ? "text-[#45D486]" : "text-[color:var(--gp-muted)]")}>
-              {frame.done ? "✓" : "→"}
-            </span>
-            <MiniBoard board={BUILD_TARGET} done={frame.done} className="w-[72px]" />
-          </>
-        )}
-      </Demo>
-      <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-        <Demo frames={POP} />
-        <Demo frames={SEVEN} />
-      </div>
-
-      <div className="mt-3 text-center text-[13px] font-bold text-[color:var(--gp-muted)]">
-        <div>Drag to move · Tap to place · Double-tap to rotate</div>
-        <div className="mt-0.5">Arrows · A / D · Space</div>
-      </div>
-
-      <button className="gp-btn gp-btn-primary mt-3 w-full" onClick={onClose}>
+      <Demo />
+      <button className="gp-btn gp-btn-primary mt-4 w-full" onClick={onClose}>
         Play
       </button>
     </DialogContent>

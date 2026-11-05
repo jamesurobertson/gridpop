@@ -305,11 +305,10 @@ export const Game = () => {
   );
 
   const statsCard = (
-    <div className={cn("gp-card grid content-center gap-y-2.5 px-2 py-2.5", landscape ? "grid-cols-4" : "flex-1 grid-cols-2")}>
+    <div className={cn("gp-card grid content-center gap-y-2.5 px-2 py-2.5", landscape ? "grid-cols-3" : "flex-1 grid-cols-2")}>
       {stat("Moves", result ? result.moves : run.moves)}
-      {stat("Goal", <span className="text-[#7C5CFF]">{levelPuzzle.par}</span>)}
       {stat("Restarts", restarts)}
-      {stat("Time", formatClock(clockMs))}
+      <div className={cn(!landscape && "col-span-2")}>{stat("Time", formatClock(clockMs))}</div>
     </div>
   );
 
@@ -433,6 +432,7 @@ export const Game = () => {
         stats={stats}
         onRestart={restart}
         onShare={(text) => void showShareSheet({ title: "GridPop", text }).catch(() => undefined)}
+        hideGoal
         extra={
           puzzle.username ? (
             <Leaderboard board={board} username={puzzle.username} />

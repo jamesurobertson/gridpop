@@ -68,7 +68,7 @@ export const Splash = () => {
               <span className="font-display text-base font-bold">{label}</span>
               {levelPuzzle ? <TargetGrid grid={parseTarget(levelPuzzle.target)} className="w-full" /> : <span className="aspect-square w-full rounded-2xl bg-[#F1E7DA]" />}
               <span className="text-xs font-extrabold text-[color:var(--gp-muted)]">
-                {result ? `Score ${dailyScore(result)}` : levelPuzzle ? `Goal ${levelPuzzle.par}` : " "}
+                {result ? `Score ${dailyScore(result)}` : " "}
               </span>
               {streak > 0 && <span className="text-xs font-extrabold">🔥 {streak}</span>}
             </button>
