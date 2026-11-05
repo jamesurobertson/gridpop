@@ -1,6 +1,6 @@
 import type { DailyLevel } from "@/utils/dailyCore";
 import type { RunAction } from "@/utils/dailyRun";
-import type { AttemptResponse, LeaderboardResponse, PuzzleResponse, SubmitResponse } from "../shared/api";
+import type { AttemptResponse, CommentResponse, LeaderboardResponse, PuzzleResponse, SubmitResponse } from "../shared/api";
 
 async function call<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, body === undefined ? undefined : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -14,6 +14,7 @@ export const recordAttempt = (date: string, level: DailyLevel) => call<AttemptRe
 export const submitRun = (date: string, level: DailyLevel, actions: RunAction[], timeMs: number) =>
   call<SubmitResponse>("/api/submit", { date, level, actions, timeMs });
 export const fetchLeaderboard = (level: DailyLevel) => call<LeaderboardResponse>(`/api/leaderboard?level=${level}`);
+export const postComment = (text: string) => call<CommentResponse>("/api/comment", { text });
 
 // The level picked on the post card, read by the full-screen game (both pages share storage).
 const LEVEL_KEY = "gridpop-level";

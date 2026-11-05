@@ -16,7 +16,8 @@ interface GameBoardProps {
   /** Bumped each time a move is blocked: the piece wobbles. */
   bumpKey: number;
   scoreAnimations: ScoreAnimation[];
-  onPieceMove: (direction: "left" | "right" | "up" | "down") => void;
+  /** `dragged` moves come from a finger drag, which should stop at the walls without a bump. */
+  onPieceMove: (direction: "left" | "right" | "up" | "down", dragged?: boolean) => void;
   onPiecePlace: () => void;
   onPieceRotate: (direction: "clockwise" | "counterclockwise") => void;
   gameOver: boolean;
@@ -174,8 +175,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
       const cell = rect.width / n;
       const mx = Math.round(dx / cell);
       const my = Math.round(dy / cell);
-      if (mx !== 0) onPieceMove(mx > 0 ? "right" : "left");
-      if (my !== 0) onPieceMove(my > 0 ? "down" : "up");
+      if (mx !== 0) onPieceMove(mx > 0 ? "right" : "left", true);
+      if (my !== 0) onPieceMove(my > 0 ? "down" : "up", true);
       if (mx !== 0 || my !== 0) touchStart.current = { x: t.clientX, y: t.clientY };
     },
     [currentPiece, n, onPieceMove]
@@ -209,11 +210,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   return (
     <div className={cn("relative select-none", className)}>
-      <motion.div ref={scope} className="relative h-full w-full">
+      <motion.div ref={scope} className="relative w-full">
+        {/* Square from container width, not h-full: the Reddit iOS webview doesn't treat an
+            aspect-ratio height as definite, so h-full collapsed the rows to nothing. */}
         <div
           ref={boardRef}
           tabIndex={0}
-          className="gp-board grid h-full w-full touch-none outline-none"
+          className="gp-board grid h-[100cqw] w-full touch-none outline-none"
           style={{ gridTemplateColumns: `repeat(${n}, 1fr)`, gridTemplateRows: `repeat(${n}, 1fr)`, ["--n" as string]: n }}
           onTouchStart={isMobile ? handleTouchStart : undefined}
           onTouchMove={isMobile ? handleTouchMove : undefined}
@@ -312,7 +315,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
                           <div className={cn("gp-piece", deadly && "gp-piece-deadly")} style={{ ["--face" as string]: look.face, color: look.text }}>
                             <motion.div className="gp-piece-face" style={{ rotate: counter }}>
                               <span className="gp-piece-shine" />
-                              <span className="gp-num gp-piece-num">{deadly ? "💀" : v}</span>
+                              <span className="gp-num gp-piece-num">{v}</span>
                             </motion.div>
                           </div>
                         </div>

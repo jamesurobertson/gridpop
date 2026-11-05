@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import { Pointer } from "lucide-react";
 import type { Tetromino } from "@/types/game";
 import { getCurrentShape } from "@/utils/gameLogic";
 
@@ -35,9 +34,20 @@ export const Hand = ({ at, press, taps = 1 }: { at: { x: number; y: number }; pr
       animate={press > 0 ? { scale: taps === 2 ? [1, 0.8, 1, 0.8, 1] : [1, 0.8, 1] } : { y: [0, 6, 0] }}
       transition={press > 0 ? { duration: taps === 2 ? 0.6 : 0.35 } : { duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
     >
-      <Pointer size={40} strokeWidth={1.75} fill="#FFFFFF" color="#1F1633" className="drop-shadow-[0_3px_4px_rgba(31,22,51,0.45)]" />
+      <HandIcon />
     </motion.div>
   </div>
+);
+
+// One closed outline, so the white fill covers the whole hand; the knuckle lines are drawn on top.
+const HandIcon = () => (
+  <svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke="#1F1633" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_3px_4px_rgba(31,22,51,0.45)]" aria-hidden>
+    <path
+      fill="#FFFFFF"
+      d="M6 14V4a2 2 0 0 1 4 0v5a2 2 0 0 1 4 0v1a2 2 0 0 1 4 0v1a2 2 0 0 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15Z"
+    />
+    <path d="M10 9v2.5M14 10v2M18 11v1.5" />
+  </svg>
 );
 
 /** A keyboard key that dips each time `press` changes. */

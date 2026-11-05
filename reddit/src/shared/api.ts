@@ -28,7 +28,12 @@ export type PuzzleResponse = {
 
 export type LeaderboardEntry = { rank: number; username: string; score: number; moves: number; restarts: number; timeMs: number };
 
-export type LeaderboardResponse = { top: LeaderboardEntry[]; me: LeaderboardEntry | null; total: number };
+export type Distribution = { score: number; count: number }[];
+
+export type LeaderboardResponse = { top: LeaderboardEntry[]; me: LeaderboardEntry | null; total: number; distribution: Distribution };
+
+export type CommentRequest = { text: string };
+export type CommentResponse = { ok: true } | { ok: false; reason: string };
 
 export type AttemptRequest = { date: string; level: DailyLevel };
 export type AttemptResponse = { attempts: number };

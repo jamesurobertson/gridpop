@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { RotateCcw, Share2 } from "lucide-react";
+import { Flame, RotateCcw, Share2 } from "lucide-react";
 import { DailyOutcome } from "@/types/game";
 import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyScore, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
 import { cn } from "@/lib/utils";
@@ -21,6 +20,10 @@ interface DailyResultModalProps {
   onShare?: (text: string) => void;
   /** Keep the fewest possible secret (on Reddit the leaderboard says what's good). */
   hideGoal?: boolean;
+  /** Offered once solved: another run that isn't recorded. */
+  onReplay?: () => void;
+  /** The run shown was a replay after the recorded solve. */
+  practice?: boolean;
 }
 
 const SITE = "https://jamesurobertson.github.io/gridpop/";
@@ -44,19 +47,19 @@ const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
   </div>
 );
 
-const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, hideGoal }) => {
+const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, hideGoal, onReplay, practice }) => {
   const [copied, setCopied] = useState(false);
   const msLeft = useCountdown(isOpen);
   const solved = outcome === "solved" && run;
   const score = run ? dailyScore(run) : 0;
   const overPar = solved ? Math.min(3, Math.max(0, score - run.par)) : -1;
-  const puzzleName = `Daily #${setup.number} · ${DAILY_LEVELS.find((option) => option.level === setup.level)?.label}`;
+  const puzzleName = `Daily #${setup.number} · ${DAILY_LEVELS.find((option) => option.level === setup.level)?.label}${practice ? " · Practice" : ""}`;
 
   const heading =
-    outcome === "seven" ? { emoji: "💀", title: "A tile reached 7" } :
-    outcome === "empty" ? { emoji: "🫙", title: "Out of pieces" } :
-    solved ? { emoji: !hideGoal && score <= run.par ? "🎯" : "🎉", title: !hideGoal && score <= run.par ? "Perfect!" : "Solved" } :
-    { emoji: "📅", title: puzzleName };
+    outcome === "seven" ? "A tile reached 7" :
+    outcome === "empty" ? "Out of pieces" :
+    solved ? (!hideGoal && score <= run.par ? "Perfect!" : "Solved") :
+    puzzleName;
 
   function handleShare() {
     if (!run) return;
@@ -83,23 +86,13 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="bg-[#3B2E5A] px-6 pb-4 pt-5 text-center text-white">
-          <motion.div
-            key={heading.emoji}
-            className="text-4xl"
-            initial={{ scale: 0, rotate: -30 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 400, damping: 12, delay: 0.1 }}
-          >
-            {heading.emoji}
-          </motion.div>
-          <DialogTitle className="font-display mt-1 text-[26px] font-bold tracking-tight">{heading.title}</DialogTitle>
+          <DialogTitle className="font-display text-[26px] font-bold tracking-tight">{heading}</DialogTitle>
           <DialogDescription className="mt-1 text-sm font-bold text-white/60">{puzzleName}</DialogDescription>
         </div>
 
         <div className="px-5 pb-5 pt-4 text-center">
           {solved && (
-            <div className="mb-4 grid grid-cols-4 gap-2">
-              {hideGoal && <Stat label="Score" value={score} />}
+            <div className={cn("mb-4 grid gap-2", hideGoal ? "grid-cols-3" : "grid-cols-4")}>
               <Stat label="Moves" value={run.moves} />
               <Stat label="Restarts" value={run.restarts ?? 0} />
               {!hideGoal && <Stat label="Goal" value={run.par} />}
@@ -111,7 +104,15 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
             <>
               <div className="flex justify-center gap-8 rounded-2xl bg-[#FBF6EE] px-4 py-3">
                 <Stat label="Played" value={stats.played} />
-                <Stat label="Streak" value={`🔥 ${stats.streak}`} />
+                <Stat
+                  label="Streak"
+                  value={
+                    <span className="inline-flex items-center gap-1">
+                      <Flame size={20} strokeWidth={2.5} className="text-[#FF7A3D]" />
+                      {stats.streak}
+                    </span>
+                  }
+                />
                 <Stat label="Best" value={stats.bestStreak} />
               </div>
               <div className={cn("mt-3 space-y-1", hideGoal && "hidden")}>
@@ -140,9 +141,18 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
           {/* Kept in view at the bottom of a card that scrolls on short screens. */}
           <div className="sticky bottom-0 -mx-5 -mb-5 mt-4 flex flex-col gap-2.5 bg-white px-5 pb-5 pt-2">
             {solved ? (
-              <button className="gp-btn gp-btn-primary w-full text-base" onClick={handleShare}>
-                <Share2 size={18} strokeWidth={2.5} /> {copied ? "Copied!" : "Share"}
-              </button>
+              <div className="flex gap-2.5">
+                {onReplay && (
+                  <button className="gp-btn flex-1 whitespace-nowrap text-base" onClick={onReplay}>
+                    <RotateCcw size={18} strokeWidth={3} /> Play again
+                  </button>
+                )}
+                {!practice && (
+                  <button className="gp-btn gp-btn-primary flex-1 whitespace-nowrap text-base" onClick={handleShare}>
+                    <Share2 size={18} strokeWidth={2.5} /> {copied ? "Copied!" : "Share"}
+                  </button>
+                )}
+              </div>
             ) : outcome ? (
               <button className="gp-btn gp-btn-primary w-full text-base" onClick={onRestart}>
                 <RotateCcw size={18} strokeWidth={3} /> Try again

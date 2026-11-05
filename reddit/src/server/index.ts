@@ -6,7 +6,7 @@ import type { TriggerResponse, UiResponse } from "@devvit/web/shared";
 import puzzles from "@/data/dailyPuzzles.json";
 import { DAILY_LEVELS, DailyLevel, DailyPuzzle, parseTarget, pickPuzzle, puzzleNumber, utcDateKey } from "@/utils/dailyCore";
 import { replayRun } from "@/utils/dailyRun";
-import type { AttemptRequest, AttemptResponse, PuzzleResponse, SubmitRequest, SubmitResponse } from "../shared/api";
+import type { AttemptRequest, AttemptResponse, CommentRequest, CommentResponse, PuzzleResponse, SubmitRequest, SubmitResponse } from "../shared/api";
 import { attemptsFor, countAttempt, leaderboard, resultFor, saveResult, statsFor } from "./store";
 import { ensureDailyPost } from "./posts";
 
@@ -77,6 +77,22 @@ app.post("/api/submit", async (c) => {
   });
   const [result, stats, board] = await Promise.all([resultFor(date, level, userId), statsFor(level, userId), leaderboard(date, level, userId)]);
   return c.json<SubmitResponse>({ ok: true, result: result!, stats, leaderboard: board });
+});
+
+app.post("/api/comment", async (c) => {
+  const { text } = await c.req.json<CommentRequest>();
+  const { userId, postId } = context;
+  const fail = (reason: string) => c.json<CommentResponse>({ ok: false, reason }, 400);
+  const body = typeof text === "string" ? text.trim() : "";
+  if (!userId || !postId) return fail("logged out");
+  if (!body || body.length > 2000) return fail("bad comment");
+  try {
+    await reddit.submitComment({ id: postId, text: body, runAs: "USER" });
+    return c.json<CommentResponse>({ ok: true });
+  } catch (e) {
+    console.error(`Couldn't post comment: ${e}`);
+    return fail("not posted");
+  }
 });
 
 app.get("/api/leaderboard", async (c) => {

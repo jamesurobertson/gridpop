@@ -30,8 +30,8 @@ export type RunState = {
 };
 
 type RunEvent =
-  /** A fresh run; `grid` starts it from tiles already on the board (the tutorial uses this). */
-  | { type: "start"; pieces: TetrominoType[]; grid?: GridType }
+  /** A fresh run; the tutorial can start it from tiles on the board and the first piece elsewhere. */
+  | { type: "start"; pieces: TetrominoType[]; grid?: GridType; at?: Position }
   | { type: "showSolved"; target: GridType }
   | { type: "move"; position: Position }
   | { type: "rotate"; direction: "clockwise" | "counterclockwise" }
@@ -58,8 +58,14 @@ const fresh = (pieces: TetrominoType[]): RunState => {
 function reduce(state: RunState, event: RunEvent): RunState {
   const playable = state.current && !state.outcome && !state.pendingClear;
   switch (event.type) {
-    case "start":
-      return { ...fresh(event.pieces), grid: event.grid ? event.grid.map((row) => [...row]) : createEmptyGrid(4) };
+    case "start": {
+      const run = fresh(event.pieces);
+      return {
+        ...run,
+        grid: event.grid ? event.grid.map((row) => [...row]) : createEmptyGrid(4),
+        current: run.current && event.at ? { ...run.current, position: event.at } : run.current,
+      };
+    }
     case "showSolved":
       return { ...fresh([]), grid: event.target.map((row) => [...row]), outcome: "solved" };
     case "move": {

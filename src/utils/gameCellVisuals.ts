@@ -19,7 +19,7 @@ export const TILES: Record<number, TileStyle> = {
   4: { face: "#B8A3FF", edge: "#8063E6", text: "#33198A", label: "4" },
   5: { face: "#FF9D5C", edge: "#D86A22", text: "#6E2600", label: "5" },
   6: { face: "#FF5A6E", edge: "#C92841", text: "#FFFFFF", label: "6" },
-  7: { face: "#2B2236", edge: "#100B16", text: "#FFFFFF", label: "💀" },
+  7: { face: "#2B2236", edge: "#100B16", text: "#FFFFFF", label: "7" },
 };
 
 /** Colour of each piece shape (the piece you're moving, and the Hold / Next previews). */

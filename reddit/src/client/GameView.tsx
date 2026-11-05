@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { showLoginPrompt, showShareSheet } from "@devvit/web/client";
-import { CircleHelp, Flame, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { CircleHelp, Flame, RotateCcw, Trophy, Volume2, VolumeX } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
-import PieceDisplay from "@/components/game/PieceDisplay";
-import TargetGrid from "@/components/game/TargetGrid";
 import DailyResultModal from "@/components/game/DailyResultModal";
 import { isValidPosition, tryWallKick } from "@/utils/gameLogic";
 import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, parseTarget } from "@/utils/dailyCore";
@@ -15,27 +13,11 @@ import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, sav
 import { HowToPlay, firstVisit, markSeen } from "./HowToPlay";
 import { Hand, pieceCenter, usesTouch } from "./Coach";
 import { Leaderboard } from "./Leaderboard";
+import { CommentBox } from "./CommentBox";
+import { GameLayout, KeyHints, NextColumn, TargetCard, useViewport } from "./GameLayout";
 import { useDailyRun } from "./useDailyRun";
 
 const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0, 0, 0, 0] };
-
-// Wide views lay out a fixed "stage" (board, Next column, side panel) and scale it as one piece,
-// so the parts keep their proportions from a small desktop modal up to fullscreen.
-const STAGE = { width: 900, height: 468, margin: 24 };
-const BOARD = 468;
-
-function useViewport() {
-  const read = () => ({ width: window.innerWidth, height: window.innerHeight });
-  const [size, setSize] = useState(read);
-  useEffect(() => {
-    const onResize = () => setSize(read());
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  const landscape = size.width >= 600 && size.width > size.height * 1.15;
-  const scale = Math.min((size.width - STAGE.margin * 2) / STAGE.width, (size.height - STAGE.margin * 2) / STAGE.height);
-  return { landscape, scale };
-}
 
 const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " " };
 
@@ -54,7 +36,12 @@ export const Game = () => {
   const [bumpKey, setBumpKey] = useState(0);
   const [runNumber, setRunNumber] = useState(0);
   const [muted, setMuted] = useState(sfx.muted);
-  const { landscape, scale } = useViewport();
+  const viewport = useViewport();
+  const { landscape } = viewport;
+  // Runs after the recorded solve: played the same way, but never sent to the server.
+  const [practice, setPractice] = useState(false);
+  const [practiceAttempts, setPracticeAttempts] = useState(0);
+  const [practiceResult, setPracticeResult] = useState<DailyResult | null>(null);
   const [showRules, setShowRules] = useState(firstVisit);
   // The very first game gets pointers: what to match, and how to put a piece down.
   const [coaching, setCoaching] = useState(() => {
@@ -93,6 +80,8 @@ export const Game = () => {
     setClockRunning(false);
     setBoard(null);
     setRunNumber((n) => n + 1);
+    setPractice(false);
+    setPracticeResult(null);
     if (saved) {
       dispatch({ type: "showSolved", target: parseTarget(data.levels[next].target) });
       setShowResult(true);
@@ -164,7 +153,16 @@ export const Game = () => {
   }, [run.scoreAnimations, dispatch]);
 
   useEffect(() => {
-    if (!puzzle || !levelPuzzle || !run.outcome || result) return;
+    if (!puzzle || !levelPuzzle || !run.outcome) return;
+    if (practice) {
+      if (run.outcome === "solved") {
+        sfx.play("best", { delay: 0.25 });
+        setPracticeResult({ moves: run.moves, restarts: Math.max(0, practiceAttempts - 1), par: levelPuzzle.par, timeMs: clockMs });
+      } else sfx.play("gameover", { delay: 0.25 });
+      setShowResult(true);
+      return;
+    }
+    if (result) return;
     if (run.outcome !== "solved") {
       sfx.play("gameover", { delay: 0.25 });
       setShowResult(true);
@@ -235,7 +233,8 @@ export const Game = () => {
   const place = () => {
     if (!playable || !puzzle) return;
     startClock();
-    if (run.moves === 0) {
+    if (run.moves === 0 && practice) setPracticeAttempts((n) => n + 1);
+    else if (run.moves === 0) {
       // Every run that gets a piece down counts; all but the solving one are restarts.
       const counted = attempts + 1;
       setAttempts(counted);
@@ -266,6 +265,14 @@ export const Game = () => {
     sfx.play("click");
     setShowResult(false);
     setRunNumber((n) => n + 1);
+    if (result) {
+      // Once it's solved, every new run is practice, with its own clock.
+      if (!practice) setPracticeAttempts(0);
+      setPractice(true);
+      setPracticeResult(null);
+      setClockMs(0);
+      setClockRunning(false);
+    }
     dispatch({ type: "start", pieces: levelPuzzle.pieces });
   };
 
@@ -304,7 +311,6 @@ export const Game = () => {
   if (!puzzle || !levelPuzzle || !target) return <div className="h-[100dvh]" />;
 
   const solved = run.outcome === "solved";
-  const restarts = result ? result.restarts ?? 0 : Math.max(0, attempts - (run.moves > 0 ? 1 : 0));
   const setup = { date: puzzle.date, level, number: puzzle.number, pieces: levelPuzzle.pieces, target, par: levelPuzzle.par, showSolved: !!result };
   const stat = (label: string, value: ReactNode) => (
     <div className="text-center">
@@ -324,10 +330,9 @@ export const Game = () => {
   );
 
   const statsCard = (
-    <div className={cn("gp-card grid content-center gap-y-2.5 px-2 py-2.5", landscape ? "grid-cols-3" : "flex-1 grid-cols-2")}>
-      {stat("Moves", result ? result.moves : run.moves)}
-      {stat("Restarts", restarts)}
-      <div className={cn(!landscape && "col-span-2")}>{stat("Time", formatClock(clockMs))}</div>
+    <div className={cn("gp-card grid grid-cols-2 content-center px-2 py-2.5", !landscape && "flex-1")}>
+      {stat("Moves", result && !practice ? result.moves : run.moves)}
+      {stat("Time", formatClock(clockMs))}
     </div>
   );
 
@@ -344,67 +349,53 @@ export const Game = () => {
     </motion.span>
   );
 
-  const targetCard = (
-    <div className={cn("gp-card relative p-2.5", landscape ? "w-full" : "w-[38%] max-w-[150px] shrink-0", showCoach && "ring-4 ring-[#7C5CFF]/40")}>
-      <div className="gp-label mb-1.5">Target</div>
-      <TargetGrid grid={target} className={cn("w-full", landscape && "mx-auto max-w-[236px]")} />
-      {showCoach && coachPill("Match this", "-bottom-3.5 left-1/2 -translate-x-1/2")}
-    </div>
-  );
-
-  // Tetris-style: the next piece on top and ringed, the three after it below, smaller and fading.
-  const nextColumn = (
-    <div className={cn("flex shrink-0 flex-col items-center gap-2", landscape ? "w-[92px]" : "w-[68px]")}>
-      <div className="gp-label">Next</div>
-      <div className="gp-well w-full !p-2 ring-[2.5px] ring-inset ring-[#7C5CFF]">
-        <PieceDisplay piece={run.queue[0] ?? null} />
-      </div>
-      {[1, 2, 3].map((i) => (
-        <div key={i} className={cn("gp-well !p-1.5", landscape ? "w-[72px]" : "w-[52px]")} style={{ opacity: 1 - i * 0.18 }}>
-          <PieceDisplay piece={run.queue[i] ?? null} />
-        </div>
-      ))}
-    </div>
-  );
-
   const buttons = (
     <div className="flex gap-2">
-      <button className="gp-btn flex-1 !px-3" onClick={() => setShowResult(true)} aria-label="Stats">
-        <Flame size={18} strokeWidth={2.5} className="text-[#FF7A3D]" />
-        <span className="gp-value text-lg">{stats.streak}</span>
-      </button>
+      {result ? (
+        <button className="gp-btn flex-1 whitespace-nowrap !px-3" onClick={() => setShowResult(true)}>
+          <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" /> Leaderboard
+        </button>
+      ) : (
+        <button className="gp-btn flex-1 !px-3" onClick={() => setShowResult(true)} aria-label="Stats">
+          <Flame size={18} strokeWidth={2.5} className="text-[#FF7A3D]" />
+          <span className="gp-value text-lg">{stats.streak}</span>
+        </button>
+      )}
       <button className="gp-icon-btn shrink-0" onClick={() => setShowRules(true)} aria-label="How to play">
         <CircleHelp size={20} strokeWidth={2.5} />
       </button>
       <button className="gp-icon-btn shrink-0" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
         {muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />}
       </button>
-      {!solved && (
-        <button className="gp-btn gp-btn-primary flex-[1.6]" onClick={restart}>
+      {solved ? (
+        // Once solved, Leaderboard takes the label; replaying is the icon beside it.
+        <button className="gp-icon-btn gp-btn-primary shrink-0" onClick={restart} aria-label="Play again" title="Play again">
+          <RotateCcw size={18} strokeWidth={3} />
+        </button>
+      ) : (
+        <button className="gp-btn gp-btn-primary flex-[1.6] whitespace-nowrap" onClick={restart}>
           <RotateCcw size={18} strokeWidth={3} /> Restart
         </button>
       )}
     </div>
   );
 
-  // The board and its Next column share whatever room is left; the board stays square, sized to
-  // the space's width (less the column) or its height, whichever is smaller.
   const gameBoard = (
     <div className="relative">
-          <GameBoard
-            className="gp-board-wrap aspect-square w-full"
-            grid={run.grid}
-            currentPiece={run.current}
-            pieceKey={`${runNumber}-${run.moves}-${run.current?.shape.type}`}
-            pendingClear={run.pendingClear}
-            bumpKey={bumpKey}
-            scoreAnimations={run.scoreAnimations}
-            onPieceMove={move}
-            onPiecePlace={place}
-            onPieceRotate={rotate}
-            gameOver={!!run.outcome && !solved}
-            showPoints={false}
-          />
+      <GameBoard
+        className="gp-board-wrap aspect-square w-full"
+        grid={run.grid}
+        currentPiece={run.current}
+        pieceKey={`${runNumber}-${run.moves}-${run.current?.shape.type}`}
+        pendingClear={run.pendingClear}
+        bumpKey={bumpKey}
+        scoreAnimations={run.scoreAnimations}
+        onPieceMove={move}
+        onPiecePlace={place}
+        onPieceRotate={rotate}
+        gameOver={!!run.outcome && !solved}
+        showPoints={false}
+      />
       {showCoach && (
         <>
           <Hand at={pieceCenter(run.current)} press={0} />
@@ -414,75 +405,57 @@ export const Game = () => {
     </div>
   );
 
-  const playArea = (
-    <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-      <div className="flex items-start gap-2.5">
-        <div style={{ width: "min(calc(100cqw - 78px), 100cqh)" }}>{gameBoard}</div>
-        {nextColumn}
-      </div>
-    </div>
+  const shownRun = practice ? practiceResult : result;
+  const resultExtra = practice ? null : puzzle.username ? (
+    <>
+      <Leaderboard board={board} username={puzzle.username} />
+      {result && <CommentBox />}
+    </>
+  ) : (
+    <button className="gp-btn mt-4 w-full" onClick={() => showLoginPrompt()}>
+      Log in to save
+    </button>
   );
+
+  const closeRules = () => {
+    markSeen();
+    setShowRules(false);
+  };
 
   return (
     <div className="h-[100dvh] overflow-hidden">
-      {landscape ? (
-        <div className="relative h-full">
-          {/* Centred from its midpoint, so a stage wider than the window still scales down in place. */}
-          <div
-            className="absolute left-1/2 top-1/2 flex items-start gap-4"
-            style={{ width: STAGE.width, height: STAGE.height, transform: `translate(-50%, -50%) scale(${scale})` }}
-          >
-            <div className="shrink-0" style={{ width: BOARD }}>
-              {gameBoard}
-            </div>
-            {nextColumn}
-            <aside className="flex h-full min-w-0 flex-1 flex-col justify-between gap-2.5">
-              {tabs}
-              {statsCard}
-              {targetCard}
-              {buttons}
-            </aside>
-          </div>
-        </div>
+      {showRules ? (
+        <HowToPlay viewport={viewport} onClose={closeRules} />
       ) : (
-        <div className="mx-auto flex h-full max-w-[480px] flex-col gap-2.5 p-3">
-          {tabs}
-          <div className="flex gap-2.5">
-            {targetCard}
-            {statsCard}
-          </div>
-          {playArea}
-          {buttons}
-        </div>
+        <GameLayout
+          viewport={viewport}
+          top={tabs}
+          side={statsCard}
+          target={
+            <TargetCard target={target} landscape={landscape} highlight={showCoach ? "coach" : undefined}>
+              {showCoach && coachPill("Match this", "-bottom-3.5 left-1/2 -translate-x-1/2")}
+            </TargetCard>
+          }
+          board={gameBoard}
+          next={<NextColumn queue={run.queue} landscape={landscape} />}
+          bottom={buttons}
+          hints={touch ? undefined : <KeyHints />}
+        />
       )}
-
-      <HowToPlay
-        isOpen={showRules}
-        onClose={() => {
-          markSeen();
-          setShowRules(false);
-        }}
-      />
 
       <DailyResultModal
         isOpen={showResult}
         onClose={() => setShowResult(false)}
         setup={setup}
         outcome={run.outcome}
-        run={result}
+        run={shownRun}
         stats={stats}
         onRestart={restart}
         onShare={(text) => void showShareSheet({ title: "GridPop", text }).catch(() => undefined)}
         hideGoal
-        extra={
-          puzzle.username ? (
-            <Leaderboard board={board} username={puzzle.username} />
-          ) : (
-            <button className="gp-btn mt-4 w-full" onClick={() => showLoginPrompt()}>
-              Log in to save
-            </button>
-          )
-        }
+        practice={practice}
+        onReplay={result ? restart : undefined}
+        extra={resultExtra}
       />
     </div>
   );

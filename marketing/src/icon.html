@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>GridPop community icon</title>
+<link rel="stylesheet" href="brand.css">
+<script src="fontcheck.js"></script>
+<style>
+  html, body { width: 300px; height: 300px; }
+  body {
+    display: grid;
+    place-items: center;
+    --warm-peach: 380px 320px;
+    --warm-lilac: 340px 360px;
+    --warm-sky: 360px 240px;
+  }
+  /* Sized so the rounded corners stay about 7px inside Reddit's circular crop. */
+  .mark {
+    --side: 236px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 13px;
+    width: var(--side);
+    height: var(--side);
+    padding: 17px;
+    border-radius: 58px;
+    background: var(--gp-board);
+    border: 12px solid var(--gp-stroke);
+  }
+  .mark .tile {
+    width: 100%;
+    height: 100%;
+    border-width: 7px;
+    border-radius: 26%;
+    font-size: 56px;
+  }
+</style>
+</head>
+<body class="gp-warm">
+  <div class="mark">
+    <div class="tile v1"><span>1</span></div>
+    <div class="tile v2"><span>2</span></div>
+    <div class="tile v3"><span>3</span></div>
+    <div class="tile v6"><span>6</span></div>
+  </div>
+</body>
+</html>

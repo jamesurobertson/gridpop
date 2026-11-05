@@ -27,7 +27,8 @@ export interface DailyResult {
 }
 
 /** Like golf: every placement and every restart is a stroke. */
-export const dailyScore = (result: Pick<DailyResult, "moves" | "restarts">) => result.moves + (result.restarts ?? 0);
+/** Pieces placed. Restarts don't add to it; they only break ties. */
+export const dailyScore = (result: Pick<DailyResult, "moves">) => result.moves;
 
 export const DAY_MS = 86_400_000;
 export const FIRST_DAY = "2026-11-05";

@@ -11,7 +11,7 @@ Stack pieces, match the numbers, and pop the lines before a tile hits 7.
 ## Daily puzzle
 
 The game opens on the daily puzzle: everyone gets the same pieces in the same order and tries to
-build the target board in as few placements as possible (each restart counts as one more), with time breaking ties. The
+build the target board in as few placements as possible, with fewer restarts and then time breaking ties. The
 fewest possible is shown as the goal. A new puzzle
 starts at midnight UTC. Unlimited and Timed are the endless modes.
 

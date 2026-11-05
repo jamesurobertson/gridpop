@@ -1,0 +1,186 @@
+/* GridPop brand primitives for the static marketing renders.
+   Values mirror src/index.css and src/utils/gameCellVisuals.ts; sizes are per tile (--s) instead of cqw. */
+
+@font-face {
+  font-family: "Fredoka";
+  font-weight: 600;
+  src: url("../../reddit/node_modules/@fontsource/fredoka/files/fredoka-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Fredoka";
+  font-weight: 700;
+  src: url("../../reddit/node_modules/@fontsource/fredoka/files/fredoka-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Nunito";
+  font-weight: 800;
+  src: url("../../reddit/node_modules/@fontsource/nunito/files/nunito-latin-800-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Nunito";
+  font-weight: 900;
+  src: url("../../reddit/node_modules/@fontsource/nunito/files/nunito-latin-900-normal.woff2") format("woff2");
+}
+
+:root {
+  --gp-bg: #fff6ea;
+  --gp-ink: #2e2346;
+  --gp-muted: #8c7fa3;
+  --gp-board: #3b2e5a;
+  --gp-socket: #4a3c6e;
+  --gp-accent: #7c5cff;
+  --gp-stroke: #1f1633;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { overflow: hidden; }
+
+body {
+  font-family: "Nunito", sans-serif;
+  color: var(--gp-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Warm page gradient from the game's body background. */
+.gp-warm {
+  background:
+    radial-gradient(var(--warm-peach, 60rem 30rem) at 10% -10%, #ffe3c9 0%, transparent 60%),
+    radial-gradient(var(--warm-lilac, 50rem 30rem) at 110% 10%, #e7dcff 0%, transparent 60%),
+    radial-gradient(var(--warm-sky, 40rem 30rem) at 50% 120%, #d9f3ff 0%, transparent 60%),
+    var(--gp-bg);
+}
+
+/* ---------- tile (.gp-tile) ---------- */
+.tile {
+  --s: 60px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 24%;
+  background: var(--face);
+  color: var(--text);
+  border: calc(var(--s) * 0.037) solid var(--gp-stroke);
+  font-family: "Fredoka", sans-serif;
+  font-weight: 700;
+  font-size: calc(var(--s) * 0.48);
+  line-height: 1;
+}
+.tile::before {
+  content: "";
+  position: absolute;
+  left: 13%;
+  top: 9%;
+  width: 34%;
+  height: 12%;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.tile span { position: relative; top: 0.02em; }
+
+.v1 { --face: #FFD45E; --text: #6E4300; }
+.v2 { --face: #7CCBFF; --text: #08436B; }
+.v3 { --face: #7BDEA3; --text: #0C4D2C; }
+.v4 { --face: #B8A3FF; --text: #33198A; }
+.v5 { --face: #FF9D5C; --text: #6E2600; }
+.v6 { --face: #FF5A6E; --text: #FFFFFF; }
+
+/* ---------- board (.gp-board / .gp-socket) ---------- */
+/* --w is the board's outer width; proportions follow the game's cqw values. */
+.board {
+  --w: 300px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: var(--w);
+  height: var(--w);
+  padding: calc(var(--w) * 0.03);
+  gap: calc(var(--w) * 0.022);
+  border-radius: calc(var(--w) * 0.06);
+  background: var(--gp-board);
+  border: calc(var(--w) * 0.009) solid var(--gp-stroke);
+}
+.board > * { position: relative; }
+.board .socket {
+  border-radius: 24%;
+  background: var(--gp-socket);
+}
+.board .tile {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-width: calc(var(--w) * 0.008);
+  font-size: calc(var(--w) * 0.105);
+}
+/* Lines about to pop: the game's dashed white frame. */
+.board .will-clear {
+  position: absolute;
+  z-index: 2;
+  border-radius: calc(var(--w) * 0.05);
+  outline: calc(var(--w) * 0.006) dashed rgba(255, 255, 255, 0.9);
+  outline-offset: calc(var(--w) * -0.003);
+}
+
+/* ---------- wordmark (.gp-logo) ---------- */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.14em;
+  line-height: 1;
+  font-family: "Fredoka", sans-serif;
+  font-weight: 700;
+  color: var(--gp-ink);
+  white-space: nowrap;
+}
+.logo-word { letter-spacing: -0.035em; }
+.logo-mark {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.06em;
+  width: 0.92em;
+  height: 0.92em;
+  padding: 0.07em;
+  margin-right: 0.06em;
+  border-radius: 0.22em;
+  background: var(--gp-board);
+  border: 0.05em solid var(--gp-stroke);
+}
+.logo-mark i {
+  border-radius: 28%;
+  border: 0.035em solid var(--gp-stroke);
+}
+.logo-pop {
+  display: inline-flex;
+  gap: 0.06em;
+  margin-left: 0.04em;
+}
+.logo-tile {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 1.08em;
+  height: 1.08em;
+  border-radius: 26%;
+  font-size: 0.86em;
+  color: var(--t);
+  background: var(--f);
+  border: 0.06em solid var(--gp-stroke);
+  transform: rotate(var(--r));
+}
+.logo-tile::before {
+  content: "";
+  position: absolute;
+  left: 13%;
+  top: 9%;
+  width: 34%;
+  height: 12%;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.logo-tile b { position: relative; font-weight: 700; top: 0.02em; }
+.lp1 { --f: #FFD45E; --t: #6E4300; --r: -7deg; }
+.lp2 { --f: #7CCBFF; --t: #08436B; --r: 4deg; }
+.lp3 { --f: #FF5A6E; --t: #FFFFFF; --r: -3deg; }

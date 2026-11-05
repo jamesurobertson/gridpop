@@ -807,13 +807,13 @@ const GridPopGame: React.FC = () => {
     setBumpKey((k) => k + 1);
   };
 
-  const handleDirectionalMove = (direction: "left" | "right" | "up" | "down") => {
+  const handleDirectionalMove = (direction: "left" | "right" | "up" | "down", dragged = false) => {
     if (!canAct() || !state.currentPiece) return;
     armDailyClock();
     const { x, y } = state.currentPiece.position;
     const delta = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[direction];
     const position: Position = { x: x + delta[0], y: y + delta[1] };
-    if (!isValidPosition(state.grid, { ...state.currentPiece, position })) return bump();
+    if (!isValidPosition(state.grid, { ...state.currentPiece, position })) return dragged ? undefined : bump();
     dispatch({ type: "MOVE_PIECE", position });
   };
 
