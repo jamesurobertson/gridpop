@@ -26,13 +26,14 @@ const stageScale = (viewport: Viewport, stageHeight: number) =>
 
 export type Viewport = ReturnType<typeof useViewport>;
 
-export const TargetCard = ({ target, landscape, highlight, dim, children }: { target: GridType; landscape: boolean; highlight?: "coach" | "solved"; dim?: boolean; children?: ReactNode }) => (
+export const TargetCard = ({ target, landscape, highlight, dim, children }: { target: GridType; landscape: boolean; highlight?: "coach" | "solved" | "flash"; dim?: boolean; children?: ReactNode }) => (
   <div
     className={cn(
       "gp-card relative p-2.5 transition-shadow",
       landscape ? "w-full" : "w-[34%] max-w-[132px] shrink-0",
       highlight === "coach" && "ring-4 ring-[#7C5CFF]/40",
-      highlight === "solved" && "ring-4 ring-[#45D486]"
+      highlight === "solved" && "ring-4 ring-[#45D486]",
+      highlight === "flash" && "gp-target-flash"
     )}
   >
     <div className="gp-label mb-1.5">Target</div>

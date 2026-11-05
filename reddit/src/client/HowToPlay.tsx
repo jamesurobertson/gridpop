@@ -207,6 +207,8 @@ export const HowToPlay = ({ viewport, onClose }: { viewport: Viewport; onClose: 
           <div className="gp-card flex flex-1 flex-col items-center justify-center gap-1.5 px-3 py-3 text-center">
             <h2 className="font-display text-[20px] font-bold leading-tight">{step.title[touch ? 0 : 1]}</h2>
             {step.line && <p className="text-sm font-bold leading-snug text-[color:var(--gp-muted)]">{step.line}</p>}
+            {/* Keyboards: the key being pressed, under the words (touch screens get the hand on the board). */}
+            {!touch && <div className="mt-1 flex h-11 items-center">{input && <Keycap label={KEY_LABEL[input]} press={press} />}</div>}
           </div>
         )
       }
@@ -223,7 +225,7 @@ export const HowToPlay = ({ viewport, onClose }: { viewport: Viewport; onClose: 
         ) : undefined
       }
       hintsHeight={WIDE_CAPTION_HEIGHT}
-      target={<TargetCard target={step.target ? parseTarget(step.target) : BLANK_TARGET} landscape={landscape} dim={!step.target} highlight={solved ? "solved" : undefined} />}
+      target={<TargetCard target={step.target ? parseTarget(step.target) : BLANK_TARGET} landscape={landscape} dim={!step.target} highlight={solved ? "solved" : step.target ? "flash" : undefined} />}
       board={
         <div className="pointer-events-none relative">
           <GameBoard
