@@ -23,6 +23,8 @@ interface GameBoardProps {
   gameOver: boolean;
   /** Off in the daily, where clears are worth nothing: only combo labels pop. */
   showPoints?: boolean;
+  /** Cells to outline as the suggested spot for the piece in play. */
+  hintCells?: { x: number; y: number }[];
   className?: string;
 }
 
@@ -48,6 +50,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   onPieceRotate,
   gameOver,
   showPoints = true,
+  hintCells,
   className,
 }) => {
   const n = grid.length;
@@ -250,6 +253,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
               );
             })
           )}
+
+          {/* Where a hint says the piece should go */}
+          {hintCells?.map(({ x, y }) => <div key={`h${x}-${y}`} className="gp-hint" style={{ ...cellArea(x, y), zIndex: 3 }} />)}
 
           {/* Lines this placement would clear */}
           {preview &&

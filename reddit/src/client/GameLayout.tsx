@@ -42,10 +42,10 @@ export const TargetCard = ({ target, landscape, highlight, dim, children }: { ta
 );
 
 // Tetris-style: the next piece on top, the three after it below, smaller and fading.
-export const NextColumn = ({ queue, landscape }: { queue: (Tetromino | null)[]; landscape: boolean }) => (
-  <div className={cn("flex shrink-0 flex-col items-center gap-2", landscape ? "w-[92px]" : "w-[68px]")}>
-    <div className="gp-label">Next</div>
-    <div className="gp-well w-full !p-2">
+export const NextColumn = ({ queue, landscape, highlight }: { queue: (Tetromino | null)[]; landscape: boolean; highlight?: boolean }) => (
+  <div className={cn("flex shrink-0 flex-col items-center gap-2 rounded-2xl transition-shadow", landscape ? "w-[92px]" : "w-[68px]", highlight && "ring-4 ring-[#7C5CFF]/50 ring-offset-4 ring-offset-[#FFF6EA]")}>
+    <div className={cn("gp-label", highlight && "text-[#7C5CFF]")}>Next</div>
+    <div className={cn("gp-well w-full !p-2", highlight && "ring-[2.5px] ring-inset ring-[#7C5CFF]")}>
       <PieceDisplay piece={queue[0] ?? null} />
     </div>
     {[1, 2, 3].map((i) => (

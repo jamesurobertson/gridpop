@@ -27,6 +27,8 @@ export type RunState = {
   /** Everything done this run, for the server to replay. */
   actions: RunAction[];
   scoreAnimations: ScoreAnimation[];
+  /** The run as it was before each placement, latest last, for undo. */
+  history: Omit<RunState, "history" | "scoreAnimations">[];
 };
 
 type RunEvent =
@@ -37,7 +39,9 @@ type RunEvent =
   | { type: "rotate"; direction: "clockwise" | "counterclockwise" }
   | { type: "place" }
   | { type: "clear"; target: GridType }
-  | { type: "removeAnimation"; id: number };
+  | { type: "removeAnimation"; id: number }
+  /** Take back the last placement (not once the target is matched). */
+  | { type: "undo" };
 
 let animationId = 0;
 
@@ -52,6 +56,7 @@ const fresh = (pieces: TetrominoType[]): RunState => {
     outcome: null,
     actions: [],
     scoreAnimations: [],
+    history: [],
   };
 };
 
@@ -83,11 +88,13 @@ function reduce(state: RunState, event: RunEvent): RunState {
     }
     case "place": {
       if (!playable) return state;
+      const { history, scoreAnimations, ...before } = state;
       const { rotation, position } = state.current!;
       return {
         ...state,
         grid: placeTetromino(state.grid, state.current!),
         pendingClear: true,
+        history: [...history, before],
         actions: [...state.actions, { type: "place", rotation, x: position.x, y: position.y }],
       };
     }
@@ -116,6 +123,11 @@ function reduce(state: RunState, event: RunEvent): RunState {
         outcome,
         scoreAnimations,
       };
+    }
+    case "undo": {
+      const previous = state.history.at(-1);
+      if (!previous || state.pendingClear || state.outcome === "solved") return state;
+      return { ...previous, history: state.history.slice(0, -1), scoreAnimations: [] };
     }
     case "removeAnimation":
       return { ...state, scoreAnimations: state.scoreAnimations.filter((a) => a.id !== event.id) };

@@ -1,6 +1,6 @@
 import type { TetrominoType } from "@/types/game";
 import type { DailyLevel, DailyResult } from "@/utils/dailyCore";
-import type { RunAction } from "@/utils/dailyRun";
+import type { Placement, RunAction } from "@/utils/dailyRun";
 
 export type LevelPuzzle = { pieces: TetrominoType[]; target: string; par: number };
 
@@ -12,7 +12,7 @@ export type LevelStats = {
   overPar: [number, number, number, number];
 };
 
-export type SavedResult = DailyResult & { restarts: number; rank: number; total: number };
+export type SavedResult = DailyResult & { restarts: number; hints: number; rank: number; total: number };
 
 export type PuzzleResponse = {
   date: string;
@@ -26,7 +26,7 @@ export type PuzzleResponse = {
   attempts: Record<DailyLevel, number>;
 };
 
-export type LeaderboardEntry = { rank: number; username: string; score: number; moves: number; restarts: number; timeMs: number };
+export type LeaderboardEntry = { rank: number; username: string; score: number; moves: number; restarts: number; hints: number; timeMs: number };
 
 export type Distribution = { score: number; count: number }[];
 
@@ -34,6 +34,10 @@ export type LeaderboardResponse = { top: LeaderboardEntry[]; me: LeaderboardEntr
 
 export type CommentRequest = { text: string };
 export type CommentResponse = { ok: true } | { ok: false; reason: string };
+
+export type HintRequest = { date: string; level: DailyLevel; actions: RunAction[] };
+/** `placement` is where the piece in play should go; null means the target can't be reached from here. */
+export type HintResponse = { ok: true; placement: Placement | null; hints: number } | { ok: false; reason: string; waitMs?: number };
 
 export type AttemptRequest = { date: string; level: DailyLevel };
 export type AttemptResponse = { attempts: number };

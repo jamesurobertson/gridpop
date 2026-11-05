@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Flame, RotateCcw, Share2 } from "lucide-react";
+import { Flame, RotateCcw, Share2, Undo2 } from "lucide-react";
 import { DailyOutcome } from "@/types/game";
 import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyScore, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
 import { cn } from "@/lib/utils";
@@ -22,11 +22,14 @@ interface DailyResultModalProps {
   hideGoal?: boolean;
   /** Offered once solved: another run that isn't recorded. */
   onReplay?: () => void;
+  /** Offered after a tile reaches 7 or the pieces run out: take back the last placement. */
+  onUndo?: () => void;
   /** The run shown was a replay after the recorded solve. */
   practice?: boolean;
 }
 
 const SITE = "https://jamesurobertson.github.io/gridpop/";
+const STAT_COLUMNS: Record<number, string> = { 3: "grid-cols-3", 4: "grid-cols-4", 5: "grid-cols-5" };
 const OVER_GOAL_LABELS = ["Goal", "+1", "+2", "+3"];
 
 function useCountdown(active: boolean) {
@@ -47,7 +50,7 @@ const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
   </div>
 );
 
-const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, hideGoal, onReplay, practice }) => {
+const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, hideGoal, onReplay, practice, onUndo }) => {
   const [copied, setCopied] = useState(false);
   const msLeft = useCountdown(isOpen);
   const solved = outcome === "solved" && run;
@@ -92,9 +95,10 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
 
         <div className="px-5 pb-5 pt-4 text-center">
           {solved && (
-            <div className={cn("mb-4 grid gap-2", hideGoal ? "grid-cols-3" : "grid-cols-4")}>
+            <div className={cn("mb-4 grid gap-2", STAT_COLUMNS[3 + (hideGoal ? 0 : 1) + (run.hints !== undefined ? 1 : 0)])}>
               <Stat label="Moves" value={run.moves} />
               <Stat label="Restarts" value={run.restarts ?? 0} />
+              {run.hints !== undefined && <Stat label="Hints" value={run.hints} />}
               {!hideGoal && <Stat label="Goal" value={run.par} />}
               <Stat label="Time" value={formatClock(run.timeMs)} />
             </div>
@@ -154,9 +158,16 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                 )}
               </div>
             ) : outcome ? (
-              <button className="gp-btn gp-btn-primary w-full text-base" onClick={onRestart}>
-                <RotateCcw size={18} strokeWidth={3} /> Try again
-              </button>
+              <div className="flex gap-2.5">
+                {onUndo && (
+                  <button className="gp-btn flex-1 whitespace-nowrap text-base" onClick={onUndo}>
+                    <Undo2 size={18} strokeWidth={3} /> Undo
+                  </button>
+                )}
+                <button className="gp-btn gp-btn-primary flex-1 whitespace-nowrap text-base" onClick={onRestart}>
+                  <RotateCcw size={18} strokeWidth={3} /> Try again
+                </button>
+              </div>
             ) : (
               <button className="gp-btn gp-btn-primary w-full text-base" onClick={onClose}>
                 Keep playing

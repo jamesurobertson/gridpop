@@ -41,42 +41,12 @@ type Step = {
   script: { input: Input; wait: number }[];
   /** How long the end state stays up before the step plays again. */
   hold: number;
+  /** Point out the Next column (the step that explains where pieces come from). */
+  showNext?: boolean;
 };
 
 // Each step plays a few real moves on the real board, then repeats.
 const STEPS: Step[] = [
-  {
-    title: ["Match the target", "Match the target"],
-    line: "Fewest pieces wins.",
-    pieces: ["I3", "I3"],
-    target: "1000/2110/1000/0000",
-    script: [
-      { input: "place", wait: 1000 },
-      { input: "rotate", wait: 900 },
-      { input: "left", wait: 800 },
-      { input: "place", wait: 800 },
-    ],
-    hold: 2200,
-  },
-  {
-    title: ["Tap to place", "Space to place"],
-    line: "Tiles under it go up by one.",
-    pieces: ["T"],
-    board: "0000/0100/0000/0000",
-    script: [{ input: "place", wait: 1100 }],
-    hold: 1700,
-  },
-  {
-    title: ["Double-tap to rotate", "A or D to rotate"],
-    pieces: ["L"],
-    script: [
-      { input: "rotate", wait: 900 },
-      { input: "rotate", wait: 900 },
-      { input: "rotate", wait: 900 },
-      { input: "rotate", wait: 900 },
-    ],
-    hold: 400,
-  },
   {
     title: ["Drag to move", "Arrow keys to move"],
     pieces: ["O"],
@@ -93,17 +63,47 @@ const STEPS: Step[] = [
     hold: 400,
   },
   {
-    title: ["Fill a line to pop it", "Fill a line to pop it"],
-    line: "Same number across a row or column.",
-    pieces: ["I3"],
-    board: "0000/0000/1110/0000",
+    title: ["Double-tap to rotate", "A or D to rotate"],
+    pieces: ["L"],
     script: [
       { input: "rotate", wait: 900 },
-      { input: "right", wait: 750 },
-      { input: "right", wait: 650 },
-      { input: "place", wait: 750 },
+      { input: "rotate", wait: 900 },
+      { input: "rotate", wait: 900 },
+      { input: "rotate", wait: 900 },
     ],
-    hold: 1900,
+    hold: 400,
+  },
+  {
+    title: ["Tap to place", "Space to place"],
+    line: "The next piece comes from Next.",
+    pieces: ["T", "O", "L", "I3", "S"],
+    script: [{ input: "place", wait: 1200 }],
+    hold: 2200,
+    showNext: true,
+  },
+  {
+    title: ["Tiles stack up", "Tiles stack up"],
+    line: "Fill a line with one number to pop it.",
+    pieces: ["I3"],
+    board: "0000/0000/1112/0000",
+    script: [
+      { input: "down", wait: 1000 },
+      { input: "place", wait: 1100 },
+    ],
+    hold: 2000,
+  },
+  {
+    title: ["Match the target", "Match the target"],
+    line: "Fewest pieces wins.",
+    pieces: ["I3", "I3"],
+    target: "1000/2110/1000/0000",
+    script: [
+      { input: "place", wait: 1000 },
+      { input: "rotate", wait: 900 },
+      { input: "left", wait: 800 },
+      { input: "place", wait: 800 },
+    ],
+    hold: 2200,
   },
   {
     title: ["Don't reach 7", "Don't reach 7"],
@@ -243,7 +243,7 @@ export const HowToPlay = ({ viewport, onClose }: { viewport: Viewport; onClose: 
           {touch && run.current && <Hand at={pieceCenter(run.current)} press={press} taps={input === "rotate" ? 2 : 1} />}
         </div>
       }
-      next={<NextColumn queue={run.queue} landscape={landscape} />}
+      next={<NextColumn queue={run.queue} landscape={landscape} highlight={step.showNext} />}
       bottom={
         <div className="flex gap-2">
           {index > 0 && (

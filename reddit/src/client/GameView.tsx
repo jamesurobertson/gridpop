@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { showLoginPrompt, showShareSheet } from "@devvit/web/client";
-import { CircleHelp, Flame, RotateCcw, Trophy, Volume2, VolumeX } from "lucide-react";
+import { showLoginPrompt, showShareSheet, showToast } from "@devvit/web/client";
+import { CircleHelp, Flame, Lightbulb, RotateCcw, Trophy, Undo2, Volume2, VolumeX } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
 import DailyResultModal from "@/components/game/DailyResultModal";
-import { isValidPosition, tryWallKick } from "@/utils/gameLogic";
+import { getCurrentShape, isValidPosition, tryWallKick } from "@/utils/gameLogic";
+import type { Placement } from "@/utils/dailyRun";
+import type { Tetromino } from "@/types/game";
 import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, parseTarget } from "@/utils/dailyCore";
 import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
-import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, saveClock, saveLevel, submitRun } from "./api";
+import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, requestHint, saveClock, saveLevel, submitRun } from "./api";
 import { HowToPlay, firstVisit, markSeen } from "./HowToPlay";
 import { Hand, pieceCenter, usesTouch } from "./Coach";
 import { Leaderboard } from "./Leaderboard";
@@ -19,7 +21,12 @@ import { useDailyRun } from "./useDailyRun";
 
 const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0, 0, 0, 0] };
 
-const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " " };
+const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " ", undo: "z", hint: "h" };
+const HINT_COOLDOWN_MS = 10_000;
+
+/** The cells a piece would cover at a hint's spot. */
+const cellsAt = (piece: Tetromino, { rotation, x, y }: Placement) =>
+  getCurrentShape({ ...piece, rotation, position: { x, y } }).flatMap((row, dy) => row.flatMap((on, dx) => (on ? [{ x: x + dx, y: y + dy }] : [])));
 
 export const Game = () => {
   const [puzzle, setPuzzle] = useState<PuzzleResponse | null>(null);
@@ -52,6 +59,13 @@ export const Game = () => {
     }
   });
   const [touch] = useState(usesTouch);
+  // A hint is the suggested spot for the piece in play; it goes once that piece is placed.
+  const [hint, setHint] = useState<{ placement: Placement; moves: number } | null>(null);
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [hintReadyAt, setHintReadyAt] = useState(0);
+  const [now, setNow] = useState(Date.now);
+  // The run whose first placement was counted as an attempt, so undoing back to empty doesn't count again.
+  const countedRun = useRef(-1);
 
   const levelPuzzle = puzzle?.levels[level];
   const target = levelPuzzle ? parseTarget(levelPuzzle.target) : null;
@@ -82,6 +96,8 @@ export const Game = () => {
     setRunNumber((n) => n + 1);
     setPractice(false);
     setPracticeResult(null);
+    setHint(null);
+    setHintsUsed(0);
     if (saved) {
       dispatch({ type: "showSolved", target: parseTarget(data.levels[next].target) });
       setShowResult(true);
@@ -157,7 +173,7 @@ export const Game = () => {
     if (practice) {
       if (run.outcome === "solved") {
         sfx.play("best", { delay: 0.25 });
-        setPracticeResult({ moves: run.moves, restarts: Math.max(0, practiceAttempts - 1), par: levelPuzzle.par, timeMs: clockMs });
+        setPracticeResult({ moves: run.moves, restarts: Math.max(0, practiceAttempts - 1), hints: hintsUsed, par: levelPuzzle.par, timeMs: clockMs });
       } else sfx.play("gameover", { delay: 0.25 });
       setShowResult(true);
       return;
@@ -169,10 +185,10 @@ export const Game = () => {
       return;
     }
     sfx.play("best", { delay: 0.25 });
-    const local: DailyResult = { moves: run.moves, restarts: Math.max(0, attempts - 1), par: levelPuzzle.par, timeMs: clockMs };
+    const local: DailyResult = { moves: run.moves, restarts: Math.max(0, attempts - 1), hints: hintsUsed, par: levelPuzzle.par, timeMs: clockMs };
     const keepLocal = () => {
       setResult(local);
-      remember(level, { result: { ...local, restarts: local.restarts ?? 0, rank: 0, total: 0 } });
+      remember(level, { result: { ...local, restarts: local.restarts ?? 0, hints: hintsUsed, rank: 0, total: 0 } });
     };
     if (!puzzle.username) {
       keepLocal();
@@ -233,8 +249,10 @@ export const Game = () => {
   const place = () => {
     if (!playable || !puzzle) return;
     startClock();
-    if (run.moves === 0 && practice) setPracticeAttempts((n) => n + 1);
-    else if (run.moves === 0) {
+    const firstPlacement = countedRun.current !== runNumber;
+    countedRun.current = runNumber;
+    if (firstPlacement && practice) setPracticeAttempts((n) => n + 1);
+    else if (firstPlacement) {
       // Every run that gets a piece down counts; all but the solving one are restarts.
       const counted = attempts + 1;
       setAttempts(counted);
@@ -260,6 +278,48 @@ export const Game = () => {
     dispatch({ type: "place" });
   };
 
+  const canUndo = run.history.length > 0 && !run.pendingClear && run.outcome !== "solved" && !showRules;
+
+  const undo = () => {
+    if (!canUndo) return bump();
+    sfx.play("hold");
+    setShowResult(false);
+    dispatch({ type: "undo" });
+  };
+
+  const hintCoolingMs = Math.max(0, hintReadyAt - now);
+
+  const askHint = () => {
+    if (!puzzle || !run.current || run.outcome || run.pendingClear || showRules || hintCoolingMs > 0) return bump();
+    startClock();
+    const askedAt = run.moves;
+    setHintReadyAt(Date.now() + HINT_COOLDOWN_MS);
+    setNow(Date.now());
+    requestHint(puzzle.date, level, run.actions)
+      .then((response) => {
+        if (!response.ok) {
+          if (response.waitMs) setHintReadyAt(Date.now() + response.waitMs);
+          return;
+        }
+        // The server counts hints for the leaderboard; logged out or replaying, they're counted here.
+        setHintsUsed((n) => (response.hints > 0 ? response.hints : n + 1));
+        if (response.placement) setHint({ placement: response.placement, moves: askedAt });
+        else showToast("Can't reach the target from here");
+      })
+      .catch(() => setHintReadyAt(0));
+  };
+
+  // The hint is for the piece it was asked about; it goes once that piece is down (or undone).
+  useEffect(() => {
+    if (hint && hint.moves !== run.moves) setHint(null);
+  }, [hint, run.moves]);
+
+  useEffect(() => {
+    if (hintReadyAt <= Date.now()) return;
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [hintReadyAt]);
+
   const restart = () => {
     if (!levelPuzzle) return;
     sfx.play("click");
@@ -270,6 +330,7 @@ export const Game = () => {
       if (!practice) setPracticeAttempts(0);
       setPractice(true);
       setPracticeResult(null);
+      if (!practice) setHintsUsed(0);
       setClockMs(0);
       setClockRunning(false);
     }
@@ -278,6 +339,8 @@ export const Game = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Typing in the comment box (or any field) isn't a game move.
+      if ((e.target as HTMLElement | null)?.closest?.("input, textarea, [contenteditable]")) return;
       const key = e.key.toLowerCase();
       if (Object.values(KEYS).includes(key)) e.preventDefault();
       if (e.repeat && key === KEYS.place) return;
@@ -288,6 +351,8 @@ export const Game = () => {
       else if (key === KEYS.rotate) rotate("clockwise");
       else if (key === KEYS.rotateBack) rotate("counterclockwise");
       else if (key === KEYS.place) place();
+      else if (key === KEYS.undo) undo();
+      else if (key === KEYS.hint) askHint();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -367,8 +432,8 @@ export const Game = () => {
       <button className="gp-icon-btn shrink-0" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
         {muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />}
       </button>
-      {solved ? (
-        // Once solved, Leaderboard takes the label; replaying is the icon beside it.
+      {result ? (
+        // Once solved, Leaderboard takes the label; replaying or restarting is the icon beside it.
         <button className="gp-icon-btn gp-btn-primary shrink-0" onClick={restart} aria-label="Play again" title="Play again">
           <RotateCcw size={18} strokeWidth={3} />
         </button>
@@ -395,7 +460,18 @@ export const Game = () => {
         onPieceRotate={rotate}
         gameOver={!!run.outcome && !solved}
         showPoints={false}
+        hintCells={hint && run.current ? cellsAt(run.current, hint.placement) : undefined}
       />
+      {!solved && (
+        <>
+          <button className="gp-corner-btn -left-1.5 -top-1.5" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Z)">
+            <Undo2 size={18} strokeWidth={2.75} />
+          </button>
+          <button className="gp-corner-btn -right-1.5 -top-1.5" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title="Hint (H)">
+            {hintCoolingMs > 0 ? <span className="gp-value text-sm">{Math.ceil(hintCoolingMs / 1000)}</span> : <Lightbulb size={18} strokeWidth={2.75} className="text-[#E0A21B]" />}
+          </button>
+        </>
+      )}
       {showCoach && (
         <>
           <Hand at={pieceCenter(run.current)} press={0} />
@@ -406,7 +482,8 @@ export const Game = () => {
   );
 
   const shownRun = practice ? practiceResult : result;
-  const resultExtra = practice ? null : puzzle.username ? (
+  // The day's leaderboard and comments belong with every result, practice runs included.
+  const resultExtra = puzzle.username ? (
     <>
       <Leaderboard board={board} username={puzzle.username} />
       {result && <CommentBox />}
@@ -455,6 +532,7 @@ export const Game = () => {
         hideGoal
         practice={practice}
         onReplay={result ? restart : undefined}
+        onUndo={run.outcome && run.outcome !== "solved" && run.history.length > 0 ? undo : undefined}
         extra={resultExtra}
       />
     </div>

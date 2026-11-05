@@ -22,6 +22,8 @@ export interface DailyResult {
   moves: number;
   /** Runs started over after placing at least one piece; missing on results saved before they counted. */
   restarts?: number;
+  /** Hints asked for before solving (Reddit only). */
+  hints?: number;
   par: number;
   timeMs: number;
 }

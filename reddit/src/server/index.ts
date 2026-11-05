@@ -5,9 +5,19 @@ import type { TaskResponse } from "@devvit/web/server";
 import type { TriggerResponse, UiResponse } from "@devvit/web/shared";
 import puzzles from "@/data/dailyPuzzles.json";
 import { DAILY_LEVELS, DailyLevel, DailyPuzzle, parseTarget, pickPuzzle, puzzleNumber, utcDateKey } from "@/utils/dailyCore";
-import { replayRun } from "@/utils/dailyRun";
-import type { AttemptRequest, AttemptResponse, CommentRequest, CommentResponse, PuzzleResponse, SubmitRequest, SubmitResponse } from "../shared/api";
-import { attemptsFor, countAttempt, leaderboard, resultFor, saveResult, statsFor } from "./store";
+import { hintFrom, replayRun, replayTo } from "@/utils/dailyRun";
+import type {
+  AttemptRequest,
+  AttemptResponse,
+  CommentRequest,
+  CommentResponse,
+  HintRequest,
+  HintResponse,
+  PuzzleResponse,
+  SubmitRequest,
+  SubmitResponse,
+} from "../shared/api";
+import { attemptsFor, countAttempt, hintsFor, leaderboard, resultFor, saveResult, statsFor, takeHint } from "./store";
 import { ensureDailyPost } from "./posts";
 
 const PUZZLES = puzzles as unknown as Record<DailyLevel, DailyPuzzle[]>;
@@ -66,17 +76,39 @@ app.post("/api/submit", async (c) => {
   const replay = replayRun(puzzle.pieces, parseTarget(puzzle.target), actions);
   if (!replay.solved) return fail(replay.reason);
 
-  const [username, attempts] = await Promise.all([reddit.getCurrentUsername(), attemptsFor(date, userId)]);
+  const [username, attempts, hints] = await Promise.all([reddit.getCurrentUsername(), attemptsFor(date, userId), hintsFor(date, level, userId)]);
   await saveResult(date, level, userId, {
     username: username ?? "someone",
     moves: replay.moves,
     // The solving run is one of the attempts; a solve without any recorded counts as none.
     restarts: Math.max(0, attempts[level] - 1),
+    hints,
     par: puzzle.par,
     timeMs: Math.round(timeMs),
   });
   const [result, stats, board] = await Promise.all([resultFor(date, level, userId), statsFor(level, userId), leaderboard(date, level, userId)]);
   return c.json<SubmitResponse>({ ok: true, result: result!, stats, leaderboard: board });
+});
+
+// The server works hints out (and counts them) so the leaderboard's hint numbers can be trusted.
+app.post("/api/hint", async (c) => {
+  const { date, level, actions } = await c.req.json<HintRequest>();
+  const { userId } = context;
+  const fail = (reason: string, waitMs?: number) => c.json<HintResponse>({ ok: false, reason, waitMs }, 400);
+  if (date !== postDate() || !isLevel(level) || !Array.isArray(actions) || actions.length > 200) return fail("bad request");
+  const puzzle = pickPuzzle(PUZZLES[level], date);
+  const target = parseTarget(puzzle.target);
+  const cursor = replayTo(puzzle.pieces, target, actions);
+  if (typeof cursor === "string" || cursor.solved) return fail(typeof cursor === "string" ? cursor : "already solved");
+
+  let hints = 0;
+  // Only hints before the first solve count; replays afterwards are practice.
+  if (userId && !(await resultFor(date, level, userId))) {
+    const taken = await takeHint(date, level, userId);
+    if ("waitMs" in taken) return fail("too soon", taken.waitMs);
+    hints = taken.hints;
+  }
+  return c.json<HintResponse>({ ok: true, placement: hintFrom(puzzle.pieces, target, cursor), hints });
 });
 
 app.post("/api/comment", async (c) => {

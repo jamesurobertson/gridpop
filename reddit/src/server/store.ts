@@ -2,21 +2,39 @@ import { redis } from "@devvit/web/server";
 import { DAILY_LEVELS, DailyLevel, dailyScore, overParBucket, shiftDate, utcDateKey } from "@/utils/dailyCore";
 import type { Distribution, LeaderboardEntry, LeaderboardResponse, LevelStats, SavedResult } from "../shared/api";
 
-type StoredResult = { username: string; moves: number; restarts: number; par: number; timeMs: number };
+type StoredResult = { username: string; moves: number; restarts: number; hints?: number; par: number; timeMs: number };
 
 const resultsKey = (date: string, level: DailyLevel) => `results:${date}:${level}`;
-// v2: ranked by moves, then restarts, then time (v1 added restarts into the score).
-const boardKey = (date: string, level: DailyLevel) => `board2:${date}:${level}`;
+// v3: ranked by moves, then hints, then restarts, then time (v2 had no hints; v1 added restarts into the score).
+const boardKey = (date: string, level: DailyLevel) => `board3:${date}:${level}`;
 const distributionKey = (date: string, level: DailyLevel) => `dist:${date}:${level}`;
 const attemptsKey = (date: string, level: DailyLevel, userId: string) => `attempts:${date}:${level}:${userId}`;
+const hintsKey = (date: string, level: DailyLevel, userId: string) => `hints:${date}:${level}:${userId}`;
+const lastHintKey = (date: string, level: DailyLevel, userId: string) => `hint-at:${date}:${level}:${userId}`;
+
+export const HINT_COOLDOWN_MS = 10_000;
 const statsKey = (level: DailyLevel, userId: string) => `stats:${level}:${userId}`;
 
-// Lower is better: score, then restarts (capped at 999), then milliseconds (capped below a billion).
-// Stays under 2^53 for any score below 9000.
-const boardScore = (result: StoredResult) => dailyScore(result) * 1e12 + Math.min(result.restarts, 999) * 1e9 + Math.min(result.timeMs, 1e9 - 1);
+// Lower is better: score, then hints (capped at 99), then restarts (capped at 999), then milliseconds
+// (capped below a billion). Stays under 2^53 for any score below 90.
+const boardScore = (result: StoredResult) =>
+  dailyScore(result) * 1e14 + Math.min(result.hints ?? 0, 99) * 1e12 + Math.min(result.restarts, 999) * 1e9 + Math.min(result.timeMs, 1e9 - 1);
 
 export async function countAttempt(date: string, level: DailyLevel, userId: string) {
   return redis.incrBy(attemptsKey(date, level, userId), 1);
+}
+
+export async function hintsFor(date: string, level: DailyLevel, userId: string) {
+  return Number((await redis.get(hintsKey(date, level, userId))) ?? 0);
+}
+
+/** Counts a hint unless one was given in the last ten seconds; returns the total, or how long to wait. */
+export async function takeHint(date: string, level: DailyLevel, userId: string): Promise<{ hints: number } | { waitMs: number }> {
+  const last = Number((await redis.get(lastHintKey(date, level, userId))) ?? 0);
+  const waitMs = last + HINT_COOLDOWN_MS - Date.now();
+  if (waitMs > 0) return { waitMs };
+  await redis.set(lastHintKey(date, level, userId), String(Date.now()), { expiration: new Date(Date.now() + 86_400_000) });
+  return { hints: await redis.incrBy(hintsKey(date, level, userId), 1) };
 }
 
 export async function attemptsFor(date: string, userId: string) {
@@ -49,7 +67,7 @@ async function ensureIndexes(date: string, level: DailyLevel) {
 async function withRank(date: string, level: DailyLevel, userId: string, result: StoredResult): Promise<SavedResult> {
   await ensureIndexes(date, level);
   const [rank, total] = await Promise.all([redis.zRank(boardKey(date, level), userId), redis.zCard(boardKey(date, level))]);
-  return { moves: result.moves, restarts: result.restarts, par: result.par, timeMs: result.timeMs, rank: (rank ?? 0) + 1, total };
+  return { moves: result.moves, restarts: result.restarts, hints: result.hints ?? 0, par: result.par, timeMs: result.timeMs, rank: (rank ?? 0) + 1, total };
 }
 
 export async function resultFor(date: string, level: DailyLevel, userId: string) {
@@ -120,7 +138,9 @@ export async function leaderboard(date: string, level: DailyLevel, userId: strin
   ]);
   const entry = async (member: string, rank: number): Promise<LeaderboardEntry | null> => {
     const result = await storedResult(date, level, member);
-    return result && { rank: rank + 1, username: result.username, score: dailyScore(result), moves: result.moves, restarts: result.restarts, timeMs: result.timeMs };
+    return (
+      result && { rank: rank + 1, username: result.username, score: dailyScore(result), moves: result.moves, restarts: result.restarts, hints: result.hints ?? 0, timeMs: result.timeMs }
+    );
   };
   const entries = (await Promise.all(top.map(({ member }, i) => entry(member, i)))).filter((e): e is LeaderboardEntry => e !== null);
   const me = userId && myRank !== undefined && myRank !== null ? await entry(userId, myRank) : null;
