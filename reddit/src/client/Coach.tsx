@@ -12,6 +12,28 @@ export function pieceCenter(piece: Tetromino | null) {
   return { x: ((mean(0) + 0.5) / 4) * 100, y: ((mean(1) + 0.5) / 4) * 100 };
 }
 
+/** The tutorial's instruction as a tooltip just above the piece, so the eye stays on the board. */
+export const PieceTip = ({ piece, text }: { piece: Tetromino; text: string }) => {
+  const cells = getCurrentShape(piece).flatMap((row, y) => row.flatMap((on, x) => (on ? [[piece.position.x + x, piece.position.y + y]] : [])));
+  const top = (Math.min(...cells.map((cell) => cell[1])) / 4) * 100;
+  // Kept off the board's side edges, where a centred pill would hang out of the frame.
+  const left = Math.min(78, Math.max(22, pieceCenter(piece).x));
+  return (
+    <div className="pointer-events-none absolute z-40 transition-[left,top] duration-300 ease-out" style={{ left: `${left}%`, top: `${top}%` }}>
+      <motion.div
+        key={text}
+        className="absolute bottom-1.5 left-0 -translate-x-1/2 whitespace-nowrap rounded-full border-2 border-[#1F1633] bg-[#7C5CFF] px-3.5 py-1.5 text-[15px] font-extrabold text-white shadow-[0_3px_0_#1F1633]"
+        initial={{ opacity: 0, y: 6, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", visualDuration: 0.3, bounce: 0.25 }}
+      >
+        {text}
+        <span className="absolute -bottom-[7px] left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-[#1F1633] bg-[#7C5CFF]" />
+      </motion.div>
+    </div>
+  );
+};
+
 /**
  * A hand over the board that follows the piece. Each new `press` taps once (or twice), with a
  * ripple at the fingertip; with no presses it bobs gently, as a "do this" hint.

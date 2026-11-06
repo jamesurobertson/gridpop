@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
 import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, requestHint, saveClock, saveLevel, submitRun } from "./api";
 import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, tutorialStep } from "./Tutorial";
-import { DragHand, Hand, TapHand, pieceCenter, usesTouch } from "./Coach";
+import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
 import { CountingTile, DemoBoard, usePatientLoading } from "./Loader";
 import { Leaderboard } from "./Leaderboard";
 import { CommentBox } from "./CommentBox";
@@ -569,6 +569,7 @@ export const Game = () => {
         hintCells={tutorial ? lesson.spot : hintSpot}
         hintReady={tutorial ? onSpot(run) : onHintSpot}
       />
+      {tutorial && run.current && lesson.step !== "done" && lesson.step !== "goal" && <PieceTip piece={run.current} text={STEP_TEXT[lesson.step].title[touch ? 0 : 1]} />}
       {tutorial && touch && run.current && lesson.step !== "done" && lesson.step !== "goal" && (
         lesson.step === "move" || lesson.step === "move2" ? (
           <DragHand from={pieceCenter(run.current)} to={spotCenter(lesson.spot)} />
@@ -684,8 +685,8 @@ export const Game = () => {
     <div className={cn("gp-card flex flex-col items-center justify-center gap-1.5 px-3 py-3 text-center", landscape ? "min-h-[136px]" : "flex-1")}>
       {lessonText ? (
         <motion.div key={lesson.step} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-          <h2 className={cn("font-display font-bold leading-tight", landscape ? "text-[28px]" : "text-[21px]")}>{lessonText.title[touch ? 0 : 1]}</h2>
-          {lessonText.line && <p className="mt-1 text-sm font-bold text-[color:var(--gp-muted)]">{lessonText.line}</p>}
+          {/* The action itself sits on the board as a tooltip; the card keeps the why. */}
+          {lessonText.line && <h2 className={cn("font-display font-bold leading-tight", landscape ? "text-[24px]" : "text-[19px]")}>{lessonText.line}</h2>}
           {!touch && lessonText.keys.length > 0 && (
             <div className="mt-2 flex justify-center gap-1.5">
               {lessonText.keys.map((key) => (
