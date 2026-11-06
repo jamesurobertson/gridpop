@@ -655,9 +655,26 @@ export const Game = () => {
   );
 
   const lessonText = lesson.step === "done" ? null : STEP_TEXT[lesson.step];
+  const lessonSteps = Object.keys(STEP_TEXT);
+  const lessonIndex = lesson.step === "done" ? lessonSteps.length : lessonSteps.indexOf(lesson.step);
+  // Progress dots so the heading reads as where you are, not as a button to a tutorial.
   const tutorialHeader = (
     <div className="flex items-center justify-between px-1">
-      <h1 className="font-display text-[28px] font-bold leading-none">Tutorial</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="font-display text-[24px] font-bold leading-none">Tutorial</h1>
+        <div className="flex items-center gap-1.5" role="img" aria-label={`Step ${Math.min(lessonIndex + 1, lessonSteps.length)} of ${lessonSteps.length}`}>
+          {lessonSteps.map((step, i) => (
+            <span
+              key={step}
+              className={cn(
+                "h-2.5 rounded-full border-2 border-[#1F1633] transition-all duration-300",
+                i === lessonIndex ? "w-6 bg-[color:var(--gp-accent)]" : "w-2.5",
+                i < lessonIndex ? "bg-[color:var(--gp-accent)]" : i > lessonIndex && "bg-white",
+              )}
+            />
+          ))}
+        </div>
+      </div>
       <button className="text-sm font-extrabold text-[color:var(--gp-muted)] hover:text-[color:var(--gp-ink)]" onClick={finishTutorial}>
         Skip
       </button>
