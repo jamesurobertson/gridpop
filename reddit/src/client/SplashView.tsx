@@ -5,8 +5,7 @@ import TargetGrid from "@/components/game/TargetGrid";
 import { DAILY_LEVELS, DailyLevel, dailyScore, parseTarget, puzzleNumber, utcDateKey } from "@/utils/dailyCore";
 import type { PuzzleResponse } from "../shared/api";
 import { fetchPuzzle, saveLevel } from "./api";
-import { cn } from "@/lib/utils";
-import { createEmptyGrid } from "@/utils/gameLogic";
+import { Loader } from "./Loader";
 
 const postDate = () => {
   const date = (context?.postData as { date?: unknown } | undefined)?.date;
@@ -32,9 +31,6 @@ function cachePuzzle(puzzle: PuzzleResponse) {
     // Storage blocked or full: the next load waits for the server instead.
   }
 }
-
-// Holds the cards' space until the puzzle arrives, so nothing shifts when they fade in.
-const BLANK = createEmptyGrid(4);
 
 const dayName = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -103,14 +99,20 @@ export const Splash = () => {
         <div className="gp-value text-xl">Daily #{puzzleNumber(date)}</div>
         <div className="text-sm font-bold text-[color:var(--gp-muted)]">{dayName(date)}</div>
       </div>
-      <div className={cn("grid w-full max-w-[420px] grid-cols-3 gap-2.5 transition-opacity duration-200", puzzle ? "opacity-100" : "opacity-0")}>
+      <div className="grid w-full max-w-[420px] grid-cols-3 gap-2.5">
         {DAILY_LEVELS.map(({ level, label }) => {
           const result = puzzle?.results[level];
           const streak = puzzle?.stats[level].streak ?? 0;
           return (
             <button key={level} className="gp-card flex flex-col items-center gap-2 p-2.5 transition-transform active:scale-95" onClick={(e) => play(e, level)}>
               <span className="font-display text-base font-bold">{label}</span>
-              <TargetGrid grid={puzzle ? parseTarget(puzzle.levels[level].target) : BLANK} className="w-full" />
+              {puzzle ? (
+                <TargetGrid grid={parseTarget(puzzle.levels[level].target)} className="w-full" />
+              ) : (
+                <span className="grid aspect-square w-full place-items-center rounded-2xl bg-[#F4ECE0]">
+                  <Loader size={64} />
+                </span>
+              )}
               {result ? (
                 <span className="flex min-h-[32px] items-center gap-2 text-sm font-extrabold">
                   <span className="text-[color:var(--gp-muted)]">Score {dailyScore(result)}</span>

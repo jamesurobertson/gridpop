@@ -25,7 +25,8 @@
       "asUser": [
         "SUBMIT_COMMENT"
       ]
-    }
+    },
+    "media": true
   },
   "menu": {
     "items": [
@@ -39,7 +40,8 @@
     ]
   },
   "triggers": {
-    "onAppInstall": "/internal/triggers/on-app-install"
+    "onAppInstall": "/internal/triggers/on-app-install",
+    "onAppUpgrade": "/internal/triggers/on-app-upgrade"
   },
   "scheduler": {
     "tasks": {

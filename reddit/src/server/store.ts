@@ -28,13 +28,16 @@ export async function hintsFor(date: string, level: DailyLevel, userId: string) 
   return Number((await redis.get(hintsKey(date, level, userId))) ?? 0);
 }
 
-/** Counts a hint unless one was given in the last ten seconds; returns the total, or how long to wait. */
-export async function takeHint(date: string, level: DailyLevel, userId: string): Promise<{ hints: number } | { waitMs: number }> {
+/** How long until another hint can be given (zero or less means now). */
+export async function hintWaitMs(date: string, level: DailyLevel, userId: string) {
   const last = Number((await redis.get(lastHintKey(date, level, userId))) ?? 0);
-  const waitMs = last + HINT_COOLDOWN_MS - Date.now();
-  if (waitMs > 0) return { waitMs };
+  return last + HINT_COOLDOWN_MS - Date.now();
+}
+
+/** Counts a hint that was given and starts its cooldown; returns the total. */
+export async function countHint(date: string, level: DailyLevel, userId: string) {
   await redis.set(lastHintKey(date, level, userId), String(Date.now()), { expiration: new Date(Date.now() + 86_400_000) });
-  return { hints: await redis.incrBy(hintsKey(date, level, userId), 1) };
+  return redis.incrBy(hintsKey(date, level, userId), 1);
 }
 
 export async function attemptsFor(date: string, userId: string) {

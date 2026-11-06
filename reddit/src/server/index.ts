@@ -4,8 +4,9 @@ import { context, createServer, getServerPort, reddit } from "@devvit/web/server
 import type { TaskResponse } from "@devvit/web/server";
 import type { TriggerResponse, UiResponse } from "@devvit/web/shared";
 import puzzles from "@/data/dailyPuzzles.json";
+import solutions from "@/data/dailySolutions.json";
 import { DAILY_LEVELS, DailyLevel, DailyPuzzle, parseTarget, pickPuzzle, puzzleNumber, utcDateKey } from "@/utils/dailyCore";
-import { hintFrom, replayRun, replayTo } from "@/utils/dailyRun";
+import { hintFor, replayRun, replayTo } from "@/utils/dailyRun";
 import type {
   AttemptRequest,
   AttemptResponse,
@@ -17,10 +18,12 @@ import type {
   SubmitRequest,
   SubmitResponse,
 } from "../shared/api";
-import { attemptsFor, countAttempt, hintsFor, leaderboard, resultFor, saveResult, statsFor, takeHint } from "./store";
-import { ensureDailyPost } from "./posts";
+import { attemptsFor, countAttempt, countHint, hintWaitMs, hintsFor, leaderboard, resultFor, saveResult, statsFor } from "./store";
+import { backfillShareImage, ensureDailyPost } from "./posts";
 
 const PUZZLES = puzzles as unknown as Record<DailyLevel, DailyPuzzle[]>;
+// A par line per puzzle, as the cells each piece covers; hints fall back on it when a search is slow.
+const SOLUTIONS = solutions as unknown as Record<DailyLevel, Record<string, number[][]>>;
 const isLevel = (value: unknown): value is DailyLevel => DAILY_LEVELS.some(({ level }) => level === value);
 
 /** The date this post is the puzzle for; posts made outside the daily flow play today's. */
@@ -101,14 +104,16 @@ app.post("/api/hint", async (c) => {
   const cursor = replayTo(puzzle.pieces, target, actions);
   if (typeof cursor === "string" || cursor.solved) return fail(typeof cursor === "string" ? cursor : "already solved");
 
-  let hints = 0;
   // Only hints before the first solve count; replays afterwards are practice.
-  if (userId && !(await resultFor(date, level, userId))) {
-    const taken = await takeHint(date, level, userId);
-    if ("waitMs" in taken) return fail("too soon", taken.waitMs);
-    hints = taken.hints;
+  const counted = !!userId && !(await resultFor(date, level, userId));
+  if (counted) {
+    const waitMs = await hintWaitMs(date, level, userId);
+    if (waitMs > 0) return fail("too soon", waitMs);
   }
-  return c.json<HintResponse>({ ok: true, placement: hintFrom(puzzle.pieces, target, cursor), hints });
+  const hint = hintFor(puzzle.pieces, target, actions, puzzle.par, SOLUTIONS[level][puzzle.date]);
+  // A search that ran out of time gave nothing, so it isn't counted.
+  const hints = hint && counted ? await countHint(date, level, userId) : 0;
+  return c.json<HintResponse>({ ok: true, hint, hints });
 });
 
 app.post("/api/comment", async (c) => {
@@ -148,6 +153,11 @@ app.post("/internal/triggers/on-app-install", async (c) => {
     console.error(`Couldn't post today's puzzle on install: ${e}`);
     return c.json<TriggerResponse>({ status: "error", message: "Couldn't post today's puzzle" }, 400);
   }
+});
+
+app.post("/internal/triggers/on-app-upgrade", async (c) => {
+  await backfillShareImage(utcDateKey());
+  return c.json<TriggerResponse>({ status: "success", message: "Share image set" });
 });
 
 app.post("/internal/menu/post-today", async (c) => {

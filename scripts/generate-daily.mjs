@@ -1,16 +1,23 @@
 #!/usr/bin/env node
-// Builds the daily puzzles: a seeded piece order per UTC day, a target reached by playing it, and
-// par (the fewest placements that reach the target) found by an exhaustive search.
+// Builds the daily puzzles: a seeded piece order per UTC day and a target reached by playing it.
+// `par` is how many pieces the build took; a search only checks the target can't be made in fewer
+// than the level's minimum, which keeps the difficulty honest without proving the exact best.
+// No target repeats: each is new against every earlier day, on every level.
 //
 //   node scripts/generate-daily.mjs 2026-11-05 14   # start date, number of days
+//   node scripts/generate-daily.mjs 2026-11-07 363 --replace   # rebuild those days even if present
 //
-// Writes src/data/dailyPuzzles.json (one list per difficulty), keeping any days already in it.
+// Writes src/data/dailyPuzzles.json (one list per difficulty), keeping any days already in it, and
+// src/data/dailySolutions.json: a par solution per day (the cells each piece covers, in order),
+// kept apart because only the Reddit server reads it, to fall back on when a live hint search is
+// too slow.
 import fs from "node:fs";
 
 const SIZE = 4;
 const CELLS = SIZE * SIZE;
 const QUEUE_LENGTH = 30;
 const OUT = process.env.DAILY_OUT ? new URL(`file://${process.env.DAILY_OUT}`) : new URL("../src/data/dailyPuzzles.json", import.meta.url);
+const SOLUTIONS_OUT = new URL(OUT.href.replace(/dailyPuzzles\.json$|\.json$/, (m) => (m === ".json" ? ".solutions.json" : "dailySolutions.json")));
 
 // Same pieces as src/utils/tetrominoShapes.ts on a 4×4 board (the I is left out there too).
 // Only the footprints matter, so each orientation is written trimmed.
@@ -87,31 +94,35 @@ function movesNeeded(grid, target, allowPops) {
   return needed;
 }
 
-/** Breadth-first over (board, place in queue, held piece); returns the fewest placements, or null. */
-function solvePar(queue, target, maxMoves, options = { allowPops: true }) {
+/**
+ * Breadth-first over (board, place in queue, held piece): the fewest placements and the cells each
+ * covers, or null. `hold: false` plays the queue strictly in order, as the Reddit game does.
+ */
+function solve(queue, target, maxMoves, options = { allowPops: true, hold: false }) {
   const encode = (grid) => grid.reduce((code, value) => code * 7 + value, 0);
   const targetCode = encode(target);
   const typeIndex = Object.fromEntries(TYPES.map((type, i) => [type, i + 1]));
-  let layer = [{ grid: Array(CELLS).fill(0), next: 0, held: null }];
+  let layer = [{ grid: Array(CELLS).fill(0), next: 0, held: null, path: [] }];
   for (let moves = 1; moves <= maxMoves; moves++) {
     const seen = new Set();
     const nextLayer = [];
     for (const state of layer) {
       // Play the current piece, or the one Hold gives instead (the held piece, or the next if Hold is empty).
       const choices = [[queue[state.next], state.next + 1, state.held]];
-      if (state.held) choices.push([state.held, state.next + 1, queue[state.next]]);
-      else choices.push([queue[state.next + 1], state.next + 2, queue[state.next]]);
+      if (options.hold && state.held) choices.push([state.held, state.next + 1, queue[state.next]]);
+      else if (options.hold) choices.push([queue[state.next + 1], state.next + 2, queue[state.next]]);
       for (const [type, next, held] of choices)
         for (const cells of FOOTPRINTS[type]) {
           const grid = place(state.grid, cells, options);
           if (!grid) continue;
           const code = encode(grid);
-          if (code === targetCode) return moves;
+          const path = [...state.path, cells];
+          if (code === targetCode) return { moves, path };
           if (movesNeeded(grid, target, options.allowPops) > maxMoves - moves) continue;
           const key = code * 256 + next * 16 + (held ? typeIndex[held] : 0);
           if (seen.has(key)) continue;
           seen.add(key);
-          nextLayer.push({ grid, next, held });
+          nextLayer.push({ grid, next, held, path });
         }
     }
     layer = nextLayer;
@@ -119,41 +130,53 @@ function solvePar(queue, target, maxMoves, options = { allowPops: true }) {
   return null;
 }
 
-// How many pieces build each difficulty's target, and how many line pops that build must include
-// (a target that needs a pop is only accepted if no pop-free line reaches it).
+const solvePar = (queue, target, maxMoves, options) => solve(queue, target, maxMoves, options)?.moves ?? null;
+
+// How many pieces each difficulty's target is built with, picked at random within the range each
+// day (played in order, no Hold, as on Reddit), and how many line pops its build must include (a
+// target that needs a pop is only accepted if no pop-free line reaches it).
 const LEVELS = {
-  easy: { pieces: 3, pops: 0, seed: 7919 },
-  normal: { pieces: 4, pops: 0, seed: 0 },
-  hard: { pieces: 5, pops: 0, seed: 104729 },
+  easy: { pieces: [3, 3], pops: 0, seed: 7919 },
+  normal: { pieces: [4, 5], pops: 0, seed: 0 },
+  hard: { pieces: [6, 7], pops: 0, seed: 104729 },
 };
 
-function makePuzzle(date, level) {
-  const { pieces: buildLength, pops: popsWanted, seed } = LEVELS[level];
+function makePuzzle(date, level, usedTargets) {
+  const { pieces: [fewest, most], pops: popsWanted, seed } = LEVELS[level];
   const daySeed = Number(date.replaceAll("-", ""));
+  const buildLength = fewest + Math.floor(mulberry32(daySeed + seed)() * (most - fewest + 1));
   for (let attempt = 0; ; attempt++) {
     const random = mulberry32(daySeed * 1000 + attempt + seed);
     const queue = Array.from({ length: QUEUE_LENGTH }, () => TYPES[Math.floor(random() * TYPES.length)]);
     let grid = Array(CELLS).fill(0);
     let pops = 0;
+    const path = [];
     for (let i = 0; i < buildLength; i++) {
-      const options = FOOTPRINTS[queue[i]].map((cells) => place(grid, cells)).filter(Boolean);
+      const options = FOOTPRINTS[queue[i]].map((cells) => ({ cells, grid: place(grid, cells) })).filter((option) => option.grid);
       const before = sum(grid);
-      grid = options[Math.floor(random() * options.length)];
+      const picked = options[Math.floor(random() * options.length)];
+      grid = picked.grid;
+      path.push(picked.cells);
       if (sum(grid) < before + PIECE_SIZE[queue[i]]) pops++;
     }
     if (pops < popsWanted || (popsWanted === 0 && pops > 0)) continue;
     // Skip boards that are nearly empty.
     if (grid.filter(Boolean).length < Math.min(6, buildLength * 2)) continue;
-    if (popsWanted > 0 && solvePar(queue, grid, buildLength + 1, { allowPops: false }) !== null) continue;
-    const par = solvePar(queue, grid, buildLength);
-    if (par === null || par < 3) continue;
+    if (popsWanted > 0 && solvePar(queue, grid, buildLength + 1, { allowPops: false, hold: false }) !== null) continue;
     const target = Array.from({ length: SIZE }, (_, y) => grid.slice(y * SIZE, (y + 1) * SIZE).join("")).join("/");
-    return { date, pieces: queue, target, par };
+    if (usedTargets.has(target)) continue;
+    // Too easy if it can be made in fewer pieces than the level's minimum.
+    if (fewest > 1 && solve(queue, grid, fewest - 1, { allowPops: true, hold: false }) !== null) continue;
+    return { puzzle: { date, pieces: queue, target, par: buildLength }, solution: path };
   }
 }
 
-const [start = new Date().toISOString().slice(0, 10), days = "14"] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const replace = args.includes("--replace");
+const [start = new Date().toISOString().slice(0, 10), days = "14"] = args.filter((arg) => !arg.startsWith("--"));
 const existing = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, "utf8")) : {};
+const solutions = fs.existsSync(SOLUTIONS_OUT) ? JSON.parse(fs.readFileSync(SOLUTIONS_OUT, "utf8")) : {};
+for (const level of Object.keys(LEVELS)) solutions[level] ??= {};
 const byLevel = Object.fromEntries(
   Object.keys(LEVELS).map((level) => [level, new Map((Array.isArray(existing[level]) ? existing[level] : []).map((p) => [p.date, p]))])
 );
@@ -161,16 +184,38 @@ const save = () => {
   const out = Object.fromEntries(Object.entries(byLevel).map(([level, byDate]) => [level, [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date))]));
   fs.mkdirSync(new URL(".", OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + "\n");
+  const sortedSolutions = Object.fromEntries(Object.entries(solutions).map(([level, byDate]) => [level, Object.fromEntries(Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)))]));
+  fs.writeFileSync(SOLUTIONS_OUT, JSON.stringify(sortedSolutions) + "\n");
 };
+const parseGrid = (target) => target.split("/").flatMap((row) => [...row].map(Number));
+
+// The days this run builds; with --replace, those already present are rebuilt rather than kept.
+const runDates = new Set(Array.from({ length: Number(days) }, (_, d) => new Date(Date.parse(`${start}T00:00:00Z`) + d * 86_400_000).toISOString().slice(0, 10)));
+
+// Days kept from before solutions were saved get one now (played in order, so it may be over par).
+for (const [level, byDate] of Object.entries(byLevel))
+  for (const [date, puzzle] of byDate) {
+    if (solutions[level][date] || (replace && runDates.has(date))) continue;
+    const solved = solve(puzzle.pieces, parseGrid(puzzle.target), puzzle.par + 3, { allowPops: true, hold: false });
+    if (solved) solutions[level][date] = solved.path;
+    else console.warn(`${date} ${level}: no in-order solution within par + 3`);
+  }
+// Every target in use: kept days now, and each new one as it's made, so none repeats.
+const usedTargets = new Set();
+for (const byDate of Object.values(byLevel))
+  for (const [date, puzzle] of byDate) if (!(replace && runDates.has(date))) usedTargets.add(puzzle.target);
+
 for (let d = 0; d < Number(days); d++) {
   const date = new Date(Date.parse(`${start}T00:00:00Z`) + d * 86_400_000).toISOString().slice(0, 10);
   for (const level of Object.keys(LEVELS)) {
-    if (byLevel[level].has(date)) continue;
+    if (byLevel[level].has(date) && !replace) continue;
     const startedAt = Date.now();
-    const puzzle = makePuzzle(date, level);
+    const { puzzle, solution } = makePuzzle(date, level, usedTargets);
+    usedTargets.add(puzzle.target);
     byLevel[level].set(date, puzzle);
-    // Saved as it goes: longer puzzles can take a while to solve.
-    save();
+    solutions[level][date] = solution;
     console.log(`${date}  ${level.padEnd(6)}  par ${puzzle.par}  ${puzzle.target}  (${Date.now() - startedAt}ms)`);
   }
 }
+// Written once at the end, so a running playtest rebuilds once rather than after every puzzle.
+save();

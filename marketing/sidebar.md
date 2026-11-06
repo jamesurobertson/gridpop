@@ -20,10 +20,10 @@ GridPop is a daily number puzzle played right here in the feed. Drop pieces on a
 ## Widget: Daily puzzle
 
 - New puzzle: every day, 00:00 UTC
-- Levels: Easy, Normal, Hard
+- Levels: Easy (3 pieces), Normal (4–5), Hard (6–7)
 - Scored run: your first solve each day; replays are practice
 - Score: pieces placed (fewer is better)
-- Ties: fewer restarts, then faster time
+- Ties: fewer hints, then fewer restarts, then faster time
 - Streak: one per level
 
 ## Rules

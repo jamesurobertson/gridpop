@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Every puzzle's answer, read only by the Reddit server at deploy; kept out of the public repo.
+# Rebuild it with scripts/generate-daily.mjs.
+src/data/dailySolutions.json

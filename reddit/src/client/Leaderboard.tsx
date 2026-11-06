@@ -4,20 +4,32 @@ import { cn } from "@/lib/utils";
 import type { LeaderboardEntry, LeaderboardResponse } from "../shared/api";
 
 const Count = ({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) => (
-  <span className={cn("inline-flex items-center justify-end gap-0.5 tabular-nums", value === 0 && "opacity-35")} title={label} aria-label={`${value} ${label}`}>
+  <span className="inline-flex items-center gap-0.5 tabular-nums" title={label} aria-label={`${value} ${label}`}>
     {icon}
     {value}
   </span>
 );
 
-// Ranked by moves, then hints, then restarts, then time.
+const COLUMNS = "grid-cols-[1.25rem_minmax(0,1fr)_2.25rem_2.75rem]";
+
+// Reddit names run to 20 characters; longer ones step down a size so they fit a phone row whole.
+const nameSize = (name: string) => (name.length > 17 ? "text-[12px] tracking-[-0.01em]" : name.length > 14 ? "text-[13px]" : undefined);
+
+// Ranked by moves, then hints, then restarts, then time. Hints and restarts sit under the name so
+// the name gets the row's spare width; a name too long even for that wraps rather than being cut.
 const Row = ({ entry, mine }: { entry: LeaderboardEntry; mine: boolean }) => (
-  <li className={cn("grid grid-cols-[1.75rem_1fr_2rem_2.25rem_2.25rem_3.25rem] items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-extrabold", mine && "bg-[#EFEAFF]")}>
+  <li className={cn("grid items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-extrabold", COLUMNS, mine && "bg-[#EFEAFF]")}>
     <span className="text-[color:var(--gp-muted)]">{entry.rank}</span>
-    <span className="truncate text-left">{entry.username}</span>
+    <span className="min-w-0 text-left">
+      <span className={cn("block leading-tight [overflow-wrap:anywhere]", nameSize(entry.username))}>{entry.username}</span>
+      {(entry.hints > 0 || entry.restarts > 0) && (
+        <span className="mt-0.5 flex gap-2 text-[11px] leading-none text-[color:var(--gp-muted)]">
+          {entry.hints > 0 && <Count icon={<Lightbulb size={11} strokeWidth={2.75} />} value={entry.hints} label="hints" />}
+          {entry.restarts > 0 && <Count icon={<RotateCcw size={10} strokeWidth={3} />} value={entry.restarts} label="restarts" />}
+        </span>
+      )}
+    </span>
     <span className="gp-value text-right text-base">{entry.moves}</span>
-    <Count icon={<Lightbulb size={13} strokeWidth={2.75} />} value={entry.hints} label="hints" />
-    <Count icon={<RotateCcw size={12} strokeWidth={3} />} value={entry.restarts} label="restarts" />
     <span className="text-right text-[color:var(--gp-muted)]">{formatClock(entry.timeMs)}</span>
   </li>
 );
@@ -27,11 +39,9 @@ export const Leaderboard = ({ board, username }: { board: LeaderboardResponse | 
   const meShown = board.me && board.top.some((entry) => entry.rank === board.me!.rank);
   return (
     <div className="mt-4 text-left">
-      <div className="gp-label mb-1.5 grid grid-cols-[1.75rem_1fr_2rem_2.25rem_2.25rem_3.25rem] gap-1.5 px-2.5">
-        <span className="col-span-2 truncate whitespace-nowrap">Leaderboard · {board.total}</span>
+      <div className={cn("gp-label mb-1.5 grid gap-1.5 px-2.5", COLUMNS)}>
+        <span className="col-span-2 whitespace-nowrap">Leaderboard · {board.total}</span>
         <span className="text-right">Moves</span>
-        <Lightbulb size={12} strokeWidth={3} className="justify-self-end" aria-label="Hints" />
-        <RotateCcw size={11} strokeWidth={3} className="justify-self-end" aria-label="Restarts" />
         <span className="text-right">Time</span>
       </div>
       <ol className="space-y-0.5">

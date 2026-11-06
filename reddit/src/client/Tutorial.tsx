@@ -41,14 +41,18 @@ const SPOTS = [
   ],
 ];
 
-export type TutorialStep = "move" | "place" | "rotate" | "move2" | "place2" | "done";
+export type TutorialStep = "goal" | "move" | "place" | "rotate" | "move2" | "place2" | "done";
 
 const cellsOf = (piece: Tetromino) =>
   getCurrentShape(piece).flatMap((row, dy) => row.flatMap((on, dx) => (on ? [[piece.position.x + dx, piece.position.y + dy]] : [])));
 const sameCells = (a: number[][], b: number[][]) => a.length === b.length && a.every(([x, y]) => b.some(([bx, by]) => bx === x && by === y));
 
-/** Where the run is in the tutorial, read straight off the board, and the spot the piece should go. */
-export function tutorialStep(run: RunState): { step: TutorialStep; spot: { x: number; y: number }[] } {
+/**
+ * Where the run is in the tutorial, read straight off the board, and the spot the piece should go.
+ * It opens on the goal, with no spot shown, until the player has seen what they're building.
+ */
+export function tutorialStep(run: RunState, goalSeen: boolean): { step: TutorialStep; spot: { x: number; y: number }[] } {
+  if (!goalSeen) return { step: "goal", spot: [] };
   if (run.outcome === "solved") return { step: "done", spot: [] };
   const index = Math.min(run.moves, SPOTS.length - 1);
   const spot = SPOTS[index].map(([x, y]) => ({ x, y }));
@@ -62,16 +66,17 @@ export function tutorialStep(run: RunState): { step: TutorialStep; spot: { x: nu
 
 /** Only lets a piece down on its spot, so the tutorial can't go wrong. */
 export const onSpot = (run: RunState) => {
-  const { step } = tutorialStep(run);
+  const { step } = tutorialStep(run, true);
   return step === "place" || step === "place2";
 };
 
 export const STEP_TEXT: Record<Exclude<TutorialStep, "done">, { title: [string, string]; line?: string; keys: string[] }> = {
-  move: { title: ["Drag to move", "Arrow keys to move"], line: "Onto the glow", keys: ["←", "↑", "↓", "→"] },
-  place: { title: ["Tap to place", "Space to place"], keys: ["Space"] },
-  rotate: { title: ["Double-tap to rotate", "A or D to rotate"], line: "Next piece is up", keys: ["A", "D"] },
-  move2: { title: ["Drag to move", "Arrow keys to move"], line: "Onto the glow", keys: ["←", "↑", "↓", "→"] },
-  place2: { title: ["Tap to place", "Space to place"], line: "Match the target", keys: ["Space"] },
+  goal: { title: ["Match the target", "Match the target"], line: "Build this board", keys: [] },
+  move: { title: ["Drag to move", "Arrow keys to move"], line: "Into glowing area", keys: ["←", "↑", "↓", "→"] },
+  place: { title: ["Tap to place", "Space to place"], line: "Tiles go up by one", keys: ["Space"] },
+  rotate: { title: ["Double-tap to rotate", "A or D to rotate"], line: "To fit the glow", keys: ["A", "D"] },
+  move2: { title: ["Drag to move", "Arrow keys to move"], line: "Into glowing area", keys: ["←", "↑", "↓", "→"] },
+  place2: { title: ["Tap to place", "Space to place"], line: "1 + 1 makes 2", keys: ["Space"] },
 };
 
 const Chip = ({ value }: { value: number }) => (

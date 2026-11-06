@@ -1,6 +1,6 @@
 import type { TetrominoType } from "@/types/game";
 import type { DailyLevel, DailyResult } from "@/utils/dailyCore";
-import type { Placement, RunAction } from "@/utils/dailyRun";
+import type { HintAdvice, Placement, RunAction } from "@/utils/dailyRun";
 
 export type LevelPuzzle = { pieces: TetrominoType[]; target: string; par: number };
 
@@ -37,7 +37,7 @@ export type CommentResponse = { ok: true } | { ok: false; reason: string };
 
 export type HintRequest = { date: string; level: DailyLevel; actions: RunAction[] };
 /** `placement` is where the piece in play should go; null means the target can't be reached from here. */
-export type HintResponse = { ok: true; placement: Placement | null; hints: number } | { ok: false; reason: string; waitMs?: number };
+export type HintResponse = { ok: true; hint: HintAdvice | null; hints: number } | { ok: false; reason: string; waitMs?: number };
 
 export type AttemptRequest = { date: string; level: DailyLevel };
 export type AttemptResponse = { attempts: number };

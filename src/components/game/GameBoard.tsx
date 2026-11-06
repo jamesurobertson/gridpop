@@ -25,6 +25,8 @@ interface GameBoardProps {
   showPoints?: boolean;
   /** Cells to outline as the suggested spot for the piece in play. */
   hintCells?: { x: number; y: number }[];
+  /** The piece already covers the hint's cells: ring them above the piece, in green. */
+  hintReady?: boolean;
   className?: string;
 }
 
@@ -51,6 +53,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   gameOver,
   showPoints = true,
   hintCells,
+  hintReady,
   className,
 }) => {
   const n = grid.length;
@@ -255,7 +258,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
           )}
 
           {/* Where a hint says the piece should go */}
-          {hintCells?.map(({ x, y }) => <div key={`h${x}-${y}`} className="gp-hint" style={{ ...cellArea(x, y), zIndex: 3 }} />)}
+          {hintCells?.map(({ x, y }) => <div key={`h${x}-${y}`} className={cn("gp-hint", hintReady && "gp-hint-ready")} style={{ ...cellArea(x, y), zIndex: hintReady ? 5 : 3 }} />)}
 
           {/* Lines this placement would clear */}
           {preview &&

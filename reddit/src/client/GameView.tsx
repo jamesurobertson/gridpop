@@ -5,7 +5,7 @@ import { CircleHelp, Flame, Lightbulb, RotateCcw, Trophy, Undo2, Volume2, Volume
 import GameBoard from "@/components/game/GameBoard";
 import DailyResultModal from "@/components/game/DailyResultModal";
 import { getCurrentShape, isValidPosition, tryWallKick } from "@/utils/gameLogic";
-import type { Placement } from "@/utils/dailyRun";
+import type { Placement, RunAction } from "@/utils/dailyRun";
 import type { Tetromino } from "@/types/game";
 import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, parseTarget } from "@/utils/dailyCore";
 import { sfx } from "@/audio/sfx";
@@ -14,7 +14,7 @@ import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } fro
 import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, requestHint, saveClock, saveLevel, submitRun } from "./api";
 import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, firstVisit, markSeen, onSpot, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, TapHand, pieceCenter, usesTouch } from "./Coach";
-import { Spinner } from "./Spinner";
+import { Loader } from "./Loader";
 import { Leaderboard } from "./Leaderboard";
 import { CommentBox } from "./CommentBox";
 import { GameLayout, KeyHints, NextColumn, TargetCard, useViewport } from "./GameLayout";
@@ -28,6 +28,18 @@ const HINT_COOLDOWN_MS = 10_000;
 /** The cells a piece would cover at a hint's spot. */
 const cellsAt = (piece: Tetromino, { rotation, x, y }: Placement) =>
   getCurrentShape({ ...piece, rotation, position: { x, y } }).flatMap((row, dy) => row.flatMap((on, dx) => (on ? [{ x: x + dx, y: y + dy }] : [])));
+
+const sameCells = (a: { x: number; y: number }[], b: { x: number; y: number }[]) =>
+  a.length === b.length && a.every((cell) => b.some((other) => other.x === cell.x && other.y === cell.y));
+
+/** How many actions undoing `placements` placements takes off the end (holds go with their placement). */
+function placementsUndone(actions: RunAction[], placements: number) {
+  let seen = 0;
+  for (let i = actions.length - 1; i >= 0; i--) {
+    if (actions[i].type === "place" && ++seen === placements) return actions.length - i;
+  }
+  return placements === 0 ? 0 : actions.length;
+}
 
 /** The middle of a set of cells, in % of the board. */
 const spotCenter = (cells: { x: number; y: number }[]) => ({
@@ -59,6 +71,7 @@ export const Game = () => {
   // The tutorial level plays on the real board; first-time players start there.
   const [tutorial, setTutorial] = useState(firstVisit);
   const [tutorialDoneOpen, setTutorialDoneOpen] = useState(false);
+  const [tutorialGoalSeen, setTutorialGoalSeen] = useState(false);
   const [boardLoading, setBoardLoading] = useState(false);
   // The very first game gets pointers: what to match, and how to put a piece down.
   const [coaching, setCoaching] = useState(() => {
@@ -69,8 +82,9 @@ export const Game = () => {
     }
   });
   const [touch] = useState(usesTouch);
-  // A hint is the suggested spot for the piece in play; it goes once that piece is placed.
-  const [hint, setHint] = useState<{ placement: Placement; moves: number } | null>(null);
+  // A hint is a spot for the piece in play once the run is back to its first `base` actions (after
+  // undoing, if it was a dead end). `prefix` is those actions, so any other change drops the hint.
+  const [hint, setHint] = useState<{ placement: Placement; base: number; prefix: string; reached: boolean } | null>(null);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hintReadyAt, setHintReadyAt] = useState(0);
   const [now, setNow] = useState(Date.now);
@@ -240,7 +254,7 @@ export const Game = () => {
 
   // ---------- controls ----------
 
-  const playable = !!run.current && !run.outcome && !run.pendingClear && !showResult && !tutorialDoneOpen;
+  const playable = !!run.current && !run.outcome && !run.pendingClear && !showResult && !tutorialDoneOpen && !(tutorial && !tutorialGoalSeen);
 
   const bump = () => {
     sfx.play("bump");
@@ -324,7 +338,7 @@ export const Game = () => {
   const askHint = () => {
     if (!puzzle || !run.current || run.outcome || run.pendingClear || tutorial || hintCoolingMs > 0) return bump();
     startClock();
-    const askedAt = run.moves;
+    const askedActions = run.actions;
     setHintReadyAt(Date.now() + HINT_COOLDOWN_MS);
     setNow(Date.now());
     requestHint(puzzle.date, level, run.actions)
@@ -334,17 +348,30 @@ export const Game = () => {
           return;
         }
         // The server counts hints for the leaderboard; logged out or replaying, they're counted here.
-        setHintsUsed((n) => (response.hints > 0 ? response.hints : n + 1));
-        if (response.placement) setHint({ placement: response.placement, moves: askedAt });
-        else showToast("Can't reach the target from here");
+        if (response.hint) setHintsUsed((n) => (response.hints > 0 ? response.hints : n + 1));
+        if (!response.hint) {
+          // The search ran out of time; nothing was given, so nothing is counted or cooled down.
+          setHintReadyAt(0);
+          showToast("No hint right now");
+          return;
+        }
+        const base = askedActions.length - placementsUndone(askedActions, response.hint.undo);
+        setHint({ placement: response.hint.placement, base, prefix: JSON.stringify(askedActions.slice(0, base)), reached: response.hint.undo === 0 });
       })
       .catch(() => setHintReadyAt(0));
   };
 
-  // The hint is for the piece it was asked about; it goes once that piece is down (or undone).
+  // A dead-end hint waits while the player undoes back to `base`, then shows the spot; it goes once
+  // that piece is down, or as soon as the run leaves the hinted line.
   useEffect(() => {
-    if (hint && hint.moves !== run.moves) setHint(null);
-  }, [hint, run.moves]);
+    if (!hint) return;
+    const length = run.actions.length;
+    if (length < hint.base || JSON.stringify(run.actions.slice(0, hint.base)) !== hint.prefix) return setHint(null);
+    if (length === hint.base) {
+      if (!hint.reached) setHint({ ...hint, reached: true });
+    } else if (hint.reached) setHint(null);
+  }, [hint, run.actions]);
+  const undosForHint = hint && !hint.reached ? run.actions.length - hint.base : 0;
 
   useEffect(() => {
     if (hintReadyAt <= Date.now()) return;
@@ -354,6 +381,7 @@ export const Game = () => {
 
   const startTutorial = () => {
     setTutorial(true);
+    setTutorialGoalSeen(false);
     setTutorialDoneOpen(false);
     setShowResult(false);
     setHint(null);
@@ -397,6 +425,13 @@ export const Game = () => {
       // Typing in the comment box (or any field) isn't a game move.
       if ((e.target as HTMLElement | null)?.closest?.("input, textarea, [contenteditable]")) return;
       const key = e.key.toLowerCase();
+      if (tutorial && !tutorialGoalSeen) {
+        if (key === KEYS.place || key === "enter") {
+          e.preventDefault();
+          setTutorialGoalSeen(true);
+        }
+        return;
+      }
       if (Object.values(KEYS).includes(key)) e.preventDefault();
       if (e.repeat && key === KEYS.place) return;
       if (key === KEYS.left) move("left");
@@ -424,12 +459,12 @@ export const Game = () => {
   if (!puzzle || !levelPuzzle || !target)
     return (
       <div className="grid h-[100dvh] place-items-center">
-        <Spinner />
+        <Loader />
       </div>
     );
 
   const solved = run.outcome === "solved";
-  const lesson = tutorialStep(run);
+  const lesson = tutorialStep(run, tutorialGoalSeen);
   const setup = { date: puzzle.date, level, number: puzzle.number, pieces: levelPuzzle.pieces, target, par: levelPuzzle.par, showSolved: !!result };
   const stat = (label: string, value: ReactNode) => (
     <div className="text-center">
@@ -512,6 +547,9 @@ export const Game = () => {
     </div>
   );
 
+  const hintSpot = !tutorial && hint?.reached && run.current ? cellsAt(run.current, hint.placement) : undefined;
+  const onHintSpot = !!hintSpot && !!run.current && sameCells(hintSpot, cellsAt(run.current, { rotation: run.current.rotation, ...run.current.position }));
+
   const gameBoard = (
     <div className="relative">
       <GameBoard
@@ -527,9 +565,10 @@ export const Game = () => {
         onPieceRotate={rotate}
         gameOver={!!run.outcome && !solved}
         showPoints={false}
-        hintCells={tutorial ? lesson.spot : hint && run.current ? cellsAt(run.current, hint.placement) : undefined}
+        hintCells={tutorial ? lesson.spot : hintSpot}
+        hintReady={tutorial ? onSpot(run) : onHintSpot}
       />
-      {tutorial && touch && run.current && lesson.step !== "done" && (
+      {tutorial && touch && run.current && lesson.step !== "done" && lesson.step !== "goal" && (
         lesson.step === "move" || lesson.step === "move2" ? (
           <DragHand from={pieceCenter(run.current)} to={spotCenter(lesson.spot)} />
         ) : (
@@ -541,11 +580,19 @@ export const Game = () => {
           <button className="gp-corner-btn -left-2 -top-2" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title="Hint (H)">
             {hintCoolingMs > 0 ? <span className="gp-value text-xl">{Math.ceil(hintCoolingMs / 1000)}</span> : <Lightbulb size={26} strokeWidth={2.75} className="text-[#E0A21B]" />}
           </button>
-          <button className="gp-corner-btn -right-2 -top-2" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Z)">
+          <button
+            className={cn("gp-corner-btn -right-2 -top-2", undosForHint > 0 && "gp-corner-btn-hinted")}
+            onClick={undo}
+            disabled={!canUndo}
+            aria-label={undosForHint > 0 ? `Undo ${undosForHint}` : "Undo"}
+            title="Undo (Z)"
+          >
             <Undo2 size={26} strokeWidth={2.75} />
+            {undosForHint > 0 && <span className="gp-corner-badge">{undosForHint}</span>}
           </button>
         </>
       )}
+      {onHintSpot && !showCoach && coachPill(touch ? "Tap to place" : "Space to place", "bottom-3 left-1/2 -translate-x-1/2")}
       {showCoach && (
         <>
           <Hand at={pieceCenter(run.current)} press={0} />
@@ -561,7 +608,7 @@ export const Game = () => {
     <>
       {boardLoading && !board ? (
         <div className="mt-4 grid place-items-center py-4">
-          <Spinner />
+          <Loader />
         </div>
       ) : (
         <Leaderboard board={board} username={puzzle.username} />
@@ -622,7 +669,7 @@ export const Game = () => {
         <motion.div key={lesson.step} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
           <h2 className={cn("font-display font-bold leading-tight", landscape ? "text-[28px]" : "text-[21px]")}>{lessonText.title[touch ? 0 : 1]}</h2>
           {lessonText.line && <p className="mt-1 text-sm font-bold text-[color:var(--gp-muted)]">{lessonText.line}</p>}
-          {!touch && (
+          {!touch && lessonText.keys.length > 0 && (
             <div className="mt-2 flex justify-center gap-1.5">
               {lessonText.keys.map((key) => (
                 <motion.span
@@ -635,6 +682,11 @@ export const Game = () => {
                 </motion.span>
               ))}
             </div>
+          )}
+          {lesson.step === "goal" && (
+            <button className="gp-btn gp-btn-primary mt-3 !min-h-[40px] w-full max-w-[200px]" onClick={() => setTutorialGoalSeen(true)}>
+              Start
+            </button>
           )}
         </motion.div>
       ) : (
@@ -650,9 +702,9 @@ export const Game = () => {
           viewport={viewport}
           top={tutorialHeader}
           side={tutorialCard}
-          target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} highlight={lesson.step === "done" ? "solved" : lesson.step === "place2" ? "flash" : undefined} />}
+          target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
           board={gameBoard}
-          next={<NextColumn queue={run.queue} landscape={landscape} highlight={lesson.step === "rotate"} />}
+          next={<NextColumn queue={run.queue} landscape={landscape} />}
           bottom={null}
         />
       ) : (

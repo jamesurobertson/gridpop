@@ -2,7 +2,7 @@
 // records runs; its server replays them before a result counts, and to work out hints.
 import { GridType, Tetromino, TetrominoType } from "@/types/game";
 import { TETROMINO_SHAPES } from "./tetrominoShapes";
-import { checkGameOver, checkLinesToClear, clearRowsAndCols, createEmptyGrid, isValidPosition, placeTetromino } from "./gameLogic";
+import { MAX_CELL_VALUE, checkGameOver, checkLinesToClear, clearRowsAndCols, createEmptyGrid, isValidPosition, placeTetromino } from "./gameLogic";
 import { gridsMatch } from "./dailyCore";
 
 export type RunAction = { type: "hold" } | { type: "place"; rotation: number; x: number; y: number };
@@ -61,77 +61,162 @@ export function replayRun(pieces: TetrominoType[], target: GridType, actions: Ru
 
 // ---------- hints: the first placement of a shortest way from here to the target ----------
 
-/** Every distinct way to set a piece down on `grid`, one per set of covered cells. */
-function placements(grid: GridType, type: TetrominoType): { placement: Placement; piece: Tetromino }[] {
-  const shape = TETROMINO_SHAPES[type];
+// The search works on flat boards (16 numbers) for speed; the rules match placeAndClear and
+// checkGameOver: +1 under the piece (capped at 7), full same-number lines pop, a 7 left ends the run.
+type Flat = number[];
+type Footprint = { cells: number[]; placement: Placement };
+
+const flatten = (grid: GridType): Flat => grid.flat();
+const sameBoard = (a: Flat, b: Flat) => a.every((value, i) => value === b[i]);
+const boardKey = (board: Flat) => board.reduce((key, value) => key * 8 + value, 0);
+
+const footprintCache = new Map<TetrominoType, Footprint[]>();
+/** Every distinct set of cells a piece can cover, with one placement that covers it. */
+function footprints(type: TetrominoType): Footprint[] {
+  const cached = footprintCache.get(type);
+  if (cached) return cached;
   const seen = new Set<string>();
-  const out: { placement: Placement; piece: Tetromino }[] = [];
-  shape.rotations.forEach((cells, rotation) => {
+  const out: Footprint[] = [];
+  TETROMINO_SHAPES[type].rotations.forEach((shape, rotation) => {
     for (let y = -3; y < 4; y++)
       for (let x = -3; x < 4; x++) {
-        const piece: Tetromino = { shape, rotation, position: { x, y } };
-        if (!isValidPosition(grid, piece)) continue;
-        const key = cells.flatMap((row, dy) => row.flatMap((on, dx) => (on ? [(y + dy) * 4 + x + dx] : []))).join(",");
+        const cells = shape.flatMap((row, dy) => row.flatMap((on, dx) => (on ? [[x + dx, y + dy]] : [])));
+        if (cells.some(([cx, cy]) => cx < 0 || cx > 3 || cy < 0 || cy > 3)) continue;
+        const flatCells = cells.map(([cx, cy]) => cy * 4 + cx);
+        const key = flatCells.join(",");
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({ placement: { rotation, x, y }, piece });
+        out.push({ cells: flatCells, placement: { rotation, x, y } });
       }
   });
+  footprintCache.set(type, out);
   return out;
 }
 
-const total = (grid: GridType) => grid.flat().reduce((a, b) => a + b, 0);
+/** The board after a placement and its pops, or null if it leaves a 7. */
+function placeFlat(board: Flat, cells: number[]): Flat | null {
+  const next = board.slice();
+  for (const cell of cells) next[cell] = Math.min(next[cell] + 1, MAX_CELL_VALUE);
+  const popped: number[] = [];
+  for (let line = 0; line < 4; line++) {
+    const row = [line * 4, line * 4 + 1, line * 4 + 2, line * 4 + 3];
+    const col = [line, line + 4, line + 8, line + 12];
+    for (const cellsInLine of [row, col]) {
+      const value = next[cellsInLine[0]];
+      if (value > 0 && cellsInLine.every((cell) => next[cell] === value)) popped.push(...cellsInLine);
+    }
+  }
+  for (const cell of popped) next[cell] = 0;
+  return next.includes(MAX_CELL_VALUE) ? null : next;
+}
 
-/** Fewest more pieces that could possibly turn `grid` into `target` (never an overestimate). */
-function movesNeeded(grid: GridType, target: GridType) {
-  let needed = Math.ceil((total(target) - total(grid)) / 4);
-  grid.forEach((row, y) =>
-    row.forEach((have, x) => {
-      const want = target[y][x];
-      // A tile only climbs one per piece; one that's too high has to pop first, then climb again.
-      if (have < want) needed = Math.max(needed, want - have);
-      else if (have > want) needed = Math.max(needed, want + 1);
-    })
-  );
+const total = (board: Flat) => board.reduce((a, b) => a + b, 0);
+
+/** Fewest more pieces that could possibly turn `board` into `target` (never an overestimate). */
+function movesNeeded(board: Flat, target: Flat) {
+  let needed = Math.ceil((total(target) - total(board)) / 4);
+  board.forEach((have, i) => {
+    const want = target[i];
+    // A tile only climbs one per piece; one that's too high has to pop first, then climb again.
+    if (have < want) needed = Math.max(needed, want - have);
+    else if (have > want) needed = Math.max(needed, want + 1);
+  });
   return needed;
 }
 
-/** The first placement of a way to reach `target` in exactly `limit` more pieces, if there is one. */
-function searchWithin(pieces: TetrominoType[], target: GridType, cursor: RunCursor, limit: number, budget: { left: number }): Placement | null {
-  type Node = { grid: GridType; index: number; first: Placement | null };
-  let layer: Node[] = [{ grid: cursor.grid, index: cursor.current, first: null }];
+/** The first placement of a way to reach `target` within `limit` more pieces, or why there's none. */
+function searchWithin(pieces: TetrominoType[], targetGrid: GridType, cursor: RunCursor, limit: number, budget: { left: number }): Placement | "none" | "gave up" {
+  const target = flatten(targetGrid);
+  type Node = { board: Flat; first: Placement | null };
+  let layer: Node[] = [{ board: flatten(cursor.grid), first: null }];
   for (let depth = 1; depth <= limit && layer.length; depth++) {
-    const seen = new Set<string>();
+    const index = cursor.current + depth - 1;
+    if (index >= pieces.length) break;
+    // No Hold on this path, so every node in a layer plays the same piece; boards alone dedupe.
+    const seen = new Set<number>();
     const nextLayer: Node[] = [];
     for (const node of layer) {
-      if (node.index >= pieces.length) continue;
-      for (const { placement, piece } of placements(node.grid, pieces[node.index])) {
-        if (--budget.left < 0) return null;
-        const grid = placeAndClear(node.grid, piece);
+      for (const { cells, placement } of footprints(pieces[index])) {
+        if (--budget.left < 0) return "gave up";
+        const board = placeFlat(node.board, cells);
+        if (!board) continue;
         const first = node.first ?? placement;
-        if (gridsMatch(grid, target)) return first;
-        if (checkGameOver(grid) || movesNeeded(grid, target) > limit - depth) continue;
-        const key = grid.flat().join("");
+        if (sameBoard(board, target)) return first;
+        if (movesNeeded(board, target) > limit - depth) continue;
+        const key = boardKey(board);
         if (seen.has(key)) continue;
         seen.add(key);
-        nextLayer.push({ grid, index: node.index + 1, first });
+        nextLayer.push({ board, first });
       }
     }
     layer = nextLayer;
   }
-  return null;
+  return "none";
 }
 
+/** Undo this many placements, then put the piece in play here. */
+export type HintAdvice = { undo: number; placement: Placement };
+
 /**
- * Where to put the piece in play so the target is reached in as few more pieces as possible (Hold
- * aside). Tries the fewest that could work, then one more, up to `maxMoves`; each pass prunes hard
- * against its own limit. Null when the target can't be reached from here (or the search gives up).
+ * The first step of the shortest way to finish, counting the whole run. Undoing is free and a
+ * restart counts, so a dead end (or a detour) becomes "undo this many, then place here". Tries the
+ * best finish, then one piece worse, and so on; for each, the fewest undos that still make it.
+ * When the search runs out of time it falls back on `solution` (a known par line, as the cells each
+ * piece covers): undo to the latest point the run is still on it, then take its next step.
  */
-export function hintFrom(pieces: TetrominoType[], target: GridType, cursor: RunCursor, maxMoves = 8): Placement | null {
-  const budget = { left: 1_500_000 };
-  for (let limit = Math.max(1, movesNeeded(cursor.grid, target)); limit <= maxMoves; limit++) {
-    const found = searchWithin(pieces, target, cursor, limit, budget);
-    if (found || budget.left < 0) return found;
+export function hintFor(pieces: TetrominoType[], target: GridType, actions: RunAction[], par: number, solution?: number[][], slack = 4): HintAdvice | null {
+  const budget = { left: 3_000_000 };
+  const placeAt = actions.flatMap((action, i) => (action.type === "place" ? [i] : []));
+  const placed = placeAt.length;
+  const cursors = new Map<number, RunCursor | null>();
+  const cursorAfterUndo = (undo: number) => {
+    if (!cursors.has(undo)) {
+      const cursor = replayTo(pieces, target, undo === 0 ? actions : actions.slice(0, placeAt[placed - undo]));
+      cursors.set(undo, typeof cursor === "string" || cursor.solved ? null : cursor);
+    }
+    return cursors.get(undo)!;
+  };
+  // Per undo level, the longest finish already ruled out, so each total only searches what's new.
+  const ruledOut = new Map<number, number>();
+  // `par` is how many pieces the target was built with, so the best finish may be fewer: start from
+  // the fewest any undo level could possibly finish in.
+  let fewest = par;
+  for (let undo = 0; undo <= placed; undo++) {
+    const cursor = cursorAfterUndo(undo);
+    if (cursor) fewest = Math.min(fewest, placed - undo + movesNeeded(flatten(cursor.grid), flatten(target)));
+  }
+  for (let total = Math.max(1, fewest); total <= par + slack; total++) {
+    for (let undo = 0; undo <= placed; undo++) {
+      const cursor = cursorAfterUndo(undo);
+      const limit = Math.min(total - (placed - undo), pieces.length - (cursor?.current ?? pieces.length));
+      if (!cursor || limit < 1) continue;
+      for (let more = (ruledOut.get(undo) ?? 0) + 1; more <= limit; more++) {
+        if (movesNeeded(flatten(cursor.grid), flatten(target)) > more) continue;
+        const found = searchWithin(pieces, target, cursor, more, budget);
+        if (found === "gave up") return solution ? alongSolution(pieces, solution, placed, cursorAfterUndo) : null;
+        if (found !== "none") return { undo, placement: found };
+      }
+      ruledOut.set(undo, Math.max(ruledOut.get(undo) ?? 0, limit));
+    }
+  }
+  return solution ? alongSolution(pieces, solution, placed, cursorAfterUndo) : null;
+}
+
+/** The next step of `solution` from the latest point in the run that's still on it (the start always is). */
+function alongSolution(pieces: TetrominoType[], solution: number[][], placed: number, cursorAfterUndo: (undo: number) => RunCursor | null): HintAdvice | null {
+  const boards: Flat[] = [Array(16).fill(0)];
+  for (const cells of solution) {
+    const board = placeFlat(boards[boards.length - 1], cells);
+    if (!board) return null;
+    boards.push(board);
+  }
+  for (let undo = 0; undo <= placed; undo++) {
+    const step = placed - undo;
+    const cursor = cursorAfterUndo(undo);
+    if (!cursor || step >= solution.length || cursor.current !== step || !sameBoard(flatten(cursor.grid), boards[step])) continue;
+    const key = [...solution[step]].sort((a, b) => a - b).join(",");
+    const footprint = footprints(pieces[step]).find(({ cells }) => [...cells].sort((a, b) => a - b).join(",") === key);
+    if (footprint) return { undo, placement: footprint.placement };
   }
   return null;
 }

@@ -84,7 +84,7 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="max-h-[calc(100dvh-24px)] max-w-[min(92vw,384px)] gap-0 overflow-y-auto rounded-[28px] border-[2.5px] border-[#1F1633] bg-white p-0 outline-none [&>button:last-child]:text-white [&>button:last-child]:opacity-80"
+        className="max-h-[calc(100dvh-24px)] max-w-[min(92vw,384px)] gap-0 overflow-y-auto overscroll-none rounded-[28px] border-[2.5px] border-[#1F1633] bg-white p-0 outline-none [&>button:last-child]:text-white [&>button:last-child]:opacity-80"
         // Focusing the bottom button would scroll a tall card past its own heading.
         onOpenAutoFocus={(e) => e.preventDefault()}
       >

@@ -40,6 +40,22 @@ const LEVEL_KEY = "gridpop-daily-level";
 
 export const isToday = (date: string) => date === utcDateKey();
 
+/**
+ * A day other than today to play, from ?day=YYYY-MM-DD, for trying puzzles ahead of time. Results
+ * and progress are only saved for today's puzzle, so playing ahead leaves that day untouched.
+ */
+export function previewDay(): string | null {
+  try {
+    const day = new URLSearchParams(location.search).get("day");
+    return day && /^\d{4}-\d{2}-\d{2}$/.test(day) && !Number.isNaN(Date.parse(day)) && day !== utcDateKey() ? day : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The day the daily mode plays: the preview day if there is one, otherwise today. */
+export const dailyDate = () => previewDay() ?? utcDateKey();
+
 export function loadDailyLevel(): DailyLevel {
   try {
     const saved = localStorage.getItem(LEVEL_KEY);

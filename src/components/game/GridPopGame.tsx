@@ -34,8 +34,8 @@ import {
   dailyStats,
   formatClock,
   gridsMatch,
+  dailyDate,
   isToday,
-  utcDateKey,
   loadDailyProgress,
   loadDailyResults,
   saveDailyProgress,
@@ -48,6 +48,7 @@ import {
   DailySetup,
 } from "@/utils/daily";
 import DailyResultModal from "./DailyResultModal";
+import { DailyPreviewBar } from "./DailyPreviewBar";
 import { Logo } from "./Logo";
 import TargetGrid from "./TargetGrid";
 import { Trophy, Timer, Settings2, Volume2, VolumeX, RotateCcw, CalendarDays, Infinity as InfinityIcon, Flame } from "lucide-react";
@@ -93,7 +94,7 @@ const initialState: GameState = {
   nextQueue: [],
   linesCleared: 0,
   pendingClear: false,
-  daily: dailySetup(utcDateKey(), loadDailyLevel()),
+  daily: dailySetup(dailyDate(), loadDailyLevel()),
   dailyOutcome: null,
 };
 
@@ -680,13 +681,13 @@ const GridPopGame: React.FC = () => {
   };
 
   const switchMode = (mode: PlayMode) => {
-    if (mode !== playMode) startMode(mode, mode === "daily" ? dailySetup(utcDateKey(), loadDailyLevel()) : null);
+    if (mode !== playMode) startMode(mode, mode === "daily" ? dailySetup(dailyDate(), loadDailyLevel()) : null);
   };
 
   // A page left open past midnight UTC moves on to the new puzzle, unless a run is under way.
   const checkForNewDay = useRef<() => void>();
   checkForNewDay.current = () => {
-    if (daily && daily.date !== utcDateKey() && (state.turnsPlayed === 0 || state.dailyOutcome)) startMode("daily", dailySetup(utcDateKey(), daily.level));
+    if (daily && daily.date !== dailyDate() && (state.turnsPlayed === 0 || state.dailyOutcome)) startMode("daily", dailySetup(dailyDate(), daily.level));
   };
   useEffect(() => {
     const id = setInterval(() => checkForNewDay.current?.(), 30_000);
@@ -979,6 +980,7 @@ const GridPopGame: React.FC = () => {
 
   return (
     <div className="mx-auto w-full">
+      <DailyPreviewBar />
       {isMobile ? (
         <div className="mx-auto flex min-h-[calc(100dvh-60px-env(safe-area-inset-bottom))] w-full max-w-[440px] flex-col gap-3 px-4 pb-6 pt-[max(12px,env(safe-area-inset-top))]">
           <header className="flex items-center justify-between">

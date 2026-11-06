@@ -27,5 +27,6 @@ render banner-desktop.png banner-desktop.html 1072 128 1
 render banner-desktop@2x.png banner-desktop.html 1072 128 2
 render banner-mobile.png banner-mobile.html 1080 128 1
 render banner-mobile@2x.png banner-mobile.html 1080 128 2
+render share.png share.html 1200 630 1
 
-for page in icon.html banner-desktop.html banner-mobile.html; do check_fonts "$page"; done
+for page in icon.html banner-desktop.html banner-mobile.html share.html; do check_fonts "$page"; done
