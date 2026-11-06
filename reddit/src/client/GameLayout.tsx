@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import PieceDisplay from "@/components/game/PieceDisplay";
 import TargetGrid from "@/components/game/TargetGrid";
 import type { GridType, Tetromino } from "@/types/game";
@@ -26,7 +26,26 @@ const stageScale = (viewport: Viewport, stageHeight: number) =>
 
 export type Viewport = ReturnType<typeof useViewport>;
 
-export const TargetCard = ({ target, landscape, highlight, dim, reveal, children }: { target: GridType; landscape: boolean; highlight?: "coach" | "solved" | "flash"; dim?: boolean; reveal?: boolean; children?: ReactNode }) => (
+export const TargetCard = ({
+  target,
+  landscape,
+  highlight,
+  dim,
+  reveal,
+  hideGrid,
+  gridRef,
+  children,
+}: {
+  target: GridType;
+  landscape: boolean;
+  highlight?: "coach" | "solved" | "flash";
+  dim?: boolean;
+  reveal?: boolean;
+  /** Kept in place but unseen, while the tutorial's big copy of it flies in. */
+  hideGrid?: boolean;
+  gridRef?: RefObject<HTMLDivElement>;
+  children?: ReactNode;
+}) => (
   <div
     className={cn(
       "gp-card relative p-2.5 transition-shadow",
@@ -37,7 +56,9 @@ export const TargetCard = ({ target, landscape, highlight, dim, reveal, children
     )}
   >
     <div className="gp-label mb-1.5">Target</div>
-    <TargetGrid grid={target} reveal={reveal} className={cn("w-full transition-opacity", landscape && "mx-auto max-w-[236px]", dim && "opacity-40")} />
+    <div ref={gridRef} className={cn("w-full transition-opacity", landscape && "mx-auto max-w-[236px]", dim && "opacity-40", hideGrid && "invisible")}>
+      <TargetGrid grid={target} reveal={reveal} className="w-full" />
+    </div>
     {children}
   </div>
 );

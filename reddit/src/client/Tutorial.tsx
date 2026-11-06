@@ -1,4 +1,7 @@
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import TargetGrid from "@/components/game/TargetGrid";
 import type { GridType, Tetromino, TetrominoType } from "@/types/game";
 import { getCurrentShape } from "@/utils/gameLogic";
 import { parseTarget } from "@/utils/dailyCore";
@@ -98,6 +101,51 @@ const Lesson = ({ chips, children }: { chips: (number | "→")[]; children: Reac
 );
 
 /** The card at the end of the tutorial, then into the day's puzzle. */
+/**
+ * The tutorial's first beat: the target shown big over a dimmed board, then, on Next, shrunk into
+ * its Target card, so the small card reads as "the board you're copying" from then on.
+ */
+export const TutorialIntro = ({ docking, slot, onNext, onDocked }: { docking: boolean; slot: RefObject<HTMLDivElement>; onNext: () => void; onDocked: () => void }) => {
+  const bigRef = useRef<HTMLDivElement>(null);
+  const [dock, setDock] = useState<{ x: number; y: number; scale: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!docking) return;
+    const big = bigRef.current;
+    const card = slot.current;
+    if (!big || !card) return onDocked();
+    // Scaled from the top-left corner, so the corner's on-screen spot is the layout spot plus x/y.
+    const from = big.getBoundingClientRect();
+    const to = card.getBoundingClientRect();
+    setDock({ x: to.left - from.left, y: to.top - from.top, scale: to.width / big.offsetWidth });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docking]);
+
+  const fade = { opacity: dock ? 0 : 1 };
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 px-6">
+      <motion.div className="absolute inset-0 bg-[#FFF6EA]/95" initial={{ opacity: 0 }} animate={fade} transition={{ duration: dock ? 0.4 : 0.25 }} />
+      <motion.h2 className="font-display relative text-[30px] font-bold leading-tight" initial={{ opacity: 0, y: 8 }} animate={{ ...fade, y: 0 }} transition={{ duration: 0.25 }}>
+        Match this board
+      </motion.h2>
+      <motion.div
+        ref={bigRef}
+        className="relative w-[min(66vw,300px)]"
+        style={{ originX: 0, originY: 0 }}
+        initial={{ opacity: 0, y: 12 }}
+        animate={dock ? { opacity: 1, x: dock.x, y: dock.y, scale: dock.scale } : { opacity: 1, x: 0, y: 0, scale: 1 }}
+        transition={dock ? { duration: 0.55, ease: [0.3, 0.7, 0.2, 1] } : { duration: 0.3 }}
+        onAnimationComplete={() => dock && onDocked()}
+      >
+        <TargetGrid grid={TUTORIAL_TARGET} reveal className="w-full" />
+      </motion.div>
+      <motion.button className="gp-btn gp-btn-primary relative w-full max-w-[220px]" initial={{ opacity: 0 }} animate={fade} transition={{ duration: 0.25 }} onClick={onNext} disabled={docking}>
+        Next
+      </motion.button>
+    </div>
+  );
+};
+
 export const TutorialDone = ({ isOpen, onPlay }: { isOpen: boolean; onPlay: () => void }) => (
   <Dialog open={isOpen} onOpenChange={(open) => !open && onPlay()}>
     <DialogContent

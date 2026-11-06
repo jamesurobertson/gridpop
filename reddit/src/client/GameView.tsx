@@ -12,7 +12,7 @@ import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
 import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, requestHint, saveClock, saveLevel, submitRun } from "./api";
-import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, firstVisit, markSeen, onSpot, tutorialStep } from "./Tutorial";
+import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, TapHand, pieceCenter, usesTouch } from "./Coach";
 import { CountingTile, DemoBoard, usePatientLoading } from "./Loader";
 import { Leaderboard } from "./Leaderboard";
@@ -73,6 +73,8 @@ export const Game = () => {
   const [tutorial, setTutorial] = useState(firstVisit);
   const [tutorialDoneOpen, setTutorialDoneOpen] = useState(false);
   const [tutorialGoalSeen, setTutorialGoalSeen] = useState(false);
+  const [goalDocking, setGoalDocking] = useState(false);
+  const targetSlot = useRef<HTMLDivElement>(null);
   const [boardLoading, setBoardLoading] = useState(false);
   // The very first game gets pointers: what to match, and how to put a piece down.
   const [coaching, setCoaching] = useState(() => {
@@ -385,6 +387,7 @@ export const Game = () => {
   const startTutorial = () => {
     setTutorial(true);
     setTutorialGoalSeen(false);
+    setGoalDocking(false);
     setTutorialDoneOpen(false);
     setShowResult(false);
     setHint(null);
@@ -431,7 +434,7 @@ export const Game = () => {
       if (tutorial && !tutorialGoalSeen) {
         if (key === KEYS.place || key === "enter") {
           e.preventDefault();
-          setTutorialGoalSeen(true);
+          setGoalDocking(true);
         }
         return;
       }
@@ -553,7 +556,7 @@ export const Game = () => {
       <GameBoard
         className="gp-board-wrap aspect-square w-full"
         grid={run.grid}
-        currentPiece={run.current}
+        currentPiece={tutorial && !tutorialGoalSeen ? null : run.current}
         pieceKey={`${runNumber}-${run.moves}-${run.current?.shape.type}`}
         pendingClear={run.pendingClear}
         bumpKey={bumpKey}
@@ -650,7 +653,8 @@ export const Game = () => {
     </div>
   );
 
-  const lessonText = lesson.step === "done" ? null : STEP_TEXT[lesson.step];
+  // The goal step is the big target over everything (TutorialIntro), so its card stays empty.
+  const lessonText = lesson.step === "done" || lesson.step === "goal" ? null : STEP_TEXT[lesson.step];
   const lessonSteps = Object.keys(STEP_TEXT);
   const lessonIndex = lesson.step === "done" ? lessonSteps.length : lessonSteps.indexOf(lesson.step);
   // Progress dots so the heading reads as where you are, not as a button to a tutorial.
@@ -696,14 +700,9 @@ export const Game = () => {
               ))}
             </div>
           )}
-          {lesson.step === "goal" && (
-            <button className="gp-btn gp-btn-primary mt-3 !min-h-[40px] w-full max-w-[200px]" onClick={() => setTutorialGoalSeen(true)}>
-              Next
-            </button>
-          )}
         </motion.div>
       ) : (
-        <h2 className="font-display text-[22px] font-bold">Matched!</h2>
+        lesson.step === "done" && <h2 className="font-display text-[22px] font-bold">Matched!</h2>
       )}
     </div>
   );
@@ -737,7 +736,7 @@ export const Game = () => {
           viewport={viewport}
           top={tutorialHeader}
           side={tutorialCard}
-          target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
+          target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
           board={gameBoard}
           next={<NextColumn queue={run.queue} landscape={landscape} />}
           bottom={null}
@@ -759,6 +758,17 @@ export const Game = () => {
         />
       )}
 
+      {tutorial && loaded && !tutorialGoalSeen && (
+        <TutorialIntro
+          docking={goalDocking}
+          slot={targetSlot}
+          onNext={() => setGoalDocking(true)}
+          onDocked={() => {
+            setTutorialGoalSeen(true);
+            setGoalDocking(false);
+          }}
+        />
+      )}
       <TutorialDone isOpen={tutorial && tutorialDoneOpen} onPlay={finishTutorial} />
 
       {setup && (
