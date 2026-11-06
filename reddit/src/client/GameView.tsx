@@ -606,6 +606,19 @@ export const Game = () => {
             </div>
           ))
         )}
+      {tutorial && lesson.step === "place3" && run.current && !run.pendingClear && (() => {
+        // The lines this placement would complete, outlined and pulsing before the tap pops them.
+        const { rows, cols } = checkLinesToClear(placeTetromino(run.grid, run.current));
+        return [...rows.map((row) => ({ key: `r${row}`, style: { left: "1.5%", right: "1.5%", top: `${row * 24.25 + 1.5}%`, height: "24%" } })), ...cols.map((col) => ({ key: `c${col}`, style: { top: "1.5%", bottom: "1.5%", left: `${col * 24.25 + 1.5}%`, width: "24%" } }))].map(({ key, style }) => (
+          <motion.div
+            key={key}
+            className="pointer-events-none absolute z-30 rounded-[18px] border-[3px] border-white"
+            style={{ ...style, boxShadow: "0 0 18px 4px rgba(255,255,255,0.55)" }}
+            animate={{ opacity: [0.45, 1, 0.45] }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+          />
+        ));
+      })()}
       {tutorial && linePop && (
         <div key={linePop.id} className="pointer-events-none absolute z-50 -translate-x-1/2 -translate-y-1/2" style={{ left: `${linePop.at.x}%`, top: `${linePop.at.y}%` }}>
           <motion.span

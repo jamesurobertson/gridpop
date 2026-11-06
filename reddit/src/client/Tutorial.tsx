@@ -99,8 +99,8 @@ export const STEP_TEXT: Record<Exclude<TutorialStep, "done">, { title: [string, 
   rotate: { title: ["Double-tap to rotate", "A or D to rotate"] },
   move2: { title: ["Drag to move", "Arrow keys to move"] },
   place2: { title: ["Tap to place", "Space to place"] },
-  move3: { title: ["Drag to move", "Arrow keys to move"] },
-  place3: { title: ["Tap to place", "Space to place"] },
+  move3: { title: ["Drag to fill the row", "Arrow keys to fill the row"] },
+  place3: { title: ["Tap to pop the row", "Space to pop the row"] },
 };
 
 const Chip = ({ value }: { value: number }) => (
