@@ -26,20 +26,22 @@ interface DailyResultModalProps {
   onUndo?: () => void;
   /** The run shown was a replay after the recorded solve. */
   practice?: boolean;
+  /** Defaults to midnight UTC; the Reddit app's day ends at midnight Eastern. */
+  msUntilNext?: (now?: number) => number;
 }
 
 const SITE = "https://jamesurobertson.github.io/gridpop/";
 const STAT_COLUMNS: Record<number, string> = { 3: "grid-cols-3", 4: "grid-cols-4", 5: "grid-cols-5" };
 const OVER_GOAL_LABELS = ["Goal", "+1", "+2", "+3"];
 
-function useCountdown(active: boolean) {
-  const [msLeft, setMsLeft] = useState(msUntilNextPuzzle);
+function useCountdown(active: boolean, msUntilNext: () => number) {
+  const [msLeft, setMsLeft] = useState(msUntilNext);
   useEffect(() => {
     if (!active) return;
-    setMsLeft(msUntilNextPuzzle());
-    const id = setInterval(() => setMsLeft(msUntilNextPuzzle()), 1000);
+    setMsLeft(msUntilNext());
+    const id = setInterval(() => setMsLeft(msUntilNext()), 1000);
     return () => clearInterval(id);
-  }, [active]);
+  }, [active, msUntilNext]);
   return msLeft;
 }
 
@@ -50,9 +52,9 @@ const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
   </div>
 );
 
-const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, hideGoal, onReplay, practice, onUndo }) => {
+const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, hideGoal, onReplay, practice, onUndo, msUntilNext = msUntilNextPuzzle }) => {
   const [copied, setCopied] = useState(false);
-  const msLeft = useCountdown(isOpen);
+  const msLeft = useCountdown(isOpen, msUntilNext);
   const solved = outcome === "solved" && run;
   const score = run ? dailyScore(run) : 0;
   const overPar = solved ? Math.min(3, Math.max(0, score - run.par)) : -1;

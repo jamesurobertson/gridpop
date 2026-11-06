@@ -7,7 +7,7 @@ import DailyResultModal from "@/components/game/DailyResultModal";
 import { getCurrentShape, isValidPosition, tryWallKick } from "@/utils/gameLogic";
 import type { Placement, RunAction } from "@/utils/dailyRun";
 import type { Tetromino } from "@/types/game";
-import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, parseTarget } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, msUntilEasternMidnight, parseTarget } from "@/utils/dailyCore";
 import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
@@ -727,6 +727,7 @@ export const Game = () => {
       <TutorialDone isOpen={tutorial && tutorialDoneOpen} onPlay={finishTutorial} />
 
       <DailyResultModal
+        msUntilNext={msUntilEasternMidnight}
         isOpen={showResult}
         onClose={() => setShowResult(false)}
         setup={setup}

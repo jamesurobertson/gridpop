@@ -63,6 +63,13 @@ export function msUntilNextPuzzle(now = Date.now()) {
   return Math.ceil(now / DAY_MS) * DAY_MS - now;
 }
 
+/** Time to the next midnight in New York, which is 04:00 UTC in summer and 05:00 in winter. */
+export function msUntilEasternMidnight(now = Date.now()) {
+  const tomorrow = shiftDate(easternDateKey(now), 1);
+  const midnight = [4, 5].map((hour) => Date.parse(`${tomorrow}T0${hour}:00:00Z`)).find((t) => easternDateKey(t) === tomorrow)!;
+  return midnight - now;
+}
+
 export function formatClock(ms: number) {
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
