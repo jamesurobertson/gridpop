@@ -14,8 +14,8 @@ import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } fro
 import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, requestHint, saveClock, saveLevel, submitRun } from "./api";
 import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
-import { CountingTile, DemoBoard, usePatientLoading } from "./Loader";
-import { Leaderboard } from "./Leaderboard";
+import { DemoBoard, usePatientLoading } from "./Loader";
+import { Leaderboard, LeaderboardSkeleton } from "./Leaderboard";
 import { CommentBox } from "./CommentBox";
 import { GameLayout, KeyHints, NextColumn, TargetCard, useViewport } from "./GameLayout";
 import { useDailyRun } from "./useDailyRun";
@@ -25,6 +25,7 @@ const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0,
 const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " ", undo: "z", hint: "h" };
 const HINT_COOLDOWN_MS = 10_000;
 const EMPTY_TARGET = createEmptyGrid(4);
+const FOLDED_ROWS_GUESS = 3;
 
 /** The cells a piece would cover at a hint's spot. */
 const cellsAt = (piece: Tetromino, { rotation, x, y }: Placement) =>
@@ -75,6 +76,9 @@ export const Game = () => {
   const [tutorialGoalSeen, setTutorialGoalSeen] = useState(false);
   const [goalDocking, setGoalDocking] = useState(false);
   const targetSlot = useRef<HTMLDivElement>(null);
+  // "+1" over each tile a tutorial piece lands on: the game's one rule, shown where it happens.
+  const [plusOnes, setPlusOnes] = useState<{ id: number; cells: { x: number; y: number }[] }[]>([]);
+  const plusOneId = useRef(0);
   const [boardLoading, setBoardLoading] = useState(false);
   // The very first game gets pointers: what to match, and how to put a piece down.
   const [coaching, setCoaching] = useState(() => {
@@ -296,6 +300,11 @@ export const Game = () => {
     if (tutorial) {
       if (!onSpot(run)) return bump();
       sfx.play("place", { jitter: 0.06 });
+      const piece = run.current!;
+      const cells = getCurrentShape(piece).flatMap((row, dy) => row.flatMap((on, dx) => (on ? [{ x: piece.position.x + dx, y: piece.position.y + dy }] : [])));
+      const id = ++plusOneId.current;
+      setPlusOnes((current) => [...current, { id, cells }]);
+      setTimeout(() => setPlusOnes((current) => current.filter((pop) => pop.id !== id)), 1000);
       dispatch({ type: "place" });
       return;
     }
@@ -329,7 +338,7 @@ export const Game = () => {
     dispatch({ type: "place" });
   };
 
-  const canUndo = run.history.length > 0 && !run.pendingClear && run.outcome !== "solved" && !tutorial;
+  const canUndo = run.history.length > 0 && !run.pendingClear && run.outcome !== "solved";
 
   const undo = () => {
     if (!canUndo) return bump();
@@ -484,12 +493,13 @@ export const Game = () => {
     </div>
   );
 
-  const moves = result && !practice ? result.moves : run.moves;
+  const moves = result && !practice && !tutorial ? result.moves : run.moves;
+  const shownClockMs = tutorial ? 0 : clockMs;
   // Wide screens have room for a full card; phones get one slim strip so the board keeps the space.
   const statsCard = landscape ? (
     <div className="gp-card grid grid-cols-2 content-center px-2 py-2.5">
       {stat("Moves", moves)}
-      {stat("Time", formatClock(clockMs))}
+      {stat("Time", formatClock(shownClockMs))}
     </div>
   ) : (
     <div className="gp-card flex items-center justify-around px-3 py-2">
@@ -499,7 +509,7 @@ export const Game = () => {
       </span>
       <span className="flex items-baseline gap-1.5">
         <span className="gp-label">Time</span>
-        <span className="gp-value text-lg">{formatClock(clockMs)}</span>
+        <span className="gp-value text-lg">{formatClock(shownClockMs)}</span>
       </span>
     </div>
   );
@@ -577,11 +587,28 @@ export const Game = () => {
           <TapHand at={pieceCenter(run.current)} taps={lesson.step === "rotate" ? 2 : 1} />
         )
       )}
-      {!solved && !tutorial && (
+      {tutorial &&
+        plusOnes.flatMap((pop) =>
+          pop.cells.map(({ x, y }) => (
+            <div key={`${pop.id}-${x}-${y}`} className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2" style={{ left: `${((x + 0.5) / 4) * 100}%`, top: `${((y + 0.5) / 4) * 100}%` }}>
+              <motion.span
+                className="block rounded-full border-2 border-[#1F1633] bg-white px-2 py-0.5 text-sm font-extrabold text-[#1F1633]"
+                initial={{ opacity: 0, y: 0, scale: 0.6 }}
+                animate={{ opacity: [0, 1, 1, 0], y: -38, scale: 1 }}
+                transition={{ duration: 0.95, ease: "easeOut", times: [0, 0.15, 0.7, 1] }}
+              >
+                +1
+              </motion.span>
+            </div>
+          ))
+        )}
+      {!solved && (
         <>
-          <button className="gp-corner-btn -left-2 -top-2" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title="Hint (H)">
-            {hintCoolingMs > 0 ? <span className="gp-value text-xl">{Math.ceil(hintCoolingMs / 1000)}</span> : <Lightbulb size={26} strokeWidth={2.75} className="text-[#E0A21B]" />}
-          </button>
+          {!tutorial && (
+            <button className="gp-corner-btn -left-2 -top-2" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title="Hint (H)">
+              {hintCoolingMs > 0 ? <span className="gp-value text-xl">{Math.ceil(hintCoolingMs / 1000)}</span> : <Lightbulb size={26} strokeWidth={2.75} className="text-[#E0A21B]" />}
+            </button>
+          )}
           <button
             className={cn("gp-corner-btn -right-2 -top-2", undosForHint > 0 && "gp-corner-btn-hinted")}
             onClick={undo}
@@ -609,7 +636,7 @@ export const Game = () => {
   const resultExtra = puzzle?.username ? (
     <>
       {!leaderboardWait.ready ? (
-        <div className="mt-4 grid min-h-[80px] place-items-center py-4">{leaderboardWait.showLoader && <CountingTile />}</div>
+        <LeaderboardSkeleton rank={puzzle.results[level]?.rank ?? 1} total={puzzle.results[level]?.total ?? FOLDED_ROWS_GUESS} pulse={leaderboardWait.showLoader} />
       ) : (
         <Leaderboard board={board} username={puzzle.username} />
       )}
@@ -654,8 +681,6 @@ export const Game = () => {
     </div>
   );
 
-  // The goal step is the big target over everything (TutorialIntro), so its card stays empty.
-  const lessonText = lesson.step === "done" || lesson.step === "goal" ? null : STEP_TEXT[lesson.step];
   const lessonSteps = Object.keys(STEP_TEXT);
   const lessonIndex = lesson.step === "done" ? lessonSteps.length : lessonSteps.indexOf(lesson.step);
   // Progress dots so the heading reads as where you are, not as a button to a tutorial.
@@ -681,50 +706,21 @@ export const Game = () => {
       </button>
     </div>
   );
-  const tutorialCard = (
-    <div className={cn("gp-card flex flex-col items-center justify-center gap-1.5 px-3 py-3 text-center", landscape ? "min-h-[136px]" : "flex-1")}>
-      {lessonText ? (
-        <motion.div key={lesson.step} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-          {/* The action itself sits on the board as a tooltip; the card keeps the why. */}
-          {lessonText.line && <h2 className={cn("font-display font-bold leading-tight", landscape ? "text-[24px]" : "text-[19px]")}>{lessonText.line}</h2>}
-          {!touch && lessonText.keys.length > 0 && (
-            <div className="mt-2 flex justify-center gap-1.5">
-              {lessonText.keys.map((key) => (
-                <motion.span
-                  key={key}
-                  className="font-display inline-grid h-9 min-w-[36px] place-items-center rounded-[10px] border-[2.5px] border-[#1F1633] bg-white px-2 text-sm font-bold"
-                  animate={{ y: [0, 2, 0], boxShadow: ["0 3px 0 #1F1633", "0 1px 0 #1F1633", "0 3px 0 #1F1633"] }}
-                  transition={{ duration: 0.9, repeat: Infinity }}
-                >
-                  {key}
-                </motion.span>
-              ))}
-            </div>
-          )}
-        </motion.div>
-      ) : (
-        lesson.step === "done" && <h2 className="font-display text-[22px] font-bold">Matched!</h2>
-      )}
-    </div>
-  );
+  // The tutorial plays in the game's own frame; its panel is shown but inert, with Moves counting.
+  const inertSide = <div className="pointer-events-none contents">{landscape ? statsCard : phoneSide}</div>;
+  const inertButtons = landscape ? <div className="pointer-events-none contents">{buttons}</div> : null;
 
   // While the puzzle loads: the real layout, empty and inert, with the board playing itself if it's slow.
   const loadingLayout = (
     <GameLayout
       viewport={viewport}
       top={<div className="pointer-events-none contents">{tutorial ? tutorialHeader : tabs}</div>}
-      side={
-        tutorial ? (
-          <div className={cn("gp-card", !landscape && "flex-1")} />
-        ) : (
-          <div className="pointer-events-none contents">{landscape ? statsCard : phoneSide}</div>
-        )
-      }
+      side={inertSide}
       target={<TargetCard target={EMPTY_TARGET} landscape={landscape} />}
       board={<DemoBoard active={showLoader} className="gp-board-wrap aspect-square w-full" />}
       next={<NextColumn queue={[]} landscape={landscape} />}
-      bottom={landscape && !tutorial ? <div className="pointer-events-none contents">{buttons}</div> : null}
-      hints={touch || tutorial ? undefined : <KeyHints />}
+      bottom={inertButtons}
+      hints={touch ? undefined : <KeyHints />}
     />
   );
 
@@ -736,11 +732,12 @@ export const Game = () => {
         <GameLayout
           viewport={viewport}
           top={tutorialHeader}
-          side={tutorialCard}
+          side={inertSide}
           target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} landed={lesson.step === "move"} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
           board={gameBoard}
           next={<NextColumn queue={run.queue} landscape={landscape} />}
-          bottom={null}
+          bottom={inertButtons}
+          hints={touch ? undefined : <KeyHints />}
         />
       ) : (
         <GameLayout

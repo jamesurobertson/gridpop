@@ -3,7 +3,6 @@ import GameBoard from "@/components/game/GameBoard";
 import type { GridType, Tetromino, TetrominoType } from "@/types/game";
 import { checkLinesToClear, clearRowsAndCols, createEmptyGrid, createTetromino, getCurrentShape, isValidPosition, placeTetromino, tryWallKick } from "@/utils/gameLogic";
 import { TETROMINO_SHAPES } from "@/utils/tetrominoShapes";
-import { TILES } from "@/utils/gameCellVisuals";
 
 /**
  * Shows nothing for the first `delayMs`, so fast loads never see a loader; once shown, it stays
@@ -126,24 +125,5 @@ export const DemoBoard = ({ active, className }: { active: boolean; className?: 
       gameOver={false}
       showPoints={false}
     />
-  );
-};
-
-/** One tile counting 1 to 4, then popping, for small spaces like the leaderboard. */
-export const CountingTile = () => {
-  const [value, setValue] = useState(1);
-  useEffect(() => {
-    const interval = setInterval(() => setValue((current) => (current % 5) + 1), 420);
-    return () => clearInterval(interval);
-  }, []);
-  const tile = value <= 4 ? TILES[value] : TILES[4];
-  return (
-    <div className="gp-count" role="status" aria-label="Loading">
-      <span className="gp-count-socket">
-        <i key={value} className={value <= 4 ? "gp-count-tile" : "gp-count-tile gp-count-pop"} style={{ background: tile.face, color: tile.text }}>
-          {value <= 4 ? value : 4}
-        </i>
-      </span>
-    </div>
   );
 };

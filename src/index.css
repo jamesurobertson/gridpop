@@ -462,39 +462,6 @@
   background: rgba(255, 255, 255, 0.55);
 }
 
-/* Loading, small: one tile counts up in its socket, then pops. */
-.gp-count {
-  display: grid;
-  width: 48px;
-  padding: 4px;
-  border-radius: 12px;
-  background: var(--gp-board);
-  border: 2px solid var(--gp-stroke);
-}
-.gp-count-socket { position: relative; aspect-ratio: 1; border-radius: 24%; background: var(--gp-socket); }
-.gp-count-tile {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 24%;
-  border: 2px solid var(--gp-stroke);
-  font: 700 17px / 1 "Fredoka", system-ui, sans-serif;
-  font-style: normal;
-  animation: gp-tile-in 0.22s ease-out both;
-}
-.gp-count-tile::before {
-  content: "";
-  position: absolute;
-  left: 13%;
-  top: 9%;
-  width: 34%;
-  height: 12%;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.55);
-}
-.gp-count-pop { animation: gp-tile-pop 0.3s ease-in forwards; }
-
 /* Loading, target boxes: the empty sockets shimmer corner to corner. */
 .gp-target-shimmer .gp-target-cell { animation: gp-socket-wave 1.5s ease-in-out infinite; animation-delay: calc((var(--x) + var(--y)) * 90ms); }
 /* Arrival: the puzzle's tiles pop in corner to corner. */
@@ -511,10 +478,9 @@
 
 @keyframes gp-socket-wave { 0%, 55%, 100% { background: var(--gp-socket); } 25% { background: #66559a; } }
 @keyframes gp-tile-in { 0% { transform: scale(0.35); opacity: 0; } 70% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
-@keyframes gp-tile-pop { 0% { transform: scale(1); filter: brightness(1.7); } 40% { transform: scale(1.15); filter: brightness(1.7); opacity: 1; } 100% { transform: scale(0.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .gp-target-shimmer .gp-target-cell { animation-duration: 3s; }
-  .gp-target-reveal .gp-target-tile, .gp-count-tile, .gp-count-pop { animation-duration: 0.01s; animation-delay: 0s; }
+  .gp-target-reveal .gp-target-tile { animation-duration: 0.01s; animation-delay: 0s; }
 }
 
 /* Small round buttons tucked on the board's corners (undo, hint). */

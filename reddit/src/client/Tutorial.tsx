@@ -73,13 +73,13 @@ export const onSpot = (run: RunState) => {
   return step === "place" || step === "place2";
 };
 
-export const STEP_TEXT: Record<Exclude<TutorialStep, "done">, { title: [string, string]; line?: string; keys: string[] }> = {
-  goal: { title: ["Match the target", "Match the target"], line: "Build this board", keys: [] },
-  move: { title: ["Drag to move", "Arrow keys to move"], line: "Line it up with the glowing area", keys: ["←", "↑", "↓", "→"] },
-  place: { title: ["Tap to place", "Space to place"], line: "Tiles go up by one", keys: ["Space"] },
-  rotate: { title: ["Double-tap to rotate", "A or D to rotate"], line: "Turn it to fit the glowing area", keys: ["A", "D"] },
-  move2: { title: ["Drag to move", "Arrow keys to move"], line: "Line it up with the glowing area", keys: ["←", "↑", "↓", "→"] },
-  place2: { title: ["Tap to place", "Space to place"], line: "1 + 1 makes 2", keys: ["Space"] },
+export const STEP_TEXT: Record<Exclude<TutorialStep, "done">, { title: [string, string] }> = {
+  goal: { title: ["Match the target", "Match the target"] },
+  move: { title: ["Drag to move", "Arrow keys to move"] },
+  place: { title: ["Tap to place", "Space to place"] },
+  rotate: { title: ["Double-tap to rotate", "A or D to rotate"] },
+  move2: { title: ["Drag to move", "Arrow keys to move"] },
+  place2: { title: ["Tap to place", "Space to place"] },
 };
 
 const Chip = ({ value }: { value: number }) => (

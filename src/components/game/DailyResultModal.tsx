@@ -98,14 +98,14 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
         // Focusing the bottom button would scroll a tall card past its own heading.
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="bg-[#3B2E5A] px-10 pb-3 pt-3.5 text-center text-white">
+        <div className="bg-[#3B2E5A] px-10 pb-3 pt-3.5 text-center text-white [@media(max-height:640px)]:pb-2 [@media(max-height:640px)]:pt-2.5">
           <DialogTitle className="font-display text-[22px] font-bold leading-tight tracking-tight">{heading}</DialogTitle>
           <DialogDescription className="mt-0.5 text-[13px] font-bold text-white/60">{puzzleName}</DialogDescription>
         </div>
 
-        <div className="px-4 pb-4 pt-3 text-center">
+        <div className="px-4 pb-4 pt-3 text-center [@media(max-height:640px)]:pt-2">
           {solved && (
-            <div className={cn("mb-3 grid gap-2", STAT_COLUMNS[3 + (hideGoal ? 0 : 1) + (run.hints !== undefined ? 1 : 0)])}>
+            <div className={cn("mb-3 grid gap-2 [@media(max-height:640px)]:mb-2", STAT_COLUMNS[3 + (hideGoal ? 0 : 1) + (run.hints !== undefined ? 1 : 0)])}>
               <Stat label="Moves" value={run.moves} />
               <Stat label="Restarts" value={run.restarts ?? 0} />
               {run.hints !== undefined && <Stat label="Hints" value={run.hints} />}
@@ -149,7 +149,7 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
           )}
 
           {/* Kept in view at the bottom of a card that scrolls on short screens. */}
-          <div className="sticky bottom-0 -mx-4 -mb-4 mt-3 flex flex-col gap-2 bg-white px-4 pb-4 pt-2">
+          <div className="sticky bottom-0 -mx-4 -mb-4 mt-3 flex flex-col gap-2 bg-white px-4 pb-4 pt-2 [@media(max-height:640px)]:mt-2 [@media(max-height:640px)]:pb-3 [@media(max-height:640px)]:pt-1">
             {(solved || !outcome) && (
               <div className="flex items-baseline justify-center gap-2">
                 <span className="gp-label">Next puzzle</span>

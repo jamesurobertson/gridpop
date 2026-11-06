@@ -25,7 +25,7 @@ export const CommentBox = ({ score }: { score: string | null }) => {
 
   return (
     <form
-      className="mt-3 text-left"
+      className="mt-3 text-left [@media(max-height:640px)]:mt-2"
       onSubmit={(e) => {
         e.preventDefault();
         void send();
