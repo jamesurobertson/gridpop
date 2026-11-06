@@ -49,12 +49,20 @@ export type TutorialStep = "goal" | "move" | "place" | "rotate" | "move2" | "pla
 const cellsOf = (piece: Tetromino) =>
   getCurrentShape(piece).flatMap((row, dy) => row.flatMap((on, dx) => (on ? [[piece.position.x + dx, piece.position.y + dy]] : [])));
 const sameCells = (a: number[][], b: number[][]) => a.length === b.length && a.every(([x, y]) => b.some(([bx, by]) => bx === x && by === y));
+/** The same shape facing the same way, wherever it sits: moving alone can take one onto the other. */
+const sameShape = (a: number[][], b: number[][]) => {
+  const shift = (cells: number[][]) => {
+    const [minX, minY] = [Math.min(...cells.map((c) => c[0])), Math.min(...cells.map((c) => c[1]))];
+    return cells.map(([x, y]) => [x - minX, y - minY]);
+  };
+  return sameCells(shift(a), shift(b));
+};
 
 /**
  * Where the run is in the tutorial, read straight off the board, and the spot the piece should go.
  * It opens on the goal, with no spot shown, until the player has seen what they're building.
  */
-export function tutorialStep(run: RunState, goalSeen: boolean): { step: TutorialStep; spot: { x: number; y: number }[] } {
+export function tutorialStep(run: RunState, goalSeen: boolean): { step: TutorialStep; spot: { x: number; y: number }[]; turn?: boolean } {
   if (!goalSeen) return { step: "goal", spot: [] };
   if (run.outcome === "solved") return { step: "done", spot: [] };
   const index = Math.min(run.moves, SPOTS.length - 1);
@@ -62,8 +70,10 @@ export function tutorialStep(run: RunState, goalSeen: boolean): { step: Tutorial
   const piece = run.current;
   if (!piece) return { step: "done", spot: [] };
   const there = sameCells(cellsOf(piece), SPOTS[index]);
-  if (index === 0) return { step: there ? "place" : "move", spot };
-  if (piece.rotation % 2 === 0) return { step: "rotate", spot };
+  const facing = sameShape(cellsOf(piece), SPOTS[index]);
+  // Turned by accident on the first piece: still the move step, but it needs turning back first.
+  if (index === 0) return { step: there ? "place" : "move", spot, turn: !facing };
+  if (!facing) return { step: "rotate", spot };
   return { step: there ? "place2" : "move2", spot };
 }
 

@@ -577,12 +577,12 @@ export const Game = () => {
         hintCells={tutorial ? lesson.spot : hintSpot}
         hintReady={tutorial ? onSpot(run) : onHintSpot}
       />
-      {tutorial && run.current && lesson.step !== "done" && lesson.step !== "goal" && <PieceTip piece={run.current} text={STEP_TEXT[lesson.step].title[touch ? 0 : 1]} />}
+      {tutorial && run.current && lesson.step !== "done" && lesson.step !== "goal" && <PieceTip piece={run.current} text={STEP_TEXT[lesson.turn ? "rotate" : lesson.step].title[touch ? 0 : 1]} />}
       {tutorial && touch && run.current && lesson.step !== "done" && lesson.step !== "goal" && (
-        lesson.step === "move" || lesson.step === "move2" ? (
+        (lesson.step === "move" || lesson.step === "move2") && !lesson.turn ? (
           <DragHand from={pieceCenter(run.current)} to={spotCenter(lesson.spot)} />
         ) : (
-          <TapHand at={pieceCenter(run.current)} taps={lesson.step === "rotate" ? 2 : 1} />
+          <TapHand at={pieceCenter(run.current)} taps={lesson.step === "rotate" || lesson.turn ? 2 : 1} />
         )
       )}
       {tutorial &&
