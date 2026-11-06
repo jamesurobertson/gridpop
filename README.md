@@ -29,7 +29,7 @@ Like Wordle, each puzzle is played once: after solving it you see your result un
 ## Reddit (r/gridpop)
 
 `reddit/` is a [Devvit](https://developers.reddit.com/) app that runs the daily puzzle inside Reddit
-posts, reusing the board, rules and puzzles from `src/`. Every day at 00:01 UTC it posts and pins
+posts, reusing the board, rules and puzzles from `src/`. Every day at 00:00 UTC it posts and pins
 that day's puzzle; mods can also use "Post today's GridPop" from the subreddit menu. The server
 replays each submitted run against the day's pieces before it counts, then keeps results, streaks
 and a leaderboard (score, then time) in Redis per Reddit user.

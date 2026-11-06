@@ -124,10 +124,22 @@
   }
   .gp-well-tap { @apply cursor-pointer transition-transform active:scale-95; }
 
+  /* A Next/Hold block, drawn like the piece on the board: a chunky tile with a shine, ringed white. */
   .gp-mini {
     position: relative;
     background: var(--pc);
     border: 2px solid var(--gp-stroke);
+    box-shadow: 0 0 0 2px #ffffff;
+  }
+  .gp-mini::before {
+    content: "";
+    position: absolute;
+    left: 13%;
+    top: 10%;
+    width: 38%;
+    height: 14%;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.6);
   }
 }
 
@@ -425,7 +437,37 @@
   font-size: 11cqw;
   line-height: 1;
 }
-.gp-target-tile { border: 1.5px solid var(--gp-stroke); }
+/* Target tiles look like the board's: ink outline and the little shine. */
+.gp-target-tile {
+  position: relative;
+  border: max(1.5px, 2.2cqw) solid var(--gp-stroke);
+}
+.gp-target-tile::before {
+  content: "";
+  position: absolute;
+  left: 13%;
+  top: 9%;
+  width: 34%;
+  height: 12%;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* Loading: the logo's four tiles pop in turn. */
+.gp-spinner { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18%; width: 44px; aspect-ratio: 1; }
+.gp-spinner i {
+  border-radius: 26%;
+  border: 2.5px solid var(--gp-stroke);
+  animation: gp-spinner 1s ease-in-out infinite;
+}
+.gp-spinner i:nth-child(2) { animation-delay: 0.15s; }
+.gp-spinner i:nth-child(4) { animation-delay: 0.3s; }
+.gp-spinner i:nth-child(3) { animation-delay: 0.45s; }
+@keyframes gp-spinner {
+  0%, 60%, 100% { transform: scale(1); }
+  30% { transform: scale(0.6); }
+}
+@media (prefers-reduced-motion: reduce) { .gp-spinner i { animation-duration: 2.4s; } }
 
 /* Small round buttons tucked on the board's corners (undo, hint). */
 .gp-corner-btn {

@@ -62,3 +62,51 @@ export const Keycap = ({ label, press }: { label: string; press: number }) => (
     {label}
   </motion.span>
 );
+
+type Point = { x: number; y: number };
+
+/** A tap (or double tap) on the spot, over and over: "place here" / "rotate it". */
+export const TapHand = ({ at, taps = 1 }: { at: Point; taps?: 1 | 2 }) => (
+  <div className="pointer-events-none absolute z-40 transition-[left,top] duration-300 ease-out" style={{ left: `${at.x}%`, top: `${at.y}%` }}>
+    <motion.span
+      className="absolute -left-5 -top-5 h-10 w-10 rounded-full border-[3px] border-white"
+      animate={{ scale: [0.3, 1.6], opacity: [0.9, 0] }}
+      transition={{ duration: 0.5, repeat: Infinity, repeatDelay: taps === 2 ? 0.15 : 0.9 }}
+    />
+    <motion.div
+      className="-translate-x-[30%] -translate-y-[8%]"
+      animate={{ scale: taps === 2 ? [1, 0.8, 1, 0.8, 1] : [1, 0.8, 1] }}
+      transition={{ duration: taps === 2 ? 0.6 : 0.35, repeat: Infinity, repeatDelay: taps === 2 ? 0.75 : 1.05 }}
+    >
+      <HandIcon />
+    </motion.div>
+  </div>
+);
+
+/**
+ * A drag, so it can't be mistaken for a tap: the hand presses on the piece, slides along a dashed
+ * path to where it should go, lifts, and goes again.
+ */
+export const DragHand = ({ from, to }: { from: Point; to: Point }) => (
+  <>
+    <svg className="pointer-events-none absolute inset-0 z-30 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+      <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="white" strokeOpacity={0.85} strokeWidth={1.6} strokeDasharray="3 3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+    <motion.div
+      key={`${from.x},${from.y}->${to.x},${to.y}`}
+      className="pointer-events-none absolute z-40"
+      initial={{ left: `${from.x}%`, top: `${from.y}%`, opacity: 0 }}
+      animate={{
+        left: [`${from.x}%`, `${from.x}%`, `${to.x}%`, `${to.x}%`],
+        top: [`${from.y}%`, `${from.y}%`, `${to.y}%`, `${to.y}%`],
+        opacity: [0, 1, 1, 0],
+        scale: [1.1, 0.88, 0.88, 1],
+      }}
+      transition={{ duration: 1.8, times: [0, 0.18, 0.75, 1], repeat: Infinity, repeatDelay: 0.35, ease: "easeInOut" }}
+    >
+      <div className="-translate-x-[30%] -translate-y-[8%]">
+        <HandIcon />
+      </div>
+    </motion.div>
+  </>
+);

@@ -5,7 +5,7 @@
 Paste into Mod Tools > General > Description. Plain text only (Reddit ignores markdown there), 500 characters max. This one is 391.
 
 ```
-GridPop is a daily number puzzle played right here in the feed. Drop pieces on a 4x4 board: every tile under a piece goes up by one. Fill a row or column with the same number and it pops. Build the target board in as few pieces as you can, but don't let a tile reach 7. A new puzzle is posted every day at 00:01 UTC in Easy, Normal and Hard. Keep your streak going and climb the leaderboard.
+GridPop is a daily number puzzle played right here in the feed. Drop pieces on a 4x4 board: every tile under a piece goes up by one. Fill a row or column with the same number and it pops. Build the target board in as few pieces as you can, but don't let a tile reach 7. A new puzzle is posted every day at 00:00 UTC in Easy, Normal and Hard. Keep your streak going and climb the leaderboard.
 ```
 
 ## Widget: How to play
@@ -19,7 +19,7 @@ GridPop is a daily number puzzle played right here in the feed. Drop pieces on a
 
 ## Widget: Daily puzzle
 
-- New puzzle: every day, 00:01 UTC
+- New puzzle: every day, 00:00 UTC
 - Levels: Easy, Normal, Hard
 - Scored run: your first solve each day; replays are practice
 - Score: pieces placed (fewer is better)

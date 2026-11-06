@@ -47,11 +47,11 @@ export const NextColumn = ({ queue, landscape, highlight }: { queue: (Tetromino 
   <div className={cn("flex shrink-0 flex-col items-center gap-2 rounded-2xl transition-shadow", landscape ? "w-[92px]" : "w-[68px]", highlight && "ring-4 ring-[#7C5CFF]/50 ring-offset-4 ring-offset-[#FFF6EA]")}>
     <div className={cn("gp-label", highlight && "text-[#7C5CFF]")}>Next</div>
     <div className={cn("gp-well w-full !p-2", highlight && "ring-[2.5px] ring-inset ring-[#7C5CFF]")}>
-      <PieceDisplay piece={queue[0] ?? null} />
+      <PieceDisplay piece={queue[0] ?? null} asTiles />
     </div>
     {[1, 2, 3].map((i) => (
       <div key={i} className={cn("gp-well !p-1.5", landscape ? "w-[72px]" : "w-[52px]")} style={{ opacity: 1 - i * 0.18 }}>
-        <PieceDisplay piece={queue[i] ?? null} />
+        <PieceDisplay piece={queue[i] ?? null} asTiles />
       </div>
     ))}
   </div>

@@ -45,7 +45,7 @@
     "tasks": {
       "daily-post": {
         "endpoint": "/internal/scheduler/daily-post",
-        "cron": "1 0 * * *"
+        "cron": "0 0 * * *"
       }
     }
   },

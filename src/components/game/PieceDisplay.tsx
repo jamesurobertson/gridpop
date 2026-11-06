@@ -1,13 +1,15 @@
 import { motion } from "framer-motion";
 import { Tetromino } from "@/types/game";
 import { getCurrentShape } from "@/utils/gameLogic";
-import { pieceColor } from "@/utils/gameCellVisuals";
+import { TILES, pieceColor } from "@/utils/gameCellVisuals";
 import { cn } from "@/lib/utils";
 
 interface PieceDisplayProps {
   piece: Tetromino | null;
   /** Fade it out (e.g. hold is used up this turn). */
   dim?: boolean;
+  /** Draw the blocks as the 1-tiles the piece makes on an empty board, like the piece in play. */
+  asTiles?: boolean;
   className?: string;
 }
 
@@ -20,12 +22,12 @@ function trimmed(piece: Tetromino): boolean[][] {
 }
 
 /** A small preview of a piece (Hold and Next), always on a 4-wide frame so sizes stay consistent. */
-const PieceDisplay = ({ piece, dim, className }: PieceDisplayProps) => {
+const PieceDisplay = ({ piece, dim, className, asTiles }: PieceDisplayProps) => {
   if (!piece) return <div className={cn("aspect-square w-full", className)} />;
   const shape = trimmed(piece);
   const w = shape[0].length;
   const h = shape.length;
-  const color = pieceColor(piece.shape.type);
+  const color = asTiles ? TILES[1].face : pieceColor(piece.shape.type);
   return (
     <motion.div
       key={`${piece.shape.type}-${piece.rotation}`}

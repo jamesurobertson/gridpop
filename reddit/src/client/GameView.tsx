@@ -12,8 +12,9 @@ import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
 import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, requestHint, saveClock, saveLevel, submitRun } from "./api";
-import { HowToPlay, firstVisit, markSeen } from "./HowToPlay";
-import { Hand, pieceCenter, usesTouch } from "./Coach";
+import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, firstVisit, markSeen, onSpot, tutorialStep } from "./Tutorial";
+import { DragHand, Hand, TapHand, pieceCenter, usesTouch } from "./Coach";
+import { Spinner } from "./Spinner";
 import { Leaderboard } from "./Leaderboard";
 import { CommentBox } from "./CommentBox";
 import { GameLayout, KeyHints, NextColumn, TargetCard, useViewport } from "./GameLayout";
@@ -27,6 +28,12 @@ const HINT_COOLDOWN_MS = 10_000;
 /** The cells a piece would cover at a hint's spot. */
 const cellsAt = (piece: Tetromino, { rotation, x, y }: Placement) =>
   getCurrentShape({ ...piece, rotation, position: { x, y } }).flatMap((row, dy) => row.flatMap((on, dx) => (on ? [{ x: x + dx, y: y + dy }] : [])));
+
+/** The middle of a set of cells, in % of the board. */
+const spotCenter = (cells: { x: number; y: number }[]) => ({
+  x: ((cells.reduce((sum, c) => sum + c.x, 0) / Math.max(1, cells.length) + 0.5) / 4) * 100,
+  y: ((cells.reduce((sum, c) => sum + c.y, 0) / Math.max(1, cells.length) + 0.5) / 4) * 100,
+});
 
 export const Game = () => {
   const [puzzle, setPuzzle] = useState<PuzzleResponse | null>(null);
@@ -49,7 +56,10 @@ export const Game = () => {
   const [practice, setPractice] = useState(false);
   const [practiceAttempts, setPracticeAttempts] = useState(0);
   const [practiceResult, setPracticeResult] = useState<DailyResult | null>(null);
-  const [showRules, setShowRules] = useState(firstVisit);
+  // The tutorial level plays on the real board; first-time players start there.
+  const [tutorial, setTutorial] = useState(firstVisit);
+  const [tutorialDoneOpen, setTutorialDoneOpen] = useState(false);
+  const [boardLoading, setBoardLoading] = useState(false);
   // The very first game gets pointers: what to match, and how to put a piece down.
   const [coaching, setCoaching] = useState(() => {
     try {
@@ -101,7 +111,13 @@ export const Game = () => {
     if (saved) {
       dispatch({ type: "showSolved", target: parseTarget(data.levels[next].target) });
       setShowResult(true);
-      if (data.username) void fetchLeaderboard(next).then(setBoard).catch(() => undefined);
+      if (data.username) {
+        setBoardLoading(true);
+        void fetchLeaderboard(next)
+          .then(setBoard)
+          .catch(() => undefined)
+          .finally(() => setBoardLoading(false));
+      }
     } else {
       dispatch({ type: "start", pieces: data.levels[next].pieces });
       setShowResult(false);
@@ -113,6 +129,7 @@ export const Game = () => {
       .then((data) => {
         setPuzzle(data);
         openLevel(data, level);
+        if (firstVisit()) startTutorial();
       })
       .catch(() => setLoadFailed(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,8 +165,9 @@ export const Game = () => {
   // ---------- turn flow ----------
 
   useEffect(() => {
-    if (!run.pendingClear || !target) return;
-    const timeout = setTimeout(() => dispatch({ type: "clear", target }), 200);
+    const clearTarget = tutorial ? TUTORIAL_TARGET : target;
+    if (!run.pendingClear || !clearTarget) return;
+    const timeout = setTimeout(() => dispatch({ type: "clear", target: clearTarget }), 200);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run.pendingClear]);
@@ -170,6 +188,14 @@ export const Game = () => {
 
   useEffect(() => {
     if (!puzzle || !levelPuzzle || !run.outcome) return;
+    if (tutorial) {
+      if (run.outcome === "solved") {
+        sfx.play("best", { delay: 0.25 });
+        // A beat to see the board match the target, then the wrap-up card.
+        setTimeout(() => setTutorialDoneOpen(true), 900);
+      }
+      return;
+    }
     if (practice) {
       if (run.outcome === "solved") {
         sfx.play("best", { delay: 0.25 });
@@ -214,7 +240,7 @@ export const Game = () => {
 
   // ---------- controls ----------
 
-  const playable = !!run.current && !run.outcome && !run.pendingClear && !showResult && !showRules;
+  const playable = !!run.current && !run.outcome && !run.pendingClear && !showResult && !tutorialDoneOpen;
 
   const bump = () => {
     sfx.play("bump");
@@ -222,7 +248,7 @@ export const Game = () => {
   };
 
   const startClock = () => {
-    if (!clockRunning) setClockRunning(true);
+    if (!clockRunning && !tutorial) setClockRunning(true);
   };
 
   const move = (direction: "left" | "right" | "up" | "down") => {
@@ -248,6 +274,12 @@ export const Game = () => {
 
   const place = () => {
     if (!playable || !puzzle) return;
+    if (tutorial) {
+      if (!onSpot(run)) return bump();
+      sfx.play("place", { jitter: 0.06 });
+      dispatch({ type: "place" });
+      return;
+    }
     startClock();
     const firstPlacement = countedRun.current !== runNumber;
     countedRun.current = runNumber;
@@ -278,7 +310,7 @@ export const Game = () => {
     dispatch({ type: "place" });
   };
 
-  const canUndo = run.history.length > 0 && !run.pendingClear && run.outcome !== "solved" && !showRules;
+  const canUndo = run.history.length > 0 && !run.pendingClear && run.outcome !== "solved" && !tutorial;
 
   const undo = () => {
     if (!canUndo) return bump();
@@ -290,7 +322,7 @@ export const Game = () => {
   const hintCoolingMs = Math.max(0, hintReadyAt - now);
 
   const askHint = () => {
-    if (!puzzle || !run.current || run.outcome || run.pendingClear || showRules || hintCoolingMs > 0) return bump();
+    if (!puzzle || !run.current || run.outcome || run.pendingClear || tutorial || hintCoolingMs > 0) return bump();
     startClock();
     const askedAt = run.moves;
     setHintReadyAt(Date.now() + HINT_COOLDOWN_MS);
@@ -319,6 +351,29 @@ export const Game = () => {
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [hintReadyAt]);
+
+  const startTutorial = () => {
+    setTutorial(true);
+    setTutorialDoneOpen(false);
+    setShowResult(false);
+    setHint(null);
+    setClockRunning(false);
+    setRunNumber((n) => n + 1);
+    dispatch({ type: "start", pieces: TUTORIAL_PIECES });
+  };
+
+  const finishTutorial = () => {
+    markSeen();
+    setCoaching(false);
+    try {
+      localStorage.setItem("gridpop-coached", "1");
+    } catch {
+      // Storage blocked: the first-game pointers show once more, which is harmless.
+    }
+    setTutorial(false);
+    setTutorialDoneOpen(false);
+    if (puzzle) openLevel(puzzle, level);
+  };
 
   const restart = () => {
     if (!levelPuzzle) return;
@@ -358,13 +413,6 @@ export const Game = () => {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  // Reddit asks for silence once the post is out of sight.
-  useEffect(() => {
-    const onVisibility = () => sfx.setMuted(document.hidden || muted);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [muted]);
-
   const toggleMute = () => {
     sfx.setMuted(!muted);
     setMuted(!muted);
@@ -373,9 +421,15 @@ export const Game = () => {
   // ---------- layout ----------
 
   if (loadFailed) return <p className="p-8 text-center font-bold text-[color:var(--gp-muted)]">Couldn't load today's puzzle.</p>;
-  if (!puzzle || !levelPuzzle || !target) return <div className="h-[100dvh]" />;
+  if (!puzzle || !levelPuzzle || !target)
+    return (
+      <div className="grid h-[100dvh] place-items-center">
+        <Spinner />
+      </div>
+    );
 
   const solved = run.outcome === "solved";
+  const lesson = tutorialStep(run);
   const setup = { date: puzzle.date, level, number: puzzle.number, pieces: levelPuzzle.pieces, target, par: levelPuzzle.par, showSolved: !!result };
   const stat = (label: string, value: ReactNode) => (
     <div className="text-center">
@@ -394,14 +448,27 @@ export const Game = () => {
     </div>
   );
 
-  const statsCard = (
-    <div className={cn("gp-card grid grid-cols-2 content-center px-2 py-2.5", !landscape && "flex-1")}>
-      {stat("Moves", result && !practice ? result.moves : run.moves)}
+  const moves = result && !practice ? result.moves : run.moves;
+  // Wide screens have room for a full card; phones get one slim strip so the board keeps the space.
+  const statsCard = landscape ? (
+    <div className="gp-card grid grid-cols-2 content-center px-2 py-2.5">
+      {stat("Moves", moves)}
       {stat("Time", formatClock(clockMs))}
+    </div>
+  ) : (
+    <div className="gp-card flex items-center justify-around px-3 py-2">
+      <span className="flex items-baseline gap-1.5">
+        <span className="gp-label">Moves</span>
+        <span className="gp-value text-lg">{moves}</span>
+      </span>
+      <span className="flex items-baseline gap-1.5">
+        <span className="gp-label">Time</span>
+        <span className="gp-value text-lg">{formatClock(clockMs)}</span>
+      </span>
     </div>
   );
 
-  const showCoach = coaching && !result && run.moves === 0 && !!run.current && !showRules && !showResult;
+  const showCoach = coaching && !tutorial && !result && run.moves === 0 && !!run.current && !showResult;
 
   const coachPill = (text: string, className?: string) => (
     <motion.span
@@ -426,7 +493,7 @@ export const Game = () => {
           <span className="gp-value text-lg">{stats.streak}</span>
         </button>
       )}
-      <button className="gp-icon-btn shrink-0" onClick={() => setShowRules(true)} aria-label="How to play">
+      <button className="gp-icon-btn shrink-0" onClick={startTutorial} aria-label="How to play">
         <CircleHelp size={20} strokeWidth={2.5} />
       </button>
       <button className="gp-icon-btn shrink-0" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
@@ -460,15 +527,22 @@ export const Game = () => {
         onPieceRotate={rotate}
         gameOver={!!run.outcome && !solved}
         showPoints={false}
-        hintCells={hint && run.current ? cellsAt(run.current, hint.placement) : undefined}
+        hintCells={tutorial ? lesson.spot : hint && run.current ? cellsAt(run.current, hint.placement) : undefined}
       />
-      {!solved && (
+      {tutorial && touch && run.current && lesson.step !== "done" && (
+        lesson.step === "move" || lesson.step === "move2" ? (
+          <DragHand from={pieceCenter(run.current)} to={spotCenter(lesson.spot)} />
+        ) : (
+          <TapHand at={pieceCenter(run.current)} taps={lesson.step === "rotate" ? 2 : 1} />
+        )
+      )}
+      {!solved && !tutorial && (
         <>
-          <button className="gp-corner-btn -left-2 -top-2" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Z)">
-            <Undo2 size={26} strokeWidth={2.75} />
-          </button>
-          <button className="gp-corner-btn -right-2 -top-2" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title="Hint (H)">
+          <button className="gp-corner-btn -left-2 -top-2" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title="Hint (H)">
             {hintCoolingMs > 0 ? <span className="gp-value text-xl">{Math.ceil(hintCoolingMs / 1000)}</span> : <Lightbulb size={26} strokeWidth={2.75} className="text-[#E0A21B]" />}
+          </button>
+          <button className="gp-corner-btn -right-2 -top-2" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Z)">
+            <Undo2 size={26} strokeWidth={2.75} />
           </button>
         </>
       )}
@@ -485,7 +559,13 @@ export const Game = () => {
   // The day's leaderboard and comments belong with every result, practice runs included.
   const resultExtra = puzzle.username ? (
     <>
-      <Leaderboard board={board} username={puzzle.username} />
+      {boardLoading && !board ? (
+        <div className="mt-4 grid place-items-center py-4">
+          <Spinner />
+        </div>
+      ) : (
+        <Leaderboard board={board} username={puzzle.username} />
+      )}
       {result && <CommentBox />}
     </>
   ) : (
@@ -494,20 +574,92 @@ export const Game = () => {
     </button>
   );
 
-  const closeRules = () => {
-    markSeen();
-    setShowRules(false);
-  };
+  // On phones the buttons sit beside the target, under the slim stats, freeing the bottom for the board.
+  const phoneSide = (
+    <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
+      {statsCard}
+      <div className="flex gap-2">
+        <button className="gp-btn min-w-0 flex-1 !px-2" onClick={() => setShowResult(true)} aria-label="Stats">
+          <Flame size={18} strokeWidth={2.5} className="text-[#FF7A3D]" />
+          <span className="gp-value text-lg">{stats.streak}</span>
+        </button>
+        <button className="gp-icon-btn shrink-0" onClick={startTutorial} aria-label="How to play">
+          <CircleHelp size={20} strokeWidth={2.5} />
+        </button>
+        <button className="gp-icon-btn shrink-0" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
+          {muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />}
+        </button>
+      </div>
+      {result ? (
+        <div className="flex gap-2">
+          <button className="gp-btn min-w-0 flex-1 whitespace-nowrap !px-2" onClick={() => setShowResult(true)}>
+            <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" /> Leaderboard
+          </button>
+          <button className="gp-icon-btn gp-btn-primary shrink-0" onClick={restart} aria-label="Play again">
+            <RotateCcw size={18} strokeWidth={3} />
+          </button>
+        </div>
+      ) : (
+        <button className="gp-btn gp-btn-primary w-full whitespace-nowrap" onClick={restart}>
+          <RotateCcw size={18} strokeWidth={3} /> Restart
+        </button>
+      )}
+    </div>
+  );
+
+  const lessonText = lesson.step === "done" ? null : STEP_TEXT[lesson.step];
+  const tutorialHeader = (
+    <div className="flex items-center justify-between px-1">
+      <h1 className="font-display text-[28px] font-bold leading-none">Tutorial</h1>
+      <button className="text-sm font-extrabold text-[color:var(--gp-muted)] hover:text-[color:var(--gp-ink)]" onClick={finishTutorial}>
+        Skip
+      </button>
+    </div>
+  );
+  const tutorialCard = (
+    <div className={cn("gp-card flex flex-col items-center justify-center gap-1.5 px-3 py-3 text-center", !landscape && "flex-1")}>
+      {lessonText ? (
+        <motion.div key={lesson.step} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+          <h2 className={cn("font-display font-bold leading-tight", landscape ? "text-[28px]" : "text-[21px]")}>{lessonText.title[touch ? 0 : 1]}</h2>
+          {lessonText.line && <p className="mt-1 text-sm font-bold text-[color:var(--gp-muted)]">{lessonText.line}</p>}
+          {!touch && (
+            <div className="mt-2 flex justify-center gap-1.5">
+              {lessonText.keys.map((key) => (
+                <motion.span
+                  key={key}
+                  className="font-display inline-grid h-9 min-w-[36px] place-items-center rounded-[10px] border-[2.5px] border-[#1F1633] bg-white px-2 text-sm font-bold"
+                  animate={{ y: [0, 2, 0], boxShadow: ["0 3px 0 #1F1633", "0 1px 0 #1F1633", "0 3px 0 #1F1633"] }}
+                  transition={{ duration: 0.9, repeat: Infinity }}
+                >
+                  {key}
+                </motion.span>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      ) : (
+        <h2 className="font-display text-[22px] font-bold">Matched!</h2>
+      )}
+    </div>
+  );
 
   return (
     <div className="h-[100dvh] overflow-hidden">
-      {showRules ? (
-        <HowToPlay viewport={viewport} onClose={closeRules} />
+      {tutorial ? (
+        <GameLayout
+          viewport={viewport}
+          top={tutorialHeader}
+          side={tutorialCard}
+          target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} highlight={lesson.step === "done" ? "solved" : lesson.step === "place2" ? "flash" : undefined} />}
+          board={gameBoard}
+          next={<NextColumn queue={run.queue} landscape={landscape} highlight={lesson.step === "rotate"} />}
+          bottom={null}
+        />
       ) : (
         <GameLayout
           viewport={viewport}
           top={tabs}
-          side={statsCard}
+          side={landscape ? statsCard : phoneSide}
           target={
             <TargetCard target={target} landscape={landscape} highlight={showCoach ? "coach" : undefined}>
               {showCoach && coachPill("Match this", "-bottom-3.5 left-1/2 -translate-x-1/2")}
@@ -515,10 +667,12 @@ export const Game = () => {
           }
           board={gameBoard}
           next={<NextColumn queue={run.queue} landscape={landscape} />}
-          bottom={buttons}
+          bottom={landscape ? buttons : null}
           hints={touch ? undefined : <KeyHints />}
         />
       )}
+
+      <TutorialDone isOpen={tutorial && tutorialDoneOpen} onPlay={finishTutorial} />
 
       <DailyResultModal
         isOpen={showResult}
