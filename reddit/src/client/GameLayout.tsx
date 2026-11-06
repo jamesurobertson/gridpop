@@ -26,7 +26,7 @@ const stageScale = (viewport: Viewport, stageHeight: number) =>
 
 export type Viewport = ReturnType<typeof useViewport>;
 
-export const TargetCard = ({ target, landscape, highlight, dim, children }: { target: GridType; landscape: boolean; highlight?: "coach" | "solved" | "flash"; dim?: boolean; children?: ReactNode }) => (
+export const TargetCard = ({ target, landscape, highlight, dim, reveal, children }: { target: GridType; landscape: boolean; highlight?: "coach" | "solved" | "flash"; dim?: boolean; reveal?: boolean; children?: ReactNode }) => (
   <div
     className={cn(
       "gp-card relative p-2.5 transition-shadow",
@@ -37,7 +37,7 @@ export const TargetCard = ({ target, landscape, highlight, dim, children }: { ta
     )}
   >
     <div className="gp-label mb-1.5">Target</div>
-    <TargetGrid grid={target} className={cn("w-full transition-opacity", landscape && "mx-auto max-w-[236px]", dim && "opacity-40")} />
+    <TargetGrid grid={target} reveal={reveal} className={cn("w-full transition-opacity", landscape && "mx-auto max-w-[236px]", dim && "opacity-40")} />
     {children}
   </div>
 );

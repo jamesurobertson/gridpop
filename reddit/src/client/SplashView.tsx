@@ -3,9 +3,10 @@ import { context, requestExpandedMode } from "@devvit/web/client";
 import { Flame } from "lucide-react";
 import TargetGrid from "@/components/game/TargetGrid";
 import { DAILY_LEVELS, DailyLevel, dailyScore, parseTarget, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
+import { createEmptyGrid } from "@/utils/gameLogic";
 import type { PuzzleResponse } from "../shared/api";
 import { fetchPuzzle, saveLevel } from "./api";
-import { Loader } from "./Loader";
+import { usePatientLoading } from "./Loader";
 
 const postDate = () => {
   const date = (context?.postData as { date?: unknown } | undefined)?.date;
@@ -31,6 +32,8 @@ function cachePuzzle(puzzle: PuzzleResponse) {
     // Storage blocked or full: the next load waits for the server instead.
   }
 }
+
+const EMPTY_TARGET = createEmptyGrid(4);
 
 const dayName = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -77,6 +80,9 @@ const Wordmark = () => (
 export const Splash = () => {
   const date = postDate();
   const [puzzle, setPuzzle] = useState<PuzzleResponse | null>(() => cachedPuzzle(date));
+  // A cached card draws at once; only one that waited on the network gets the tiles popping in.
+  const [waited] = useState(() => puzzle === null);
+  const { showLoader, ready } = usePatientLoading(!puzzle);
 
   useEffect(() => {
     fetchPuzzle()
@@ -101,17 +107,15 @@ export const Splash = () => {
       </div>
       <div className="grid w-full max-w-[420px] grid-cols-3 gap-2.5">
         {DAILY_LEVELS.map(({ level, label }) => {
-          const result = puzzle?.results[level];
+          const result = ready ? puzzle?.results[level] : null;
           const streak = puzzle?.stats[level].streak ?? 0;
           return (
             <button key={level} className="gp-card flex flex-col items-center gap-2 p-2.5 transition-transform active:scale-95" onClick={(e) => play(e, level)}>
               <span className="font-display text-base font-bold">{label}</span>
-              {puzzle ? (
-                <TargetGrid grid={parseTarget(puzzle.levels[level].target)} className="w-full" />
+              {puzzle && ready ? (
+                <TargetGrid grid={parseTarget(puzzle.levels[level].target)} reveal={waited} className="w-full" />
               ) : (
-                <span className="grid aspect-square w-full place-items-center rounded-2xl bg-[#F4ECE0]">
-                  <Loader size={64} />
-                </span>
+                <TargetGrid grid={EMPTY_TARGET} shimmer={showLoader} className="w-full" />
               )}
               {result ? (
                 <span className="flex min-h-[32px] items-center gap-2 text-sm font-extrabold">

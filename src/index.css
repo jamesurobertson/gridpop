@@ -460,76 +460,50 @@
   background: rgba(255, 255, 255, 0.55);
 }
 
-/* Loading: the logo's four tiles pop in turn. */
-/* Loading: three 1s drop onto a little board in turn, then the full row pops, and again. */
-.gp-loader {
-  --s: 84px;
+/* Loading, small: one tile counts up in its socket, then pops. */
+.gp-count {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: calc(var(--s) * 0.06);
-  width: var(--s);
-  padding: calc(var(--s) * 0.07);
-  border-radius: calc(var(--s) * 0.16);
+  width: 48px;
+  padding: 4px;
+  border-radius: 12px;
   background: var(--gp-board);
-  border: calc(var(--s) * 0.03) solid var(--gp-stroke);
+  border: 2px solid var(--gp-stroke);
 }
-.gp-loader > span {
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 24%;
-  background: var(--gp-socket);
-}
-.gp-loader i {
+.gp-count-socket { position: relative; aspect-ratio: 1; border-radius: 24%; background: var(--gp-socket); }
+.gp-count-tile {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   border-radius: 24%;
-  background: #ffd45e;
-  border: calc(var(--s) * 0.024) solid var(--gp-stroke);
-  color: #6e4300;
-  font: 700 calc(var(--s) * 0.15) / 1 "Fredoka", system-ui, sans-serif;
+  border: 2px solid var(--gp-stroke);
+  font: 700 17px / 1 "Fredoka", system-ui, sans-serif;
   font-style: normal;
-  opacity: 0;
-  animation: 1.8s ease-in-out infinite;
+  animation: gp-tile-in 0.22s ease-out both;
 }
-.gp-loader i::before {
+.gp-count-tile::before {
   content: "";
   position: absolute;
-  left: 14%;
-  top: 10%;
+  left: 13%;
+  top: 9%;
   width: 34%;
   height: 12%;
   border-radius: 99px;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.55);
 }
-.gp-loader > span:nth-child(1) i { animation-name: gp-loader-1; }
-.gp-loader > span:nth-child(2) i { animation-name: gp-loader-2; }
-.gp-loader > span:nth-child(3) i { animation-name: gp-loader-3; }
-/* Each tile drops in at its own beat; all three pop together. */
-@keyframes gp-loader-1 {
-  0%, 4% { opacity: 0; transform: scale(0.3); }
-  12% { opacity: 1; transform: scale(1.1); }
-  17%, 64% { opacity: 1; transform: scale(1); filter: none; }
-  71% { opacity: 1; transform: scale(1.14); filter: brightness(1.7); }
-  80%, 100% { opacity: 0; transform: scale(0.2); filter: brightness(1.7); }
-}
-@keyframes gp-loader-2 {
-  0%, 18% { opacity: 0; transform: scale(0.3); }
-  26% { opacity: 1; transform: scale(1.1); }
-  31%, 64% { opacity: 1; transform: scale(1); filter: none; }
-  71% { opacity: 1; transform: scale(1.14); filter: brightness(1.7); }
-  80%, 100% { opacity: 0; transform: scale(0.2); filter: brightness(1.7); }
-}
-@keyframes gp-loader-3 {
-  0%, 32% { opacity: 0; transform: scale(0.3); }
-  40% { opacity: 1; transform: scale(1.1); }
-  45%, 64% { opacity: 1; transform: scale(1); filter: none; }
-  71% { opacity: 1; transform: scale(1.14); filter: brightness(1.7); }
-  80%, 100% { opacity: 0; transform: scale(0.2); filter: brightness(1.7); }
-}
+.gp-count-pop { animation: gp-tile-pop 0.3s ease-in forwards; }
+
+/* Loading, target boxes: the empty sockets shimmer corner to corner. */
+.gp-target-shimmer .gp-target-cell { animation: gp-socket-wave 1.5s ease-in-out infinite; animation-delay: calc((var(--x) + var(--y)) * 90ms); }
+/* Arrival: the puzzle's tiles pop in corner to corner. */
+.gp-target-reveal .gp-target-tile { animation: gp-tile-in 0.3s ease-out both; animation-delay: calc((var(--x) + var(--y)) * 55ms); }
+
+@keyframes gp-socket-wave { 0%, 55%, 100% { background: var(--gp-socket); } 25% { background: #66559a; } }
+@keyframes gp-tile-in { 0% { transform: scale(0.35); opacity: 0; } 70% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes gp-tile-pop { 0% { transform: scale(1); filter: brightness(1.7); } 40% { transform: scale(1.15); filter: brightness(1.7); opacity: 1; } 100% { transform: scale(0.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .gp-loader i { animation-duration: 3.6s; }
+  .gp-target-shimmer .gp-target-cell { animation-duration: 3s; }
+  .gp-target-reveal .gp-target-tile, .gp-count-tile, .gp-count-pop { animation-duration: 0.01s; animation-delay: 0s; }
 }
 
 /* Small round buttons tucked on the board's corners (undo, hint). */

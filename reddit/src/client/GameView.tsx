@@ -4,7 +4,7 @@ import { showLoginPrompt, showShareSheet, showToast } from "@devvit/web/client";
 import { CircleHelp, Flame, Lightbulb, RotateCcw, Trophy, Undo2, Volume2, VolumeX } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
 import DailyResultModal from "@/components/game/DailyResultModal";
-import { getCurrentShape, isValidPosition, tryWallKick } from "@/utils/gameLogic";
+import { createEmptyGrid, getCurrentShape, isValidPosition, tryWallKick } from "@/utils/gameLogic";
 import type { Placement, RunAction } from "@/utils/dailyRun";
 import type { Tetromino } from "@/types/game";
 import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, msUntilEasternMidnight, parseTarget } from "@/utils/dailyCore";
@@ -14,7 +14,7 @@ import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } fro
 import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, requestHint, saveClock, saveLevel, submitRun } from "./api";
 import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, firstVisit, markSeen, onSpot, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, TapHand, pieceCenter, usesTouch } from "./Coach";
-import { Loader } from "./Loader";
+import { CountingTile, DemoBoard, usePatientLoading } from "./Loader";
 import { Leaderboard } from "./Leaderboard";
 import { CommentBox } from "./CommentBox";
 import { GameLayout, KeyHints, NextColumn, TargetCard, useViewport } from "./GameLayout";
@@ -24,6 +24,7 @@ const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0,
 
 const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " ", undo: "z", hint: "h" };
 const HINT_COOLDOWN_MS = 10_000;
+const EMPTY_TARGET = createEmptyGrid(4);
 
 /** The cells a piece would cover at a hint's spot. */
 const cellsAt = (piece: Tetromino, { rotation, x, y }: Placement) =>
@@ -93,6 +94,8 @@ export const Game = () => {
 
   const levelPuzzle = puzzle?.levels[level];
   const target = levelPuzzle ? parseTarget(levelPuzzle.target) : null;
+  const { showLoader, ready } = usePatientLoading(!puzzle);
+  const leaderboardWait = usePatientLoading(boardLoading && !board);
 
   /** Keeps the loaded puzzle in step, so switching levels and back shows what happened there. */
   const remember = (forLevel: DailyLevel, change: { result?: SavedResult; stats?: LevelStats; attempts?: number }) =>
@@ -254,7 +257,7 @@ export const Game = () => {
 
   // ---------- controls ----------
 
-  const playable = !!run.current && !run.outcome && !run.pendingClear && !showResult && !tutorialDoneOpen && !(tutorial && !tutorialGoalSeen);
+  const playable = ready && !!run.current && !run.outcome && !run.pendingClear && !showResult && !tutorialDoneOpen && !(tutorial && !tutorialGoalSeen);
 
   const bump = () => {
     sfx.play("bump");
@@ -456,16 +459,11 @@ export const Game = () => {
   // ---------- layout ----------
 
   if (loadFailed) return <p className="p-8 text-center font-bold text-[color:var(--gp-muted)]">Couldn't load today's puzzle.</p>;
-  if (!puzzle || !levelPuzzle || !target)
-    return (
-      <div className="grid h-[100dvh] place-items-center">
-        <Loader />
-      </div>
-    );
+  const loaded = ready && !!puzzle && !!levelPuzzle && !!target;
 
   const solved = run.outcome === "solved";
   const lesson = tutorialStep(run, tutorialGoalSeen);
-  const setup = { date: puzzle.date, level, number: puzzle.number, pieces: levelPuzzle.pieces, target, par: levelPuzzle.par, showSolved: !!result };
+  const setup = puzzle && levelPuzzle && target ? { date: puzzle.date, level, number: puzzle.number, pieces: levelPuzzle.pieces, target, par: levelPuzzle.par, showSolved: !!result } : null;
   const stat = (label: string, value: ReactNode) => (
     <div className="text-center">
       <div className="gp-label">{label}</div>
@@ -604,12 +602,10 @@ export const Game = () => {
 
   const shownRun = practice ? practiceResult : result;
   // The day's leaderboard and comments belong with every result, practice runs included.
-  const resultExtra = puzzle.username ? (
+  const resultExtra = puzzle?.username ? (
     <>
-      {boardLoading && !board ? (
-        <div className="mt-4 grid place-items-center py-4">
-          <Loader />
-        </div>
+      {!leaderboardWait.ready ? (
+        <div className="mt-4 grid min-h-[80px] place-items-center py-4">{leaderboardWait.showLoader && <CountingTile />}</div>
       ) : (
         <Leaderboard board={board} username={puzzle.username} />
       )}
@@ -712,9 +708,31 @@ export const Game = () => {
     </div>
   );
 
+  // While the puzzle loads: the real layout, empty and inert, with the board playing itself if it's slow.
+  const loadingLayout = (
+    <GameLayout
+      viewport={viewport}
+      top={<div className="pointer-events-none contents">{tutorial ? tutorialHeader : tabs}</div>}
+      side={
+        tutorial ? (
+          <div className={cn("gp-card", !landscape && "flex-1")} />
+        ) : (
+          <div className="pointer-events-none contents">{landscape ? statsCard : phoneSide}</div>
+        )
+      }
+      target={<TargetCard target={EMPTY_TARGET} landscape={landscape} />}
+      board={<DemoBoard active={showLoader} className="gp-board-wrap aspect-square w-full" />}
+      next={<NextColumn queue={[]} landscape={landscape} />}
+      bottom={landscape && !tutorial ? <div className="pointer-events-none contents">{buttons}</div> : null}
+      hints={touch || tutorial ? undefined : <KeyHints />}
+    />
+  );
+
   return (
-    <div className="h-[100dvh] overflow-hidden">
-      {tutorial ? (
+    <div className="h-[100dvh] overflow-hidden" aria-busy={!loaded}>
+      {!loaded || !target ? (
+        loadingLayout
+      ) : tutorial ? (
         <GameLayout
           viewport={viewport}
           top={tutorialHeader}
@@ -730,7 +748,7 @@ export const Game = () => {
           top={tabs}
           side={landscape ? statsCard : phoneSide}
           target={
-            <TargetCard target={target} landscape={landscape} highlight={showCoach ? "coach" : undefined}>
+            <TargetCard key={level} target={target} landscape={landscape} highlight={showCoach ? "coach" : undefined} reveal>
               {showCoach && coachPill("Match this", "-bottom-3.5 left-1/2 -translate-x-1/2")}
             </TargetCard>
           }
@@ -743,22 +761,24 @@ export const Game = () => {
 
       <TutorialDone isOpen={tutorial && tutorialDoneOpen} onPlay={finishTutorial} />
 
-      <DailyResultModal
-        msUntilNext={msUntilEasternMidnight}
-        isOpen={showResult}
-        onClose={() => setShowResult(false)}
-        setup={setup}
-        outcome={run.outcome}
-        run={shownRun}
-        stats={stats}
-        onRestart={restart}
-        onShare={(text) => void showShareSheet({ title: "GridPop", text }).catch(() => undefined)}
-        hideGoal
-        practice={practice}
-        onReplay={result ? restart : undefined}
-        onUndo={run.outcome && run.outcome !== "solved" && run.history.length > 0 ? undo : undefined}
-        extra={resultExtra}
-      />
+      {setup && (
+        <DailyResultModal
+          msUntilNext={msUntilEasternMidnight}
+          isOpen={showResult}
+          onClose={() => setShowResult(false)}
+          setup={setup}
+          outcome={run.outcome}
+          run={shownRun}
+          stats={stats}
+          onRestart={restart}
+          onShare={(text) => void showShareSheet({ title: "GridPop", text }).catch(() => undefined)}
+          hideGoal
+          practice={practice}
+          onReplay={result ? restart : undefined}
+          onUndo={run.outcome && run.outcome !== "solved" && run.history.length > 0 ? undo : undefined}
+          extra={resultExtra}
+        />
+      )}
     </div>
   );
 };
