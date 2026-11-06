@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { context, requestExpandedMode } from "@devvit/web/client";
 import { Flame } from "lucide-react";
 import TargetGrid from "@/components/game/TargetGrid";
-import { DAILY_LEVELS, DailyLevel, dailyScore, parseTarget, puzzleNumber, utcDateKey } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, dailyScore, parseTarget, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
 import type { PuzzleResponse } from "../shared/api";
 import { fetchPuzzle, saveLevel } from "./api";
 import { Loader } from "./Loader";
 
 const postDate = () => {
   const date = (context?.postData as { date?: unknown } | undefined)?.date;
-  return typeof date === "string" ? date : utcDateKey();
+  return typeof date === "string" ? date : easternDateKey();
 };
 
 // The last answer for this post, so a reload draws the cards at once while a fresh one loads.

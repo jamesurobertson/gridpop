@@ -38,7 +38,7 @@ Difficulty follows the fewest pieces each puzzle can be solved in: Easy 3, Norma
 ## For moderators
 
 - **Install:** the app posts today's puzzle as soon as it's installed.
-- **Daily posts:** a new post goes up at 00:00 UTC every day. It's pinned, and the previous day's post is unpinned.
+- **Daily posts:** a new post goes up at midnight Eastern every day. It's pinned, and the previous day's post is unpinned.
 - **Manual post:** if a day's post is missing, moderators can use **Post today's GridPop** from the subreddit menu. It creates the post (or finds the existing one) and opens it.
 - **Upgrades:** recent daily posts get the GridPop share image, which shows when a post link is shared outside Reddit.
 

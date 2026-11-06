@@ -5,7 +5,7 @@ import type { TaskResponse } from "@devvit/web/server";
 import type { TriggerResponse, UiResponse } from "@devvit/web/shared";
 import puzzles from "@/data/dailyPuzzles.json";
 import solutions from "@/data/dailySolutions.json";
-import { DAILY_LEVELS, DailyLevel, DailyPuzzle, parseTarget, pickPuzzle, puzzleNumber, utcDateKey } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, DailyPuzzle, parseTarget, pickPuzzle, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
 import { hintFor, replayRun, replayTo } from "@/utils/dailyRun";
 import type {
   AttemptRequest,
@@ -29,7 +29,7 @@ const isLevel = (value: unknown): value is DailyLevel => DAILY_LEVELS.some(({ le
 /** The date this post is the puzzle for; posts made outside the daily flow play today's. */
 function postDate(): string {
   const date = (context.postData as { date?: unknown } | undefined)?.date;
-  return typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : utcDateKey();
+  return typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : easternDateKey();
 }
 
 const perLevel = async <T>(make: (level: DailyLevel) => Promise<T>) =>
@@ -141,13 +141,13 @@ app.get("/api/leaderboard", async (c) => {
 // ---------- daily posts ----------
 
 app.post("/internal/scheduler/daily-post", async (c) => {
-  await ensureDailyPost(utcDateKey());
+  await ensureDailyPost(easternDateKey());
   return c.json<TaskResponse>({ status: "ok" });
 });
 
 app.post("/internal/triggers/on-app-install", async (c) => {
   try {
-    await ensureDailyPost(utcDateKey());
+    await ensureDailyPost(easternDateKey());
     return c.json<TriggerResponse>({ status: "success", message: "Posted today's puzzle" });
   } catch (e) {
     console.error(`Couldn't post today's puzzle on install: ${e}`);
@@ -156,13 +156,13 @@ app.post("/internal/triggers/on-app-install", async (c) => {
 });
 
 app.post("/internal/triggers/on-app-upgrade", async (c) => {
-  await backfillShareImage(utcDateKey());
+  await backfillShareImage(easternDateKey());
   return c.json<TriggerResponse>({ status: "success", message: "Share image set" });
 });
 
 app.post("/internal/menu/post-today", async (c) => {
   try {
-    const postId = await ensureDailyPost(utcDateKey());
+    const postId = await ensureDailyPost(easternDateKey());
     return c.json<UiResponse>({ navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${postId?.replace(/^t3_/, "")}` });
   } catch (e) {
     console.error(`Couldn't post today's puzzle: ${e}`);

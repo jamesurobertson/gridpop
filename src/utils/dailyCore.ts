@@ -37,6 +37,11 @@ export const FIRST_DAY = "2026-11-05";
 
 export const utcDateKey = (now = Date.now()) => new Date(now).toISOString().slice(0, 10);
 
+const easternDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" });
+
+/** The Reddit app's day, which turns over at midnight in New York. */
+export const easternDateKey = (now = Date.now()) => easternDate.format(now);
+
 export const dayIndex = (date: string) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${FIRST_DAY}T00:00:00Z`)) / DAY_MS);
 
 export const shiftDate = (date: string, days: number) => utcDateKey(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS);

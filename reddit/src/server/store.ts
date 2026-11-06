@@ -1,5 +1,5 @@
 import { redis } from "@devvit/web/server";
-import { DAILY_LEVELS, DailyLevel, dailyScore, overParBucket, shiftDate, utcDateKey } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, dailyScore, overParBucket, shiftDate, easternDateKey } from "@/utils/dailyCore";
 import type { Distribution, LeaderboardEntry, LeaderboardResponse, LevelStats, SavedResult } from "../shared/api";
 
 type StoredResult = { username: string; moves: number; restarts: number; hints?: number; par: number; timeMs: number };
@@ -111,7 +111,7 @@ async function updateStats(date: string, level: DailyLevel, userId: string, resu
 
 export async function statsFor(level: DailyLevel, userId: string): Promise<LevelStats> {
   const saved = await redis.hGetAll(statsKey(level, userId));
-  const today = utcDateKey();
+  const today = easternDateKey();
   // A streak is still alive until a whole day's puzzle goes unplayed.
   const alive = saved.last === today || saved.last === shiftDate(today, -1);
   return {
