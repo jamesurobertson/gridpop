@@ -425,29 +425,31 @@
 /* ---------- the daily target ---------- */
 
 .gp-target-wrap { container-type: inline-size; }
+/* Same proportions as .gp-board, so the target reads as a copy of it; only the numbers run a
+   little larger and the outline keeps 2px, for legibility at card size. */
 .gp-target {
   display: grid;
-  gap: 4cqw;
-  padding: 5cqw;
-  border-radius: 12cqw;
+  gap: 2.2cqw;
+  padding: 3cqw;
+  border-radius: 6cqw;
   background: var(--gp-board);
-  border: var(--gp-target-border, 2px) solid var(--gp-stroke);
+  border: var(--gp-target-border, max(2px, 0.9cqw)) solid var(--gp-stroke);
 }
 .gp-target-cell {
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  border-radius: 5cqw;
+  border-radius: 24%;
   background: var(--gp-socket);
   font-family: "Fredoka", system-ui, sans-serif;
   font-weight: 700;
-  font-size: 11cqw;
+  font-size: 10.5cqw;
   line-height: 1;
 }
 /* Target tiles look like the board's: ink outline and the little shine. */
 .gp-target-tile {
   position: relative;
-  border: max(1.5px, 2.2cqw) solid var(--gp-stroke);
+  border: max(1.5px, 0.8cqw) solid var(--gp-stroke);
 }
 .gp-target-tile::before {
   content: "";

@@ -133,7 +133,7 @@ export const TutorialIntro = ({ docking, slot, onNext, onDocked }: { docking: bo
         ref={bigRef}
         className="relative w-[min(66vw,300px)] [&_.gp-target]:transition-[border-width] [&_.gp-target]:duration-500"
         // Scaling thins the outline; thicken it as it shrinks so it lands at the card's own 2px.
-        style={{ originX: 0, originY: 0, ["--gp-target-border" as string]: dock ? `${2 / dock.scale}px` : "2px" }}
+        style={{ originX: 0, originY: 0, ["--gp-target-border" as string]: dock ? `${2 / dock.scale}px` : undefined }}
         initial={{ opacity: 0, y: 12 }}
         animate={dock ? { opacity: 1, x: dock.x, y: dock.y, scale: dock.scale } : { opacity: 1, x: 0, y: 0, scale: 1 }}
         transition={dock ? { type: "spring", visualDuration: 0.5, bounce: 0.12 } : { duration: 0.3 }}
