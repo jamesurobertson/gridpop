@@ -685,7 +685,7 @@ export const Game = () => {
           )}
           {lesson.step === "goal" && (
             <button className="gp-btn gp-btn-primary mt-3 !min-h-[40px] w-full max-w-[200px]" onClick={() => setTutorialGoalSeen(true)}>
-              Start
+              Next
             </button>
           )}
         </motion.div>
