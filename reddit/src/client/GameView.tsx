@@ -681,7 +681,7 @@ export const Game = () => {
     </div>
   );
   const tutorialCard = (
-    <div className={cn("gp-card flex flex-col items-center justify-center gap-1.5 px-3 py-3 text-center", !landscape && "flex-1")}>
+    <div className={cn("gp-card flex flex-col items-center justify-center gap-1.5 px-3 py-3 text-center", landscape ? "min-h-[136px]" : "flex-1")}>
       {lessonText ? (
         <motion.div key={lesson.step} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
           <h2 className={cn("font-display font-bold leading-tight", landscape ? "text-[28px]" : "text-[21px]")}>{lessonText.title[touch ? 0 : 1]}</h2>
