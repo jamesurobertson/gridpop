@@ -74,7 +74,7 @@ export const STEP_TEXT: Record<Exclude<TutorialStep, "done">, { title: [string, 
   goal: { title: ["Match the target", "Match the target"], line: "Build this board", keys: [] },
   move: { title: ["Drag to move", "Arrow keys to move"], line: "Into glowing area", keys: ["←", "↑", "↓", "→"] },
   place: { title: ["Tap to place", "Space to place"], line: "Tiles go up by one", keys: ["Space"] },
-  rotate: { title: ["Double-tap to rotate", "A or D to rotate"], line: "To fit the glow", keys: ["A", "D"] },
+  rotate: { title: ["Double-tap to rotate", "A or D to rotate"], line: "To fit into the glowing area", keys: ["A", "D"] },
   move2: { title: ["Drag to move", "Arrow keys to move"], line: "Into glowing area", keys: ["←", "↑", "↓", "→"] },
   place2: { title: ["Tap to place", "Space to place"], line: "1 + 1 makes 2", keys: ["Space"] },
 };
