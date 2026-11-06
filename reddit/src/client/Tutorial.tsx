@@ -27,32 +27,26 @@ export function markSeen() {
   }
 }
 
-// The tutorial level: three different pieces. The square slides left; the T turns to point down
-// and stacks two 2s on it; the small corner slides right, filling the top row, which pops, and
-// stacks a third 2, leaving the target.
-export const TUTORIAL_PIECES: TetrominoType[] = ["O", "T", "LJ2", "L", "S"];
-export const TUTORIAL_TARGET: GridType = parseTarget("0000/2220/0100/0000");
+// The tutorial level: two different pieces. The square drops into the middle; the J turns twice
+// and slides over it, stacking two 2s.
+export const TUTORIAL_PIECES: TetrominoType[] = ["O", "J", "T", "S", "L"];
+export const TUTORIAL_TARGET: GridType = parseTarget("0000/0221/0111/0000");
 const SPOTS = [
   [
-    [0, 0],
-    [1, 0],
-    [0, 1],
-    [1, 1],
-  ],
-  [
-    [0, 1],
     [1, 1],
     [2, 1],
     [1, 2],
+    [2, 2],
   ],
   [
-    [2, 0],
-    [3, 0],
+    [1, 1],
     [2, 1],
+    [3, 1],
+    [3, 2],
   ],
 ];
 
-export type TutorialStep = "goal" | "move" | "place" | "rotate" | "move2" | "place2" | "move3" | "place3" | "done";
+export type TutorialStep = "goal" | "move" | "place" | "rotate" | "move2" | "place2" | "done";
 
 const cellsOf = (piece: Tetromino) =>
   getCurrentShape(piece).flatMap((row, dy) => row.flatMap((on, dx) => (on ? [[piece.position.x + dx, piece.position.y + dy]] : [])));
@@ -79,9 +73,8 @@ export function tutorialStep(run: RunState, goalSeen: boolean): { step: Tutorial
   if (!piece) return { step: "done", spot: [] };
   const there = sameCells(cellsOf(piece), SPOTS[index]);
   const facing = sameShape(cellsOf(piece), SPOTS[index]);
-  // Turned by accident on the first or last piece: still the move step, but it needs turning back.
+  // Turned by accident on the first piece: still the move step, but it needs turning back first.
   if (index === 0) return { step: there ? "place" : "move", spot, turn: !facing };
-  if (index === 2) return { step: there ? "place3" : "move3", spot, turn: !facing };
   if (!facing) return { step: "rotate", spot };
   return { step: there ? "place2" : "move2", spot };
 }
@@ -89,7 +82,7 @@ export function tutorialStep(run: RunState, goalSeen: boolean): { step: Tutorial
 /** Only lets a piece down on its spot, so the tutorial can't go wrong. */
 export const onSpot = (run: RunState) => {
   const { step } = tutorialStep(run, true);
-  return step === "place" || step === "place2" || step === "place3";
+  return step === "place" || step === "place2";
 };
 
 export const STEP_TEXT: Record<Exclude<TutorialStep, "done">, { title: [string, string] }> = {
@@ -99,8 +92,6 @@ export const STEP_TEXT: Record<Exclude<TutorialStep, "done">, { title: [string, 
   rotate: { title: ["Double-tap to rotate", "A or D to rotate"] },
   move2: { title: ["Drag to move", "Arrow keys to move"] },
   place2: { title: ["Tap to place", "Space to place"] },
-  move3: { title: ["Drag to fill the row", "Arrow keys to fill the row"] },
-  place3: { title: ["Tap to pop the row", "Space to pop the row"] },
 };
 
 const Chip = ({ value }: { value: number }) => (
