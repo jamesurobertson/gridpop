@@ -431,7 +431,7 @@
   padding: 5cqw;
   border-radius: 12cqw;
   background: var(--gp-board);
-  border: 2px solid var(--gp-stroke);
+  border: var(--gp-target-border, 2px) solid var(--gp-stroke);
 }
 .gp-target-cell {
   display: grid;
@@ -497,6 +497,15 @@
 .gp-target-shimmer .gp-target-cell { animation: gp-socket-wave 1.5s ease-in-out infinite; animation-delay: calc((var(--x) + var(--y)) * 90ms); }
 /* Arrival: the puzzle's tiles pop in corner to corner. */
 .gp-target-reveal .gp-target-tile { animation: gp-tile-in 0.3s ease-out both; animation-delay: calc((var(--x) + var(--y)) * 55ms); }
+
+/* The tutorial's big target has just landed in its card: a soft bump and ring. */
+.gp-target-land { animation: gp-target-land 0.55s ease-out; }
+@keyframes gp-target-land {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(124, 92, 255, 0.45); }
+  30% { transform: scale(1.035); box-shadow: 0 0 0 5px rgba(124, 92, 255, 0.35); }
+  100% { transform: scale(1); box-shadow: 0 0 0 12px rgba(124, 92, 255, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .gp-target-land { animation: none; } }
 
 @keyframes gp-socket-wave { 0%, 55%, 100% { background: var(--gp-socket); } 25% { background: #66559a; } }
 @keyframes gp-tile-in { 0% { transform: scale(0.35); opacity: 0; } 70% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }

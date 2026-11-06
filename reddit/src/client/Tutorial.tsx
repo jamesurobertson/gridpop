@@ -121,25 +121,27 @@ export const TutorialIntro = ({ docking, slot, onNext, onDocked }: { docking: bo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docking]);
 
-  const fade = { opacity: dock ? 0 : 1 };
+  // The words clear out fast so the eye follows only the board; the board itself rides a spring.
+  const clear = dock ? { opacity: 0, transition: { duration: 0.15 } } : { opacity: 1, transition: { duration: 0.25 } };
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 px-6">
-      <motion.div className="absolute inset-0 bg-[#FFF6EA]/95" initial={{ opacity: 0 }} animate={fade} transition={{ duration: dock ? 0.4 : 0.25 }} />
-      <motion.h2 className="font-display relative text-[30px] font-bold leading-tight" initial={{ opacity: 0, y: 8 }} animate={{ ...fade, y: 0 }} transition={{ duration: 0.25 }}>
+      <motion.div className="absolute inset-0 bg-[#FFF6EA]/95" initial={{ opacity: 0 }} animate={{ opacity: dock ? 0 : 1 }} transition={{ duration: dock ? 0.45 : 0.25 }} />
+      <motion.h2 className="font-display relative text-[30px] font-bold leading-tight" initial={{ opacity: 0, y: 8 }} animate={{ ...clear, y: dock ? -6 : 0 }}>
         Match this board
       </motion.h2>
       <motion.div
         ref={bigRef}
-        className="relative w-[min(66vw,300px)]"
-        style={{ originX: 0, originY: 0 }}
+        className="relative w-[min(66vw,300px)] [&_.gp-target]:transition-[border-width] [&_.gp-target]:duration-500"
+        // Scaling thins the outline; thicken it as it shrinks so it lands at the card's own 2px.
+        style={{ originX: 0, originY: 0, ["--gp-target-border" as string]: dock ? `${2 / dock.scale}px` : "2px" }}
         initial={{ opacity: 0, y: 12 }}
         animate={dock ? { opacity: 1, x: dock.x, y: dock.y, scale: dock.scale } : { opacity: 1, x: 0, y: 0, scale: 1 }}
-        transition={dock ? { duration: 0.55, ease: [0.3, 0.7, 0.2, 1] } : { duration: 0.3 }}
+        transition={dock ? { type: "spring", visualDuration: 0.5, bounce: 0.12 } : { duration: 0.3 }}
         onAnimationComplete={() => dock && onDocked()}
       >
         <TargetGrid grid={TUTORIAL_TARGET} reveal className="w-full" />
       </motion.div>
-      <motion.button className="gp-btn gp-btn-primary relative w-full max-w-[220px]" initial={{ opacity: 0 }} animate={fade} transition={{ duration: 0.25 }} onClick={onNext} disabled={docking}>
+      <motion.button className="gp-btn gp-btn-primary relative w-full max-w-[220px]" initial={{ opacity: 0 }} animate={clear} onClick={onNext} disabled={docking}>
         Next
       </motion.button>
     </div>

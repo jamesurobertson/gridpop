@@ -736,7 +736,7 @@ export const Game = () => {
           viewport={viewport}
           top={tutorialHeader}
           side={tutorialCard}
-          target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
+          target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} landed={lesson.step === "move"} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
           board={gameBoard}
           next={<NextColumn queue={run.queue} landscape={landscape} />}
           bottom={null}

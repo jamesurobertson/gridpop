@@ -33,6 +33,7 @@ export const TargetCard = ({
   dim,
   reveal,
   hideGrid,
+  landed,
   gridRef,
   children,
 }: {
@@ -43,6 +44,8 @@ export const TargetCard = ({
   reveal?: boolean;
   /** Kept in place but unseen, while the tutorial's big copy of it flies in. */
   hideGrid?: boolean;
+  /** Just received the tutorial's big target: plays a one-time bump. */
+  landed?: boolean;
   gridRef?: RefObject<HTMLDivElement>;
   children?: ReactNode;
 }) => (
@@ -52,7 +55,8 @@ export const TargetCard = ({
       landscape ? "w-full" : "w-[34%] max-w-[132px] shrink-0",
       highlight === "coach" && "ring-4 ring-[#7C5CFF]/40",
       highlight === "solved" && "ring-4 ring-[#45D486]",
-      highlight === "flash" && "gp-target-flash"
+      highlight === "flash" && "gp-target-flash",
+      landed && "gp-target-land"
     )}
   >
     <div className="gp-label mb-1.5">Target</div>
