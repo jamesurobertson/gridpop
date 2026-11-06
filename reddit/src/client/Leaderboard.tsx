@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatClock } from "@/utils/dailyCore";
 import { Lightbulb, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,7 @@ const nameSize = (name: string) => (name.length > 17 ? "text-[12px] tracking-[-0
 // Ranked by moves, then hints, then restarts, then time. Hints and restarts sit under the name so
 // the name gets the row's spare width; a name too long even for that wraps rather than being cut.
 const Row = ({ entry, mine }: { entry: LeaderboardEntry; mine: boolean }) => (
-  <li className={cn("grid items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-extrabold", COLUMNS, mine && "bg-[#EFEAFF]")}>
+  <li className={cn("grid items-center gap-1.5 rounded-xl px-2.5 py-1 text-sm font-extrabold", COLUMNS, mine && "bg-[#EFEAFF]")}>
     <span className="text-[color:var(--gp-muted)]">{entry.rank}</span>
     <span className="min-w-0 text-left">
       <span className={cn("block leading-tight [overflow-wrap:anywhere]", nameSize(entry.username))}>{entry.username}</span>
@@ -34,18 +35,23 @@ const Row = ({ entry, mine }: { entry: LeaderboardEntry; mine: boolean }) => (
   </li>
 );
 
+/** The top few on the results card, so it fits a phone without scrolling; "Show more" opens the rest. */
+const FOLDED_ROWS = 3;
+
 export const Leaderboard = ({ board, username }: { board: LeaderboardResponse | null; username: string | null }) => {
+  const [expanded, setExpanded] = useState(false);
   if (!board || board.total === 0) return null;
-  const meShown = board.me && board.top.some((entry) => entry.rank === board.me!.rank);
+  const shown = expanded ? board.top : board.top.slice(0, FOLDED_ROWS);
+  const meShown = board.me && shown.some((entry) => entry.rank === board.me!.rank);
   return (
-    <div className="mt-4 text-left">
+    <div className="mt-3 text-left">
       <div className={cn("gp-label mb-1.5 grid gap-1.5 px-2.5", COLUMNS)}>
         <span className="col-span-2 whitespace-nowrap">Leaderboard · {board.total}</span>
         <span className="text-right">Moves</span>
         <span className="text-right">Time</span>
       </div>
       <ol className="space-y-0.5">
-        {board.top.map((entry) => (
+        {shown.map((entry) => (
           <Row key={entry.rank} entry={entry} mine={entry.username === username} />
         ))}
         {board.me && !meShown && (
@@ -55,6 +61,11 @@ export const Leaderboard = ({ board, username }: { board: LeaderboardResponse | 
           </>
         )}
       </ol>
+      {shown.length < board.top.length && (
+        <button className="mx-auto mt-1 block px-3 py-1 text-xs font-extrabold text-[color:var(--gp-accent)]" onClick={() => setExpanded(true)}>
+          Show more
+        </button>
+      )}
     </div>
   );
 };

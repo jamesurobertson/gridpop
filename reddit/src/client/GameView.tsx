@@ -7,7 +7,7 @@ import DailyResultModal from "@/components/game/DailyResultModal";
 import { createEmptyGrid, getCurrentShape, isValidPosition, tryWallKick } from "@/utils/gameLogic";
 import type { Placement, RunAction } from "@/utils/dailyRun";
 import type { Tetromino } from "@/types/game";
-import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, msUntilEasternMidnight, parseTarget } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, DailyResult, dailyScore, formatClock, msUntilEasternMidnight, parseTarget } from "@/utils/dailyCore";
 import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
@@ -609,7 +609,7 @@ export const Game = () => {
       ) : (
         <Leaderboard board={board} username={puzzle.username} />
       )}
-      {result && <CommentBox />}
+      {result && setup && <CommentBox score={`GridPop #${setup.number} ${DAILY_LEVELS.find((option) => option.level === level)?.label} · Score ${dailyScore(result)} · ${formatClock(result.timeMs)}`} />}
     </>
   ) : (
     <button className="gp-btn mt-4 w-full" onClick={() => showLoginPrompt()}>

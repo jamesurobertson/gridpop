@@ -48,8 +48,16 @@ function useCountdown(active: boolean, msUntilNext: () => number) {
 const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div>
     <div className="gp-label">{label}</div>
-    <div className="gp-value mt-1 text-2xl">{value}</div>
+    <div className="gp-value mt-0.5 text-xl">{value}</div>
   </div>
+);
+
+/** Label and value side by side, for the slim streak strip. */
+const InlineStat = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <span className="flex items-baseline gap-1.5">
+    <span className="gp-label">{label}</span>
+    <span className="gp-value text-lg">{value}</span>
+  </span>
 );
 
 const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, hideGoal, onReplay, practice, onUndo, msUntilNext = msUntilNextPuzzle }) => {
@@ -90,14 +98,14 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
         // Focusing the bottom button would scroll a tall card past its own heading.
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="bg-[#3B2E5A] px-6 pb-4 pt-5 text-center text-white">
-          <DialogTitle className="font-display text-[26px] font-bold tracking-tight">{heading}</DialogTitle>
-          <DialogDescription className="mt-1 text-sm font-bold text-white/60">{puzzleName}</DialogDescription>
+        <div className="bg-[#3B2E5A] px-10 pb-3 pt-3.5 text-center text-white">
+          <DialogTitle className="font-display text-[22px] font-bold leading-tight tracking-tight">{heading}</DialogTitle>
+          <DialogDescription className="mt-0.5 text-[13px] font-bold text-white/60">{puzzleName}</DialogDescription>
         </div>
 
-        <div className="px-5 pb-5 pt-4 text-center">
+        <div className="px-4 pb-4 pt-3 text-center">
           {solved && (
-            <div className={cn("mb-4 grid gap-2", STAT_COLUMNS[3 + (hideGoal ? 0 : 1) + (run.hints !== undefined ? 1 : 0)])}>
+            <div className={cn("mb-3 grid gap-2", STAT_COLUMNS[3 + (hideGoal ? 0 : 1) + (run.hints !== undefined ? 1 : 0)])}>
               <Stat label="Moves" value={run.moves} />
               <Stat label="Restarts" value={run.restarts ?? 0} />
               {run.hints !== undefined && <Stat label="Hints" value={run.hints} />}
@@ -108,18 +116,18 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
 
           {(solved || !outcome) && (
             <>
-              <div className="flex justify-center gap-8 rounded-2xl bg-[#FBF6EE] px-4 py-3">
-                <Stat label="Played" value={stats.played} />
-                <Stat
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 rounded-2xl bg-[#FBF6EE] px-3 py-2">
+                <InlineStat label="Played" value={stats.played} />
+                <InlineStat
                   label="Streak"
                   value={
-                    <span className="inline-flex items-center gap-1">
-                      <Flame size={20} strokeWidth={2.5} className="text-[#FF7A3D]" />
+                    <span className="inline-flex items-center gap-0.5">
+                      <Flame size={16} strokeWidth={2.75} className="self-center text-[#FF7A3D]" />
                       {stats.streak}
                     </span>
                   }
                 />
-                <Stat label="Best" value={stats.bestStreak} />
+                <InlineStat label="Best" value={stats.bestStreak} />
               </div>
               <div className={cn("mt-3 space-y-1", hideGoal && "hidden")}>
                 {stats.overPar.map((count, i) => (
@@ -137,15 +145,17 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                 ))}
               </div>
               {extra}
-              <div className="mt-3">
-                <div className="gp-label">Next puzzle</div>
-                <div className="gp-value mt-1 text-xl">{formatClock(msLeft)}</div>
-              </div>
             </>
           )}
 
           {/* Kept in view at the bottom of a card that scrolls on short screens. */}
-          <div className="sticky bottom-0 -mx-5 -mb-5 mt-4 flex flex-col gap-2.5 bg-white px-5 pb-5 pt-2">
+          <div className="sticky bottom-0 -mx-4 -mb-4 mt-3 flex flex-col gap-2 bg-white px-4 pb-4 pt-2">
+            {(solved || !outcome) && (
+              <div className="flex items-baseline justify-center gap-2">
+                <span className="gp-label">Next puzzle</span>
+                <span className="gp-value text-base tabular-nums">{formatClock(msLeft)}</span>
+              </div>
+            )}
             {solved ? (
               <div className="flex gap-2.5">
                 {onReplay && (
