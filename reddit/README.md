@@ -24,7 +24,7 @@ First-time players get a short tutorial on a practice board before their first p
 - **Score:** the number of pieces placed. Fewer is better.
 - **Ties:** broken by fewer hints, then fewer restarts, then the faster time.
 - **Undo:** free. A restart is counted.
-- **Hints:** a hint shows where the next piece should go. If the run can no longer reach the best finish, the hint says how many pieces to undo first. Hints are counted, and there's a short wait between them.
+- **Hints:** a hint shows where the next piece should go. If the run can no longer reach the best finish, the hint only says how many pieces to undo; once they're undone, another hint shows where to go. Hints are counted, and there's a short wait between them.
 - **Recorded result:** only a player's first solve of each level counts toward the leaderboard and streaks. After that, "Play again" starts a practice run that isn't recorded.
 
 Difficulty follows the fewest pieces each puzzle can be solved in: Easy 3, Normal 4 to 5, Hard 6 to 7.

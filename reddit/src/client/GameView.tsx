@@ -375,15 +375,13 @@ export const Game = () => {
       .catch(() => setHintReadyAt(0));
   };
 
-  // A dead-end hint waits while the player undoes back to `base`, then shows the spot; it goes once
-  // that piece is down, or as soon as the run leaves the hinted line.
+  // A dead-end hint only says how many to undo; once the player is back at `base` it's done, and
+  // the spot takes another hint. A spot hint goes once that piece is down, or the run leaves the line.
   useEffect(() => {
     if (!hint) return;
     const length = run.actions.length;
     if (length < hint.base || JSON.stringify(run.actions.slice(0, hint.base)) !== hint.prefix) return setHint(null);
-    if (length === hint.base) {
-      if (!hint.reached) setHint({ ...hint, reached: true });
-    } else if (hint.reached) setHint(null);
+    if (length === hint.base ? !hint.reached : hint.reached) setHint(null);
   }, [hint, run.actions]);
   const undosForHint = hint && !hint.reached ? run.actions.length - hint.base : 0;
 
