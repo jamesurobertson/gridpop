@@ -4,7 +4,7 @@ import { showLoginPrompt, showShareSheet, showToast } from "@devvit/web/client";
 import { CircleHelp, Flame, Lightbulb, RotateCcw, Trophy, Undo2, Volume2, VolumeX } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
 import DailyResultModal from "@/components/game/DailyResultModal";
-import { createEmptyGrid, getCurrentShape, isValidPosition, tryWallKick } from "@/utils/gameLogic";
+import { checkLinesToClear, createEmptyGrid, getCurrentShape, isValidPosition, placeTetromino, tryWallKick } from "@/utils/gameLogic";
 import type { Placement, RunAction } from "@/utils/dailyRun";
 import type { Tetromino } from "@/types/game";
 import { DAILY_LEVELS, DailyLevel, DailyResult, dailyScore, formatClock, msUntilEasternMidnight, parseTarget } from "@/utils/dailyCore";
@@ -79,6 +79,7 @@ export const Game = () => {
   // "+1" over each tile a tutorial piece lands on: the game's one rule, shown where it happens.
   const [plusOnes, setPlusOnes] = useState<{ id: number; cells: { x: number; y: number }[] }[]>([]);
   const plusOneId = useRef(0);
+  const [linePop, setLinePop] = useState<{ id: number; at: { x: number; y: number } } | null>(null);
   const [boardLoading, setBoardLoading] = useState(false);
   // The very first game gets pointers: what to match, and how to put a piece down.
   const [coaching, setCoaching] = useState(() => {
@@ -214,8 +215,8 @@ export const Game = () => {
     if (tutorial) {
       if (run.outcome === "solved") {
         sfx.play("best", { delay: 0.25 });
-        // A beat to see the board match the target, then the wrap-up card.
-        setTimeout(() => setTutorialDoneOpen(true), 900);
+        // A beat to see the line pop and the board match the target, then the wrap-up card.
+        setTimeout(() => setTutorialDoneOpen(true), 1600);
       }
       return;
     }
@@ -305,6 +306,11 @@ export const Game = () => {
       const id = ++plusOneId.current;
       setPlusOnes((current) => [...current, { id, cells }]);
       setTimeout(() => setPlusOnes((current) => current.filter((pop) => pop.id !== id)), 1000);
+      const { rows, cols } = checkLinesToClear(placeTetromino(run.grid, piece));
+      if (rows.length || cols.length) {
+        setLinePop({ id, at: rows.length ? { x: 50, y: ((rows[0] + 0.5) / 4) * 100 } : { x: ((cols[0] + 0.5) / 4) * 100, y: 50 } });
+        setTimeout(() => setLinePop((current) => (current?.id === id ? null : current)), 1400);
+      }
       dispatch({ type: "place" });
       return;
     }
@@ -579,7 +585,7 @@ export const Game = () => {
       />
       {tutorial && run.current && lesson.step !== "done" && lesson.step !== "goal" && <PieceTip piece={run.current} text={STEP_TEXT[lesson.turn ? "rotate" : lesson.step].title[touch ? 0 : 1]} />}
       {tutorial && touch && run.current && lesson.step !== "done" && lesson.step !== "goal" && (
-        (lesson.step === "move" || lesson.step === "move2") && !lesson.turn ? (
+        (lesson.step === "move" || lesson.step === "move2" || lesson.step === "move3") && !lesson.turn ? (
           <DragHand from={pieceCenter(run.current)} to={spotCenter(lesson.spot)} />
         ) : (
           <TapHand at={pieceCenter(run.current)} taps={lesson.step === "rotate" || lesson.turn ? 2 : 1} />
@@ -600,6 +606,18 @@ export const Game = () => {
             </div>
           ))
         )}
+      {tutorial && linePop && (
+        <div key={linePop.id} className="pointer-events-none absolute z-50 -translate-x-1/2 -translate-y-1/2" style={{ left: `${linePop.at.x}%`, top: `${linePop.at.y}%` }}>
+          <motion.span
+            className="font-display block whitespace-nowrap rounded-full border-[2.5px] border-[#1F1633] bg-[#FFD45E] px-4 py-1 text-[20px] font-bold text-[#1F1633] shadow-[0_3px_0_#1F1633]"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1.12, 1, 1], y: [0, 0, 0, -10] }}
+            transition={{ duration: 1.35, times: [0, 0.18, 0.75, 1], delay: 0.15 }}
+          >
+            Line pop!
+          </motion.span>
+        </div>
+      )}
       {!solved && (
         <>
           {!tutorial && (
@@ -731,7 +749,7 @@ export const Game = () => {
           viewport={viewport}
           top={tutorialHeader}
           side={inertSide}
-          target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} landed={lesson.step === "move"} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
+          target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} landed={lesson.step === "move"} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place3" ? "flash" : undefined} />}
           board={gameBoard}
           next={<NextColumn queue={run.queue} landscape={landscape} />}
           bottom={inertButtons}

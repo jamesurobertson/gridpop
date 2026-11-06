@@ -6,6 +6,7 @@
 //
 //   node scripts/generate-daily.mjs 2026-11-05 14   # start date, number of days
 //   node scripts/generate-daily.mjs 2026-11-07 363 --replace   # rebuild those days even if present
+//   node scripts/generate-daily.mjs 2026-11-07 363 --replace --level hard   # only one difficulty
 //
 // Writes src/data/dailyPuzzles.json (one list per difficulty), keeping any days already in it, and
 // src/data/dailySolutions.json: a par solution per day (the cells each piece covers, in order),
@@ -133,17 +134,19 @@ function solve(queue, target, maxMoves, options = { allowPops: true, hold: false
 const solvePar = (queue, target, maxMoves, options) => solve(queue, target, maxMoves, options)?.moves ?? null;
 
 // How many pieces each difficulty's target is built with, picked at random within the range each
-// day (played in order, no Hold, as on Reddit), and how many line pops its build must include (a
-// target that needs a pop is only accepted if no pop-free line reaches it).
+// day (played in order, no Hold, as on Reddit), and the chance a day's build must include a line
+// pop (a target that needs a pop is only accepted if no pop-free line reaches it). Each day draws
+// on its own, so pop days can run together or not come for a while.
 const LEVELS = {
-  easy: { pieces: [3, 3], pops: 0, seed: 7919 },
-  normal: { pieces: [4, 5], pops: 0, seed: 0 },
-  hard: { pieces: [6, 7], pops: 0, seed: 104729 },
+  easy: { pieces: [3, 3], popChance: 0, seed: 7919 },
+  normal: { pieces: [4, 5], popChance: 0, seed: 0 },
+  hard: { pieces: [6, 7], popChance: 0.33, seed: 104729 },
 };
 
 function makePuzzle(date, level, usedTargets) {
-  const { pieces: [fewest, most], pops: popsWanted, seed } = LEVELS[level];
+  const { pieces: [fewest, most], popChance, seed } = LEVELS[level];
   const daySeed = Number(date.replaceAll("-", ""));
+  const popsWanted = mulberry32(daySeed + seed + 1)() < popChance ? 1 : 0;
   const buildLength = fewest + Math.floor(mulberry32(daySeed + seed)() * (most - fewest + 1));
   for (let attempt = 0; ; attempt++) {
     const random = mulberry32(daySeed * 1000 + attempt + seed);
@@ -167,13 +170,14 @@ function makePuzzle(date, level, usedTargets) {
     if (usedTargets.has(target)) continue;
     // Too easy if it can be made in fewer pieces than the level's minimum.
     if (fewest > 1 && solve(queue, grid, fewest - 1, { allowPops: true, hold: false }) !== null) continue;
-    return { puzzle: { date, pieces: queue, target, par: buildLength }, solution: path };
+    return { puzzle: { date, pieces: queue, target, par: buildLength }, solution: path, pops: popsWanted };
   }
 }
 
 const args = process.argv.slice(2);
 const replace = args.includes("--replace");
-const [start = new Date().toISOString().slice(0, 10), days = "14"] = args.filter((arg) => !arg.startsWith("--"));
+const onlyLevel = args.includes("--level") ? args[args.indexOf("--level") + 1] : null;
+const [start = new Date().toISOString().slice(0, 10), days = "14"] = args.filter((arg, i) => !arg.startsWith("--") && args[i - 1] !== "--level");
 const existing = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, "utf8")) : {};
 const solutions = fs.existsSync(SOLUTIONS_OUT) ? JSON.parse(fs.readFileSync(SOLUTIONS_OUT, "utf8")) : {};
 for (const level of Object.keys(LEVELS)) solutions[level] ??= {};
@@ -203,18 +207,19 @@ for (const [level, byDate] of Object.entries(byLevel))
 // Every target in use: kept days now, and each new one as it's made, so none repeats.
 const usedTargets = new Set();
 for (const byDate of Object.values(byLevel))
-  for (const [date, puzzle] of byDate) if (!(replace && runDates.has(date))) usedTargets.add(puzzle.target);
+  for (const [date, puzzle] of byDate) if (!(replace && runDates.has(date) && (!onlyLevel || byDate === byLevel[onlyLevel]))) usedTargets.add(puzzle.target);
 
 for (let d = 0; d < Number(days); d++) {
   const date = new Date(Date.parse(`${start}T00:00:00Z`) + d * 86_400_000).toISOString().slice(0, 10);
   for (const level of Object.keys(LEVELS)) {
+    if (onlyLevel && level !== onlyLevel) continue;
     if (byLevel[level].has(date) && !replace) continue;
     const startedAt = Date.now();
-    const { puzzle, solution } = makePuzzle(date, level, usedTargets);
+    const { puzzle, solution, pops } = makePuzzle(date, level, usedTargets);
     usedTargets.add(puzzle.target);
     byLevel[level].set(date, puzzle);
     solutions[level][date] = solution;
-    console.log(`${date}  ${level.padEnd(6)}  par ${puzzle.par}  ${puzzle.target}  (${Date.now() - startedAt}ms)`);
+    console.log(`${date}  ${level.padEnd(6)}  par ${puzzle.par}  ${puzzle.target}${pops ? "  pop" : ""}  (${Date.now() - startedAt}ms)`);
   }
 }
 // Written once at the end, so a running playtest rebuilds once rather than after every puzzle.
