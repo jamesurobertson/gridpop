@@ -79,6 +79,19 @@ function place(grid, cells, { allowPops = true } = {}) {
 
 const sum = (grid) => grid.reduce((a, b) => a + b, 0);
 
+/** How many rows and columns a placement completes (each pops). */
+function linesCompleted(grid, cells) {
+  const next = grid.slice();
+  for (const cell of cells) next[cell]++;
+  let lines = 0;
+  for (let line = 0; line < SIZE; line++) {
+    const row = Array.from({ length: SIZE }, (_, x) => line * SIZE + x);
+    const col = Array.from({ length: SIZE }, (_, y) => y * SIZE + line);
+    for (const cellsInLine of [row, col]) if (next[cellsInLine[0]] > 0 && cellsInLine.every((cell) => next[cell] === next[cellsInLine[0]])) lines++;
+  }
+  return lines;
+}
+
 /** Fewest moves left that could possibly turn `grid` into `target` (an underestimate, never over). */
 function movesNeeded(grid, target, allowPops) {
   let needed = Math.ceil((sum(target) - sum(grid)) / 4);
@@ -134,19 +147,21 @@ function solve(queue, target, maxMoves, options = { allowPops: true, hold: false
 const solvePar = (queue, target, maxMoves, options) => solve(queue, target, maxMoves, options)?.moves ?? null;
 
 // How many pieces each difficulty's target is built with, picked at random within the range each
-// day (played in order, no Hold, as on Reddit), and the chance a day's build must include a line
-// pop (a target that needs a pop is only accepted if no pop-free line reaches it). Each day draws
-// on its own, so pop days can run together or not come for a while.
+// day (played in order, no Hold, as on Reddit), and the chance a day's build must pop a line. A pop
+// day pops exactly one line, once, with fewer pieces (`popPieces`): the hidden line is the hard
+// part. Its target is only accepted if no pop-free line reaches it. Each day draws on its own, so
+// pop days can run together or not come for a while.
 const LEVELS = {
   easy: { pieces: [3, 3], popChance: 0, seed: 7919 },
   normal: { pieces: [4, 5], popChance: 0, seed: 0 },
-  hard: { pieces: [6, 7], popChance: 0.33, seed: 104729 },
+  hard: { pieces: [6, 7], popPieces: [5, 5], popChance: 0.33, seed: 104729 },
 };
 
 function makePuzzle(date, level, usedTargets) {
-  const { pieces: [fewest, most], popChance, seed } = LEVELS[level];
+  const { popChance, seed } = LEVELS[level];
   const daySeed = Number(date.replaceAll("-", ""));
   const popsWanted = mulberry32(daySeed + seed + 1)() < popChance ? 1 : 0;
+  const [fewest, most] = popsWanted ? LEVELS[level].popPieces : LEVELS[level].pieces;
   const buildLength = fewest + Math.floor(mulberry32(daySeed + seed)() * (most - fewest + 1));
   for (let attempt = 0; ; attempt++) {
     const random = mulberry32(daySeed * 1000 + attempt + seed);
@@ -156,13 +171,12 @@ function makePuzzle(date, level, usedTargets) {
     const path = [];
     for (let i = 0; i < buildLength; i++) {
       const options = FOOTPRINTS[queue[i]].map((cells) => ({ cells, grid: place(grid, cells) })).filter((option) => option.grid);
-      const before = sum(grid);
       const picked = options[Math.floor(random() * options.length)];
+      pops += linesCompleted(grid, picked.cells);
       grid = picked.grid;
       path.push(picked.cells);
-      if (sum(grid) < before + PIECE_SIZE[queue[i]]) pops++;
     }
-    if (pops < popsWanted || (popsWanted === 0 && pops > 0)) continue;
+    if (pops !== popsWanted) continue;
     // Skip boards that are nearly empty.
     if (grid.filter(Boolean).length < Math.min(6, buildLength * 2)) continue;
     if (popsWanted > 0 && solvePar(queue, grid, buildLength + 1, { allowPops: false, hold: false }) !== null) continue;

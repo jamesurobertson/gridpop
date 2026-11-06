@@ -27,26 +27,28 @@ export function markSeen() {
   }
 }
 
-// The tutorial level: three three-long pieces. The first slides right; the second turns upright on
-// the right edge, stacking a 2; the third slides up and fills the top row, which pops, leaving the
-// target. Each piece starts across the second row on the left.
-export const TUTORIAL_PIECES: TetrominoType[] = ["I3", "I3", "I3", "T", "O"];
-export const TUTORIAL_TARGET: GridType = parseTarget("0000/0112/0001/0000");
+// The tutorial level: three different pieces. The square slides left; the T turns to point down
+// and stacks two 2s on it; the small corner slides right, filling the top row, which pops, and
+// stacks a third 2, leaving the target.
+export const TUTORIAL_PIECES: TetrominoType[] = ["O", "T", "LJ2", "L", "S"];
+export const TUTORIAL_TARGET: GridType = parseTarget("0000/2220/0100/0000");
 const SPOTS = [
-  [
-    [1, 1],
-    [2, 1],
-    [3, 1],
-  ],
-  [
-    [3, 0],
-    [3, 1],
-    [3, 2],
-  ],
   [
     [0, 0],
     [1, 0],
+    [0, 1],
+    [1, 1],
+  ],
+  [
+    [0, 1],
+    [1, 1],
+    [2, 1],
+    [1, 2],
+  ],
+  [
     [2, 0],
+    [3, 0],
+    [2, 1],
   ],
 ];
 

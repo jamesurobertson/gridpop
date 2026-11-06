@@ -27,7 +27,7 @@ First-time players get a short tutorial on a practice board before their first p
 - **Hints:** a hint shows where the next piece should go. If the run can no longer reach the best finish, the hint only says how many pieces to undo; once they're undone, another hint shows where to go. Hints are counted, and there's a short wait between them.
 - **Recorded result:** only a player's first solve of each level counts toward the leaderboard and streaks. After that, "Play again" starts a practice run that isn't recorded.
 
-Difficulty follows the fewest pieces each puzzle can be solved in: Easy 3, Normal 4 to 5, Hard 6 to 7. About one Hard puzzle in three can only be solved by popping a line on the way.
+Difficulty follows the fewest pieces each puzzle can be solved in: Easy 3, Normal 4 to 5, Hard 6 to 7. About one Hard puzzle in three is shorter (5 pieces) but can only be solved by popping one line on the way.
 
 ## What players see
 
