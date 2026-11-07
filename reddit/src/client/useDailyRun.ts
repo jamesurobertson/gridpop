@@ -41,7 +41,9 @@ type RunEvent =
   | { type: "clear"; target: GridType }
   | { type: "removeAnimation"; id: number }
   /** Take back the last placement (not once the target is matched). */
-  | { type: "undo" };
+  | { type: "undo" }
+  /** Put back a run set aside (for the tutorial), exactly as it was. */
+  | { type: "restore"; run: RunState };
 
 let animationId = 0;
 
@@ -131,6 +133,8 @@ function reduce(state: RunState, event: RunEvent): RunState {
     }
     case "removeAnimation":
       return { ...state, scoreAnimations: state.scoreAnimations.filter((a) => a.id !== event.id) };
+    case "restore":
+      return { ...event.run, scoreAnimations: [] };
   }
 }
 

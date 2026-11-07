@@ -68,6 +68,8 @@ export const Game = () => {
   const [clockRunning, setClockRunning] = useState(false);
   const [bumpKey, setBumpKey] = useState(0);
   const [runNumber, setRunNumber] = useState(0);
+  // A daily run set aside while the tutorial plays, so coming back isn't a new run (or a restart).
+  const setAside = useRef<{ level: DailyLevel; run: typeof run; runNumber: number; hintsUsed: number; practice: boolean; clockMs: number } | null>(null);
   const [muted, setMuted] = useState(sfx.muted);
   const viewport = useViewport();
   const { landscape } = viewport;
@@ -303,6 +305,13 @@ export const Game = () => {
 
   const playable = ready && !!run.current && !run.outcome && !run.pendingClear && !showResult && !tutorialDoneOpen && !(tutorial && !tutorialGoalSeen);
 
+  // The clock runs from the moment the board is ready, so planning counts. The very first game
+  // waits for its first move, while the "Match this" pointers are up.
+  const firstGamePointers = coaching && !result && run.moves === 0;
+  useEffect(() => {
+    if (playable && !tutorial && !firstGamePointers && !clockRunning) setClockRunning(true);
+  }, [playable, tutorial, firstGamePointers, clockRunning]);
+
   const bump = () => {
     sfx.play("bump");
     setBumpKey((k) => k + 1);
@@ -432,6 +441,7 @@ export const Game = () => {
   const startTutorial = () => {
     // Seen once it starts: leaving halfway shouldn't bring it back. The ? button replays it.
     markSeen();
+    if (!tutorial && run.actions.length > 0 && !run.outcome) setAside.current = { level, run, runNumber, hintsUsed, practice, clockMs };
     setTutorial(true);
     setTutorialGoalSeen(false);
     setGoalDocking(false);
@@ -453,7 +463,19 @@ export const Game = () => {
     }
     setTutorial(false);
     setTutorialDoneOpen(false);
-    if (puzzle) openLevel(puzzle, level);
+    if (!puzzle) return;
+    openLevel(puzzle, level);
+    const aside = setAside.current;
+    setAside.current = null;
+    // A practice run only makes sense on a solved level, and a daily run only on an unsolved one.
+    if (aside && aside.level === level && !!puzzle.results[level] === aside.practice) {
+      dispatch({ type: "restore", run: aside.run });
+      setRunNumber(aside.runNumber);
+      setHintsUsed(aside.hintsUsed);
+      setPractice(aside.practice);
+      setClockMs(aside.clockMs);
+      setShowResult(false);
+    }
   };
 
   const restart = () => {
