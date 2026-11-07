@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import PieceDisplay from "@/components/game/PieceDisplay";
 import TargetGrid from "@/components/game/TargetGrid";
+import { Logo } from "@/components/game/Logo";
 import type { GridType, Tetromino } from "@/types/game";
 import { cn } from "@/lib/utils";
 
@@ -141,6 +142,8 @@ export const GameLayout = ({ viewport, top, side, target, board, next, bottom, h
 
 const PortraitLayout = ({ top, side, target, board, next, bottom }: Omit<Slots, "hints" | "hintsHeight">) => (
     <div className="mx-auto flex h-full max-w-[480px] flex-col gap-2.5 p-3">
+      {/* Short phones keep the space for the board. */}
+      <Logo className="mx-auto text-[26px] [@media(max-height:620px)]:hidden" />
       {top}
       <div className="flex gap-2.5">
         {target}
