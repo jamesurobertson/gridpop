@@ -61,7 +61,7 @@ export const TargetCard = ({
     )}
   >
     <div className="gp-label mb-1.5">Target</div>
-    <div ref={gridRef} className={cn("w-full transition-opacity", landscape && "mx-auto max-w-[236px]", dim && "opacity-40", hideGrid && "invisible")}>
+    <div ref={gridRef} className={cn("w-full transition-opacity", landscape && "mx-auto max-w-[196px]", dim && "opacity-40", hideGrid && "invisible")}>
       <TargetGrid grid={target} reveal={reveal} className="w-full" />
     </div>
     {children}
@@ -130,6 +130,7 @@ export const GameLayout = ({ viewport, top, side, target, board, next, bottom, h
         </div>
         {next}
         <aside className="flex min-w-0 flex-1 flex-col justify-between gap-2.5" style={{ height: STAGE.height }}>
+          <Logo className="mx-auto text-[28px]" />
           {top}
           {side}
           {target}
