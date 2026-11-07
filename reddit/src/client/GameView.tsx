@@ -157,7 +157,13 @@ export const Game = () => {
       .then((data) => {
         setPuzzle(data);
         openLevel(data, level);
-        if (firstVisit()) startTutorial();
+        // Storage is per device, so an account that has played before skips it on a new device too.
+        const returning = DAILY_LEVELS.some((option) => data.stats[option.level].played > 0 || data.attempts[option.level] > 0);
+        if (returning) {
+          markSeen();
+          setTutorial(false);
+          setCoaching(false);
+        } else if (firstVisit()) startTutorial();
       })
       .catch(() => setLoadFailed(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -419,6 +425,8 @@ export const Game = () => {
   }, [hintReadyAt]);
 
   const startTutorial = () => {
+    // Seen once it starts: leaving halfway shouldn't bring it back. The ? button replays it.
+    markSeen();
     setTutorial(true);
     setTutorialGoalSeen(false);
     setGoalDocking(false);
