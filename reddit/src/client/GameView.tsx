@@ -16,6 +16,7 @@ import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, TutorialIntr
 import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
 import { DemoBoard, usePatientLoading } from "./Loader";
 import { Leaderboard, LeaderboardSkeleton } from "./Leaderboard";
+import { SOLVED_BANNER_MS, SolvedBanner } from "./SolvedBanner";
 import { CommentBox } from "./CommentBox";
 import { GameLayout, KeyHints, NextColumn, TargetCard, useViewport } from "./GameLayout";
 import { useDailyRun } from "./useDailyRun";
@@ -59,6 +60,10 @@ export const Game = () => {
   const [attempts, setAttempts] = useState(0);
   const [board, setBoard] = useState<LeaderboardResponse | null>(null);
   const [showResult, setShowResult] = useState(false);
+  // A solve gets the SOLVED banner first; the results card waits for it to finish.
+  const [solvedBanner, setSolvedBanner] = useState(false);
+  const bannerEndsAt = useRef(0);
+  const revealTimer = useRef<ReturnType<typeof setTimeout>>();
   const [clockMs, setClockMs] = useState(0);
   const [clockRunning, setClockRunning] = useState(false);
   const [bumpKey, setBumpKey] = useState(0);
@@ -209,6 +214,23 @@ export const Game = () => {
     }
   }, [run.scoreAnimations, dispatch]);
 
+  const celebrate = () => {
+    bannerEndsAt.current = Date.now() + SOLVED_BANNER_MS;
+    setSolvedBanner(true);
+  };
+  const openResultAfterBanner = () => {
+    clearTimeout(revealTimer.current);
+    revealTimer.current = setTimeout(() => {
+      setSolvedBanner(false);
+      setShowResult(true);
+    }, Math.max(0, bannerEndsAt.current - Date.now()));
+  };
+  useEffect(() => {
+    if (run.outcome) return;
+    clearTimeout(revealTimer.current);
+    setSolvedBanner(false);
+  }, [run.outcome]);
+
   useEffect(() => {
     if (!puzzle || !levelPuzzle || !run.outcome) return;
     if (tutorial) {
@@ -223,8 +245,12 @@ export const Game = () => {
       if (run.outcome === "solved") {
         sfx.play("best", { delay: 0.25 });
         setPracticeResult({ moves: run.moves, restarts: Math.max(0, practiceAttempts - 1), hints: hintsUsed, par: levelPuzzle.par, timeMs: clockMs });
-      } else sfx.play("gameover", { delay: 0.25 });
-      setShowResult(true);
+        celebrate();
+        openResultAfterBanner();
+      } else {
+        sfx.play("gameover", { delay: 0.25 });
+        setShowResult(true);
+      }
       return;
     }
     if (result) return;
@@ -234,6 +260,7 @@ export const Game = () => {
       return;
     }
     sfx.play("best", { delay: 0.25 });
+    celebrate();
     const local: DailyResult = { moves: run.moves, restarts: Math.max(0, attempts - 1), hints: hintsUsed, par: levelPuzzle.par, timeMs: clockMs };
     const keepLocal = () => {
       setResult(local);
@@ -241,7 +268,7 @@ export const Game = () => {
     };
     if (!puzzle.username) {
       keepLocal();
-      setShowResult(true);
+      openResultAfterBanner();
       return;
     }
     submitRun(puzzle.date, level, run.actions, clockMs)
@@ -257,7 +284,7 @@ export const Game = () => {
         }
       })
       .catch(keepLocal)
-      .finally(() => setShowResult(true));
+      .finally(openResultAfterBanner);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run.outcome]);
 
@@ -749,6 +776,7 @@ export const Game = () => {
         />
       )}
       <TutorialDone isOpen={tutorial && tutorialDoneOpen} onPlay={finishTutorial} />
+      <SolvedBanner show={solvedBanner} />
 
       {setup && (
         <DailyResultModal
