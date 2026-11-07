@@ -108,7 +108,8 @@ export const Splash = () => {
       <div className="grid w-full max-w-[420px] grid-cols-3 gap-2.5">
         {DAILY_LEVELS.map(({ level, label }) => {
           const result = ready ? puzzle?.results[level] : null;
-          const streak = puzzle?.stats[level].streak ?? 0;
+          // The streak is today's; on an older day's post it would read as that day's.
+          const streak = puzzle && puzzle.date === easternDateKey() ? puzzle.stats[level].streak : 0;
           return (
             <button key={level} className="gp-card flex flex-col items-center gap-2 p-2.5 transition-transform active:scale-95" onClick={(e) => play(e, level)}>
               <span className="font-display text-base font-bold">{label}</span>
