@@ -3,9 +3,9 @@ import { DAILY_LEVELS } from "@/utils/dailyCore";
 import { statsFor } from "./store";
 
 // A flair this app wrote. Anything else is the player's own, which we leave alone.
-const OURS = /^\d+ solves?( \| 🔥 \d+)?$/;
+const OURS = /^\d+ solves?( \| 🔥 \d+( day streak)?)?$/;
 
-/** Sets the player's flair to their solves and best current streak, e.g. "12 solves | 🔥 5". */
+/** Sets the player's flair to their solves and best current streak, e.g. "12 solves | 🔥 5 day streak". */
 export async function updateScoreFlair(userId: string, username: string) {
   try {
     const user = await reddit.getCurrentUser();
@@ -14,7 +14,7 @@ export async function updateScoreFlair(userId: string, username: string) {
     const stats = await Promise.all(DAILY_LEVELS.map(({ level }) => statsFor(level, userId)));
     const solves = stats.reduce((sum, level) => sum + level.played, 0);
     const streak = Math.max(...stats.map((level) => level.streak));
-    const text = `${solves} ${solves === 1 ? "solve" : "solves"}${streak > 0 ? ` | 🔥 ${streak}` : ""}`;
+    const text = `${solves} ${solves === 1 ? "solve" : "solves"}${streak > 0 ? ` | 🔥 ${streak} day streak` : ""}`;
     if (text === current) return;
     await reddit.setUserFlair({ subredditName: context.subredditName, username, text, backgroundColor: "#E7DFFF", textColor: "dark" });
   } catch (e) {
