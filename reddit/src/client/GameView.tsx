@@ -242,8 +242,13 @@ export const Game = () => {
     if (tutorial) {
       if (run.outcome === "solved") {
         sfx.play("best", { delay: 0.25 });
-        // A beat to see the board match the target, then the wrap-up card.
-        setTimeout(() => setTutorialDoneOpen(true), 900);
+        // The same SOLVED moment as a real puzzle, then the wrap-up card.
+        celebrate();
+        clearTimeout(revealTimer.current);
+        revealTimer.current = setTimeout(() => {
+          setSolvedBanner(false);
+          setTutorialDoneOpen(true);
+        }, SOLVED_BANNER_MS);
       }
       return;
     }
