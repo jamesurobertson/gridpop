@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { context, requestExpandedMode } from "@devvit/web/client";
-import { Flame } from "lucide-react";
+import { Timer } from "lucide-react";
 import TargetGrid from "@/components/game/TargetGrid";
-import { DAILY_LEVELS, DailyLevel, dailyScore, parseTarget, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, dailyScore, formatClock, parseTarget, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
 import { createEmptyGrid } from "@/utils/gameLogic";
 import type { PuzzleResponse } from "../shared/api";
 import { fetchPuzzle, saveLevel } from "./api";
@@ -108,8 +108,6 @@ export const Splash = () => {
       <div className="grid w-full max-w-[420px] grid-cols-3 gap-2.5">
         {DAILY_LEVELS.map(({ level, label }) => {
           const result = ready ? puzzle?.results[level] : null;
-          // The streak is today's; on an older day's post it would read as that day's.
-          const streak = puzzle && puzzle.date === easternDateKey() ? puzzle.stats[level].streak : 0;
           return (
             <button key={level} className="gp-card flex flex-col items-center gap-2 p-2.5 transition-transform active:scale-95" onClick={(e) => play(e, level)}>
               <span className="font-display text-base font-bold">{label}</span>
@@ -119,14 +117,12 @@ export const Splash = () => {
                 <TargetGrid grid={EMPTY_TARGET} shimmer={showLoader} className="w-full" />
               )}
               {result ? (
-                <span className="flex min-h-[32px] items-center gap-2 text-sm font-extrabold">
-                  <span className="text-[color:var(--gp-muted)]">Score {dailyScore(result)}</span>
-                  {streak > 0 && (
-                    <span className="inline-flex items-center gap-0.5">
-                      <Flame size={14} strokeWidth={2.75} className="text-[#FF7A3D]" />
-                      {streak}
-                    </span>
-                  )}
+                <span className="flex min-h-[32px] flex-col items-center justify-center text-sm font-extrabold leading-tight tabular-nums">
+                  <span className="whitespace-nowrap text-[color:var(--gp-muted)]">Score {dailyScore(result)}</span>
+                  <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
+                    <Timer size={14} strokeWidth={2.75} className="text-[color:var(--gp-muted)]" />
+                    {formatClock(result.timeMs)}
+                  </span>
                 </span>
               ) : (
                 <span className="gp-btn gp-btn-primary pointer-events-none !min-h-[32px] w-full !px-2 text-sm">Play</span>
