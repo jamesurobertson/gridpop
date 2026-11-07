@@ -4,7 +4,7 @@
 
 ## About
 
-Drop pieces on a 4×4 board to build the target board in as few piece placements as you can. New puzzles are posted every day at midnight Eastern. Anyone can install it to their own subreddit.
+Drop pieces on a 4×4 board to build the target board in as few piece placements as you can. New puzzles are posted every day at midnight Eastern. Any mod can add it to their own subreddit.
 
 Features:
 
@@ -27,7 +27,7 @@ On a keyboard: arrow keys to move, A/D to rotate, and Space to place.
 
 ## For Subreddit Moderators
 
-1. Click **Install** and select your subreddit.
+1. Click **Add to community** and pick your subreddit.
 2. That's it. A new puzzle is posted and pinned every day at midnight Eastern.
 
 Missing a day? Use **Post today's GridPop** from the subreddit menu.
