@@ -9,7 +9,7 @@ Drop pieces on a 4×4 board to build the target board in as few piece placements
 Features:
 
 - **Daily puzzle** — a new board every day in Easy, Normal and Hard
-- **Leaderboards** — fewest pieces wins, fastest time breaks ties
+- **Leaderboards** — every subreddit gets its own; fewest pieces wins, fastest time breaks ties
 - **Streaks** — keep your daily streak going
 - **Hints** — stuck? Get a nudge
 - **Share your score** — post it in the comments in one tap

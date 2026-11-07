@@ -1,3 +1,4 @@
+import { context } from "@devvit/web/client";
 import { useState } from "react";
 import { formatClock } from "@/utils/dailyCore";
 import { Lightbulb, RotateCcw } from "lucide-react";
@@ -39,9 +40,20 @@ const Row = ({ entry, mine, placeholder }: { entry: LeaderboardEntry; mine: bool
   );
 };
 
+// Each install keeps its own data, so the board is this subreddit's.
+const subreddit = (() => {
+  try {
+    return context?.subredditName || null;
+  } catch {
+    return null;
+  }
+})();
+
 const Header = ({ total }: { total: number }) => (
   <div className={cn("gp-label mb-1.5 grid gap-1.5 px-2.5", COLUMNS)}>
-    <span className="col-span-2 whitespace-nowrap">Leaderboard · {total}</span>
+    <span className="col-span-2 truncate">
+      {subreddit ? <span className="normal-case tracking-normal">r/{subreddit}</span> : "Leaderboard"} · {total}
+    </span>
     <span className="text-right">Moves</span>
     <span className="text-right">Time</span>
   </div>
