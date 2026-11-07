@@ -19,7 +19,7 @@ export const SolvedBanner = ({ show }: { show: boolean }) => (
         exit={{ opacity: 0, transition: { duration: 0.22, ease: "easeIn" } }}
         aria-live="polite"
       >
-        <div className="gp-logo gp-logo-pop text-[min(17vw,128px)]" aria-label="Solved">
+        <div className="gp-logo gp-logo-pop text-[min(10.5vw,76px)]" aria-label="Solved">
           {LETTERS.map((letter, i) => {
             const tile = TILES[i + 1];
             return (
