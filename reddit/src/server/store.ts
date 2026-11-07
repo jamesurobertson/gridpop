@@ -5,8 +5,8 @@ import type { Distribution, LeaderboardEntry, LeaderboardResponse, LevelStats, S
 type StoredResult = { username: string; moves: number; restarts: number; hints?: number; par: number; timeMs: number };
 
 const resultsKey = (date: string, level: DailyLevel) => `results:${date}:${level}`;
-// v3: ranked by moves, then hints, then restarts, then time (v2 had no hints; v1 added restarts into the score).
-const boardKey = (date: string, level: DailyLevel) => `board3:${date}:${level}`;
+// v4: ranked by moves, then time; hints and restarts show but don't rank (v3 ranked them before time).
+const boardKey = (date: string, level: DailyLevel) => `board4:${date}:${level}`;
 const distributionKey = (date: string, level: DailyLevel) => `dist:${date}:${level}`;
 const attemptsKey = (date: string, level: DailyLevel, userId: string) => `attempts:${date}:${level}:${userId}`;
 const hintsKey = (date: string, level: DailyLevel, userId: string) => `hints:${date}:${level}:${userId}`;
@@ -15,10 +15,8 @@ const lastHintKey = (date: string, level: DailyLevel, userId: string) => `hint-a
 export const HINT_COOLDOWN_MS = 10_000;
 const statsKey = (level: DailyLevel, userId: string) => `stats:${level}:${userId}`;
 
-// Lower is better: score, then hints (capped at 99), then restarts (capped at 999), then milliseconds
-// (capped below a billion). Stays under 2^53 for any score below 90.
-const boardScore = (result: StoredResult) =>
-  dailyScore(result) * 1e14 + Math.min(result.hints ?? 0, 99) * 1e12 + Math.min(result.restarts, 999) * 1e9 + Math.min(result.timeMs, 1e9 - 1);
+// Lower is better: score, then milliseconds (capped below a billion).
+const boardScore = (result: StoredResult) => dailyScore(result) * 1e9 + Math.min(result.timeMs, 1e9 - 1);
 
 export async function countAttempt(date: string, level: DailyLevel, userId: string) {
   return redis.incrBy(attemptsKey(date, level, userId), 1);

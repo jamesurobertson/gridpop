@@ -22,7 +22,7 @@ First-time players get a short tutorial on a practice board before their first p
 ## Scoring
 
 - **Score:** the number of pieces placed. Fewer is better.
-- **Ties:** broken by fewer hints, then fewer restarts, then the faster time.
+- **Ties:** the faster time wins. Hints and restarts are shown but don't change the ranking.
 - **Undo:** free, all the way back to the start. Starting over after a failed run counts as a restart.
 - **Hints:** a hint shows where the next piece should go. If the run can no longer reach the best finish, the hint only says how many pieces to undo; once they're undone, another hint shows where to go. Hints are counted, and there's a short wait between them.
 - **Recorded result:** only a player's first solve of each level counts toward the leaderboard and streaks. After that, "Play again" starts a practice run that isn't recorded.

@@ -16,7 +16,7 @@ const COLUMNS = "grid-cols-[1.25rem_minmax(0,1fr)_2.25rem_2.75rem]";
 // Reddit names run to 20 characters; longer ones step down a size so they fit a phone row whole.
 const nameSize = (name: string) => (name.length > 17 ? "text-[12px] tracking-[-0.01em]" : name.length > 14 ? "text-[13px]" : undefined);
 
-// Ranked by moves, then hints, then restarts, then time. Hints and restarts follow the name on its
+// Ranked by moves, then time; hints and restarts are shown, not ranked. They follow the name on its
 // line; a name too long for both wraps rather than being cut.
 const Row = ({ entry, mine, placeholder }: { entry: LeaderboardEntry; mine: boolean; placeholder?: boolean }) => {
   // A placeholder draws the same text, invisible on a soft bar, so it takes exactly a real row's size.
