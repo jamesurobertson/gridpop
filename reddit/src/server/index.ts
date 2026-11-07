@@ -20,6 +20,7 @@ import type {
 } from "../shared/api";
 import { attemptsFor, countAttempt, countHint, hintWaitMs, hintsFor, leaderboard, resultFor, saveResult, statsFor } from "./store";
 import { backfillShareImage, ensureDailyPost } from "./posts";
+import { updateScoreFlair } from "./flair";
 
 const PUZZLES = puzzles as unknown as Record<DailyLevel, DailyPuzzle[]>;
 // A par line per puzzle, as the cells each piece covers; hints fall back on it when a search is slow.
@@ -80,7 +81,7 @@ app.post("/api/submit", async (c) => {
   if (!replay.solved) return fail(replay.reason);
 
   const [username, attempts, hints] = await Promise.all([reddit.getCurrentUsername(), attemptsFor(date, userId), hintsFor(date, level, userId)]);
-  await saveResult(date, level, userId, {
+  const counted = await saveResult(date, level, userId, {
     username: username ?? "someone",
     moves: replay.moves,
     // The solving run is one of the attempts; a solve without any recorded counts as none.
@@ -89,6 +90,7 @@ app.post("/api/submit", async (c) => {
     par: puzzle.par,
     timeMs: Math.round(timeMs),
   });
+  if (counted && username) await updateScoreFlair(userId, username);
   const [result, stats, board] = await Promise.all([resultFor(date, level, userId), statsFor(level, userId), leaderboard(date, level, userId)]);
   return c.json<SubmitResponse>({ ok: true, result: result!, stats, leaderboard: board });
 });
