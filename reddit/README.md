@@ -23,7 +23,7 @@ First-time players get a short tutorial on a practice board before their first p
 
 - **Score:** the number of pieces placed. Fewer is better.
 - **Ties:** broken by fewer hints, then fewer restarts, then the faster time.
-- **Undo:** free. A restart is counted.
+- **Undo:** free, all the way back to the start. Starting over after a failed run counts as a restart.
 - **Hints:** a hint shows where the next piece should go. If the run can no longer reach the best finish, the hint only says how many pieces to undo; once they're undone, another hint shows where to go. Hints are counted, and there's a short wait between them.
 - **Recorded result:** only a player's first solve of each level counts toward the leaderboard and streaks. After that, "Play again" starts a practice run that isn't recorded.
 
@@ -32,8 +32,8 @@ Difficulty follows the fewest pieces each puzzle can be solved in: Easy 3, Norma
 ## What players see
 
 - **The post:** the day's three target boards, with each player's score and streak.
-- **The game:** opens full screen with the board, the target, the next four pieces, moves and time.
-- **Results:** moves, restarts, hints and time, the player's streak, a chart of the day's scores, the leaderboard, and an optional comment box.
+- **The game:** opens full screen with the board, the target, the next four pieces, moves and time. Hints and undo sit on the board's corners.
+- **Results:** moves, restarts, hints and time, the player's streak, the leaderboard, and a button to post their score as a comment, with an optional message.
 
 ## For moderators
 
@@ -48,7 +48,7 @@ There's nothing to configure. Each day's puzzle is the same for every subreddit 
 
 - **Redis:** stores each player's results, streaks, attempt and hint counts, the daily leaderboards and score counts, and the ID of each day's post. Results are keyed by Reddit user ID; usernames are stored only for the leaderboard.
 - **Reddit API:** creates, pins and unpins the daily posts, and reads the current player's username.
-- **Comments as the player (`SUBMIT_COMMENT`):** after solving, a player can type a comment and press **Post comment** to post it on the day's puzzle from their own account. Nothing is ever posted without that button press, and commenting is never needed to play.
+- **Comments as the player (`SUBMIT_COMMENT`):** after solving, a player can press **Post score** to post their score (and an optional message) on the day's puzzle from their own account. Nothing is ever posted without that button press, and commenting is never needed to play.
 - **Media:** uploads the share image once, to Reddit's image host, so it can be used as the post's link preview.
 - **No outside requests:** the app makes none. Puzzles ship with the app, and the server checks every result by replaying the moves before it counts.
 
