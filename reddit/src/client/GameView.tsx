@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { showLoginPrompt, showShareSheet, showToast } from "@devvit/web/client";
-import { CircleHelp, Flame, Lightbulb, RotateCcw, Trophy, Undo2, Volume2, VolumeX } from "lucide-react";
+import { CircleHelp, Flame, Lightbulb, Trophy, Undo2, Volume2, VolumeX } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
 import DailyResultModal from "@/components/game/DailyResultModal";
 import { checkLinesToClear, createEmptyGrid, getCurrentShape, isValidPosition, placeTetromino, tryWallKick } from "@/utils/gameLogic";
@@ -525,14 +525,16 @@ export const Game = () => {
     </motion.span>
   );
 
+  // One button opens the results card: the streak before solving, the leaderboard after. Restart
+  // is gone: Undo is free and goes all the way back, and the end-of-run card offers Try again.
   const buttons = (
     <div className="flex gap-2">
       {result ? (
-        <button className="gp-btn flex-1 whitespace-nowrap !px-3" onClick={() => setShowResult(true)}>
+        <button className="gp-btn min-w-0 flex-1 whitespace-nowrap !px-2" onClick={() => setShowResult(true)}>
           <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" /> Leaderboard
         </button>
       ) : (
-        <button className="gp-btn flex-1 !px-3" onClick={() => setShowResult(true)} aria-label="Stats">
+        <button className="gp-btn min-w-0 flex-1 !px-2" onClick={() => setShowResult(true)} aria-label="Stats">
           <Flame size={18} strokeWidth={2.5} className="text-[#FF7A3D]" />
           <span className="gp-value text-lg">{stats.streak}</span>
         </button>
@@ -543,16 +545,6 @@ export const Game = () => {
       <button className="gp-icon-btn shrink-0" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
         {muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />}
       </button>
-      {result ? (
-        // Once solved, Leaderboard takes the label; replaying or restarting is the icon beside it.
-        <button className="gp-icon-btn gp-btn-primary shrink-0" onClick={restart} aria-label="Play again" title="Play again">
-          <RotateCcw size={18} strokeWidth={3} />
-        </button>
-      ) : (
-        <button className="gp-btn gp-btn-primary flex-[1.6] whitespace-nowrap" onClick={restart}>
-          <RotateCcw size={18} strokeWidth={3} /> Restart
-        </button>
-      )}
     </div>
   );
 
@@ -661,34 +653,12 @@ export const Game = () => {
 
   // On phones the buttons sit beside the target, under the slim stats, freeing the bottom for the board.
   const phoneSide = (
-    <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
-      {statsCard}
-      <div className="flex gap-2">
-        <button className="gp-btn min-w-0 flex-1 !px-2" onClick={() => setShowResult(true)} aria-label="Stats">
-          <Flame size={18} strokeWidth={2.5} className="text-[#FF7A3D]" />
-          <span className="gp-value text-lg">{stats.streak}</span>
-        </button>
-        <button className="gp-icon-btn shrink-0" onClick={startTutorial} aria-label="How to play">
-          <CircleHelp size={20} strokeWidth={2.5} />
-        </button>
-        <button className="gp-icon-btn shrink-0" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
-          {muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />}
-        </button>
+    <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="gp-card grid flex-1 grid-cols-2 content-center px-2 py-2">
+        {stat("Moves", moves)}
+        {stat("Time", formatClock(shownClockMs))}
       </div>
-      {result ? (
-        <div className="flex gap-2">
-          <button className="gp-btn min-w-0 flex-1 whitespace-nowrap !px-2" onClick={() => setShowResult(true)}>
-            <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" /> Leaderboard
-          </button>
-          <button className="gp-icon-btn gp-btn-primary shrink-0" onClick={restart} aria-label="Play again">
-            <RotateCcw size={18} strokeWidth={3} />
-          </button>
-        </div>
-      ) : (
-        <button className="gp-btn gp-btn-primary w-full whitespace-nowrap" onClick={restart}>
-          <RotateCcw size={18} strokeWidth={3} /> Restart
-        </button>
-      )}
+      {buttons}
     </div>
   );
 
