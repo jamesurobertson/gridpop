@@ -1,4 +1,3 @@
-import type { DailySetup } from "@/utils/daily";
 
 // Game Types
 export type CellValue = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -89,9 +88,6 @@ export interface GameState {
   nextQueue: Tetromino[];
   linesCleared: number;
   pendingClear: boolean;
-  /** Set while playing the daily puzzle. */
-  daily: DailySetup | null;
-  dailyOutcome: DailyOutcome | null;
 }
 
 export type GameAction =
@@ -112,4 +108,4 @@ export type GameAction =
   | { type: "CHANGE_GRID_SIZE"; size: 4 | 5 }
   | { type: "UPDATE_HIGH_SCORES"; highScores: HighScore[] }
   | { type: "SET_OPTIONS_MENU"; isOpen: boolean }
-  | { type: "SET_PLAY_MODE"; mode: PlayMode; daily: DailySetup | null; gridSize: 4 | 5 };
+  | { type: "SET_PLAY_MODE"; mode: PlayMode; gridSize: 4 | 5 };

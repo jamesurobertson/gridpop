@@ -2,7 +2,7 @@
 
 ![GridPop](public/og-image.png)
 
-Stack pieces, match the numbers, and pop the lines before a tile hits 7.
+A new number puzzle every day.
 **Play it at https://jamesurobertson.github.io/gridpop/**
 
 ![GridPop on desktop](docs/screenshot.png)
@@ -10,10 +10,12 @@ Stack pieces, match the numbers, and pop the lines before a tile hits 7.
 
 ## Daily puzzle
 
-The game opens on the daily puzzle: everyone gets the same pieces in the same order and tries to
-build the target board in as few placements as possible, with fewer restarts and then time breaking ties. The
-fewest possible is shown as the goal. A new puzzle
-starts at midnight UTC. Unlimited and Timed are the endless modes.
+The site opens on the daily puzzle, the same game as the Reddit app (`reddit/src/client`): everyone
+gets the same pieces in the same order and tries to build the target board in as few placements as
+possible, with time breaking ties. A new puzzle starts at midnight Eastern. On the site, results,
+streaks and hints are kept in the browser (`src/web/localApi.ts` answers the app's server calls), and
+`vite.config.ts` points the app's Reddit imports at those stand-ins. Unlimited and Timed are the
+endless modes (`src/components/game/EndlessGame.tsx`), in the same layout.
 
 Puzzles live in `src/data/dailyPuzzles.json`, made ahead of time by
 

@@ -5,7 +5,8 @@ import TargetGrid from "@/components/game/TargetGrid";
 import { DAILY_LEVELS, DailyLevel, dailyScore, formatClock, parseTarget, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
 import { createEmptyGrid } from "@/utils/gameLogic";
 import type { PuzzleResponse } from "../shared/api";
-import { fetchPuzzle, saveLevel } from "./api";
+import { fetchPuzzle } from "./api";
+import { saveLevel } from "./storage";
 import { usePatientLoading } from "./Loader";
 
 const postDate = () => {

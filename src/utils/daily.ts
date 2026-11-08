@@ -1,20 +1,5 @@
 import { GridType, TetrominoType } from "@/types/game";
-import puzzles from "@/data/dailyPuzzles.json";
-import {
-  DAILY_LEVELS,
-  DailyLevel,
-  DailyPuzzle,
-  DailyResult,
-  dailyScore,
-  dayIndex,
-  emojiBoard,
-  formatClock,
-  overParBucket,
-  parseTarget,
-  pickPuzzle,
-  shiftDate,
-  utcDateKey,
-} from "./dailyCore";
+import { DAILY_LEVELS, DailyLevel, DailyResult, dailyScore, emojiBoard, formatClock, overParBucket, shiftDate, utcDateKey } from "./dailyCore";
 
 export * from "./dailyCore";
 
@@ -34,58 +19,6 @@ export interface DailySetup {
 type DailyResults = Record<DailyLevel, Record<string, DailyResult>>;
 
 const RESULTS_KEY = "gridpop-daily-results-v2";
-const PROGRESS_KEY = "gridpop-daily-progress";
-const LEVEL_KEY = "gridpop-daily-level";
-
-
-export const isToday = (date: string) => date === utcDateKey();
-
-/**
- * A day other than today to play, from ?day=YYYY-MM-DD, for trying puzzles ahead of time. Results
- * and progress are only saved for today's puzzle, so playing ahead leaves that day untouched.
- */
-export function previewDay(): string | null {
-  try {
-    const day = new URLSearchParams(location.search).get("day");
-    return day && /^\d{4}-\d{2}-\d{2}$/.test(day) && !Number.isNaN(Date.parse(day)) && day !== utcDateKey() ? day : null;
-  } catch {
-    return null;
-  }
-}
-
-/** The day the daily mode plays: the preview day if there is one, otherwise today. */
-export const dailyDate = () => previewDay() ?? utcDateKey();
-
-export function loadDailyLevel(): DailyLevel {
-  try {
-    const saved = localStorage.getItem(LEVEL_KEY);
-    return DAILY_LEVELS.some((option) => option.level === saved) ? (saved as DailyLevel) : "normal";
-  } catch {
-    return "normal";
-  }
-}
-
-export function saveDailyLevel(level: DailyLevel) {
-  try {
-    localStorage.setItem(LEVEL_KEY, level);
-  } catch {
-    // Private mode: Normal again next visit.
-  }
-}
-
-export function dailySetup(date: string, level: DailyLevel): DailySetup {
-  const list = (puzzles as unknown as Record<DailyLevel, DailyPuzzle[]>)[level];
-  const puzzle = pickPuzzle(list, date);
-  return {
-    date,
-    level,
-    number: dayIndex(date) + 1,
-    pieces: puzzle.pieces,
-    target: parseTarget(puzzle.target),
-    par: puzzle.par,
-    showSolved: !!loadDailyResults()[level][date],
-  };
-}
 
 
 // ---------- results and streaks ----------
@@ -138,36 +71,6 @@ export function dailyStats(results: Record<string, DailyResult>, today = utcDate
   const overPar: DailyStats["overPar"] = [0, 0, 0, 0];
   for (const result of Object.values(results)) overPar[overParBucket(dailyScore(result), result.par)]++;
   return { played: dates.length, streak, bestStreak, overPar };
-}
-
-// ---------- progress: the running clock and run count per puzzle, kept across restarts and reloads ----------
-
-export interface DailyProgress {
-  elapsedMs: number;
-  /** Runs where at least one piece was placed; every one after the first is a restart. */
-  attempts: number;
-}
-
-const progressId = (setup: Pick<DailySetup, "date" | "level">) => `${setup.date}/${setup.level}`;
-
-export function loadDailyProgress(setup: Pick<DailySetup, "date" | "level">): DailyProgress {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? "{}");
-    return { elapsedMs: 0, attempts: 0, ...saved[progressId(setup)] };
-  } catch {
-    return { elapsedMs: 0, attempts: 0 };
-  }
-}
-
-export function saveDailyProgress(setup: Pick<DailySetup, "date" | "level">, progress: DailyProgress) {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? "{}");
-    // Only today's progress is worth keeping.
-    const kept = Object.fromEntries(Object.entries(saved).filter(([id]) => id.startsWith(setup.date)));
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ ...kept, [progressId(setup)]: progress }));
-  } catch {
-    // Private mode: the clock and restarts just start over on reload.
-  }
 }
 
 // ---------- sharing ----------

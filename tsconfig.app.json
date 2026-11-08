@@ -23,7 +23,8 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@devvit/web/client": ["./src/web/devvitClient.ts"]
     }
   },
   "include": ["src"]

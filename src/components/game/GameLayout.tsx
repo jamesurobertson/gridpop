@@ -87,25 +87,37 @@ const KeyChip = ({ children }: { children: ReactNode }) => (
   <span className="font-display inline-grid h-7 min-w-[28px] place-items-center rounded-[7px] border-2 border-[#1F1633] bg-white px-1.5 text-[13px] font-bold text-[color:var(--gp-ink)] shadow-[0_2px_0_#1F1633]">{children}</span>
 );
 
+export type HintKeys = { left: string; up: string; down: string; right: string; rotateBack: string; rotate: string; place: string; hold?: string };
+
+const DEFAULT_HINT_KEYS: HintKeys = { left: "ArrowLeft", up: "ArrowUp", down: "ArrowDown", right: "ArrowRight", rotateBack: "a", rotate: "d", place: " " };
+
+const KEY_LABELS: Record<string, string> = { arrowleft: "←", arrowup: "↑", arrowdown: "↓", arrowright: "→", " ": "Space" };
+export const keyLabel = (key: string) => KEY_LABELS[key.toLowerCase()] ?? key.toUpperCase();
+
 /** The keyboard controls, for under the board on wide screens. */
-export const KeyHints = () => (
-  <div className="flex items-center justify-center gap-5 text-xs font-extrabold text-[color:var(--gp-muted)]" style={{ height: HINTS_HEIGHT }}>
+export const KeyHints = ({ keys = DEFAULT_HINT_KEYS }: { keys?: HintKeys }) => (
+  <div className={cn("flex items-center justify-center text-xs font-extrabold text-[color:var(--gp-muted)]", keys.hold ? "gap-3.5" : "gap-5")} style={{ height: HINTS_HEIGHT }}>
     <span className="flex items-center gap-1.5">
-      <KeyChip>←</KeyChip>
-      <KeyChip>↑</KeyChip>
-      <KeyChip>↓</KeyChip>
-      <KeyChip>→</KeyChip>
+      {[keys.left, keys.up, keys.down, keys.right].map((key, i) => (
+        <KeyChip key={i}>{keyLabel(key)}</KeyChip>
+      ))}
       Move
     </span>
     <span className="flex items-center gap-1.5">
-      <KeyChip>A</KeyChip>
-      <KeyChip>D</KeyChip>
+      <KeyChip>{keyLabel(keys.rotateBack)}</KeyChip>
+      <KeyChip>{keyLabel(keys.rotate)}</KeyChip>
       Rotate
     </span>
     <span className="flex items-center gap-1.5">
-      <KeyChip>Space</KeyChip>
+      <KeyChip>{keyLabel(keys.place)}</KeyChip>
       Place
     </span>
+    {keys.hold && (
+      <span className="flex items-center gap-1.5">
+        <KeyChip>{keyLabel(keys.hold)}</KeyChip>
+        Hold
+      </span>
+    )}
   </div>
 );
 

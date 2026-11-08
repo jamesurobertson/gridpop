@@ -11,14 +11,15 @@ import { DAILY_LEVELS, DailyLevel, DailyResult, dailyScore, formatClock, msUntil
 import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
-import { fetchLeaderboard, fetchPuzzle, loadClock, loadLevel, recordAttempt, requestHint, saveClock, saveLevel, submitRun } from "./api";
+import { fetchLeaderboard, fetchPuzzle, recordAttempt, requestHint, submitRun } from "./api";
+import { loadClock, loadLevel, saveClock, saveLevel } from "./storage";
 import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
 import { DemoBoard, usePatientLoading } from "./Loader";
 import { Leaderboard, LeaderboardSkeleton } from "./Leaderboard";
 import { SOLVED_BANNER_MS, SolvedBanner } from "./SolvedBanner";
 import { CommentBox } from "./CommentBox";
-import { GameLayout, KeyHints, NextColumn, TargetCard, useViewport } from "./GameLayout";
+import { GameLayout, KeyHints, NextColumn, TargetCard, useViewport } from "@/components/game/GameLayout";
 import { useDailyRun } from "./useDailyRun";
 
 const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0, 0, 0, 0] };
@@ -50,7 +51,7 @@ const spotCenter = (cells: { x: number; y: number }[]) => ({
   y: ((cells.reduce((sum, c) => sum + c.y, 0) / Math.max(1, cells.length) + 0.5) / 4) * 100,
 });
 
-export const Game = () => {
+export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const [puzzle, setPuzzle] = useState<PuzzleResponse | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [level, setLevel] = useState<DailyLevel>(loadLevel);
@@ -141,7 +142,7 @@ export const Game = () => {
     if (saved) {
       dispatch({ type: "showSolved", target: parseTarget(data.levels[next].target) });
       setShowResult(true);
-      if (data.username) {
+      if (data.username && !data.local) {
         setBoardLoading(true);
         void fetchLeaderboard(next)
           .then(setBoard)
@@ -279,7 +280,7 @@ export const Game = () => {
       setResult(local);
       remember(level, { result: { ...local, restarts: local.restarts ?? 0, hints: hintsUsed, rank: 0, total: 0 } });
     };
-    if (!puzzle.username) {
+    if (!puzzle.username && !puzzle.local) {
       keepLocal();
       openResultAfterBanner();
       return;
@@ -364,7 +365,7 @@ export const Game = () => {
       const counted = attempts + 1;
       setAttempts(counted);
       remember(level, { attempts: counted });
-      if (puzzle.username)
+      if (puzzle.username || puzzle.local)
         void recordAttempt(puzzle.date, level)
           .then(({ attempts: fromServer }) => {
             if (!fromServer) return;
@@ -553,6 +554,14 @@ export const Game = () => {
     </div>
   );
 
+  // The website puts its Daily / Unlimited / Timed switch above the difficulty.
+  const top = (
+    <>
+      {modeTabs}
+      {tabs}
+    </>
+  );
+
   const moves = result && !practice && !tutorial ? result.moves : run.moves;
   const shownClockMs = tutorial ? 0 : clockMs;
   // Wide screens have room for a full card; phones get one slim strip so the board keeps the space.
@@ -591,7 +600,7 @@ export const Game = () => {
   // is gone: Undo is free and goes all the way back, and the end-of-run card offers Try again.
   const buttons = (
     <div className="flex gap-2">
-      {result ? (
+      {result && !puzzle?.local ? (
         <button className="gp-btn min-w-0 flex-1 whitespace-nowrap !px-2" onClick={() => setShowResult(true)}>
           <Trophy size={18} strokeWidth={2.5} className="text-[#F0A92B]" /> Leaderboard
         </button>
@@ -698,7 +707,7 @@ export const Game = () => {
 
   const shownRun = practice ? practiceResult : result;
   // The day's leaderboard and comments belong with every result, practice runs included.
-  const resultExtra = puzzle?.username ? (
+  const resultExtra = puzzle?.local ? null : puzzle?.username ? (
     <>
       {!leaderboardWait.ready ? (
         <LeaderboardSkeleton rank={puzzle.results[level]?.rank ?? 1} total={puzzle.results[level]?.total ?? FOLDED_ROWS_GUESS} pulse={leaderboardWait.showLoader} />
@@ -757,7 +766,7 @@ export const Game = () => {
   const loadingLayout = (
     <GameLayout
       viewport={viewport}
-      top={<div className="pointer-events-none contents">{tutorial ? tutorialHeader : tabs}</div>}
+      top={<div className="pointer-events-none contents">{tutorial ? tutorialHeader : top}</div>}
       side={inertSide}
       target={<TargetCard target={EMPTY_TARGET} landscape={landscape} />}
       board={<DemoBoard active={showLoader} className="gp-board-wrap aspect-square w-full" />}
@@ -785,7 +794,7 @@ export const Game = () => {
       ) : (
         <GameLayout
           viewport={viewport}
-          top={tabs}
+          top={top}
           side={landscape ? statsCard : phoneSide}
           target={
             <TargetCard key={level} target={target} landscape={landscape} highlight={showCoach ? "coach" : undefined} reveal>
@@ -823,8 +832,9 @@ export const Game = () => {
           run={shownRun}
           stats={stats}
           onRestart={restart}
-          onShare={(text) => void showShareSheet({ title: "GridPop", text }).catch(() => undefined)}
-          hideGoal
+          onShare={puzzle?.local ? undefined : (text) => void showShareSheet({ title: "GridPop", text }).catch(() => undefined)}
+          // On the website there's no leaderboard, so the goal is what a score is measured against.
+          hideGoal={!puzzle?.local}
           practice={practice}
           onReplay={result ? restart : undefined}
           onUndo={run.outcome && run.outcome !== "solved" && run.history.length > 0 ? undo : undefined}

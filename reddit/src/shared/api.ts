@@ -19,6 +19,8 @@ export type PuzzleResponse = {
   number: number;
   /** Null when logged out: the puzzle plays, but nothing is saved. */
   username: string | null;
+  /** Played on the website: saved on this device, with no leaderboard, comments or login. */
+  local?: boolean;
   levels: Record<DailyLevel, LevelPuzzle>;
   results: Record<DailyLevel, SavedResult | null>;
   stats: Record<DailyLevel, LevelStats>;
