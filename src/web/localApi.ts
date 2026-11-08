@@ -1,14 +1,12 @@
 // The website's stand-in for the Reddit app's server (reddit/src/client/api.ts): the same calls,
 // answered in the browser and saved to this device. Swapped in by vite.config.ts.
 import puzzles from "@/data/dailyPuzzles.json";
-import solutions from "@/data/dailySolutions.json";
 import { DAILY_LEVELS, DailyLevel, DailyPuzzle, DailyResult, easternDateKey, parseTarget, pickPuzzle, puzzleNumber } from "@/utils/dailyCore";
 import { dailyStats, loadDailyResults, saveDailyResult } from "@/utils/daily";
 import { hintFor, replayRun, replayTo, type RunAction } from "@/utils/dailyRun";
 import type { AttemptResponse, CommentResponse, HintResponse, LeaderboardResponse, PuzzleResponse, SavedResult, SubmitResponse } from "../../reddit/src/shared/api";
 
 const PUZZLES = puzzles as unknown as Record<DailyLevel, DailyPuzzle[]>;
-const SOLUTIONS = solutions as unknown as Record<DailyLevel, Record<string, number[][]>>;
 const NO_BOARD: LeaderboardResponse = { top: [], me: null, total: 0, distribution: [] };
 
 const attemptsKey = (date: string, level: DailyLevel) => `gridpop-attempts:${date}:${level}`;
@@ -81,7 +79,8 @@ export async function requestHint(date: string, level: DailyLevel, actions: RunA
   if (typeof cursor === "string" || cursor.solved) return { ok: false, reason: typeof cursor === "string" ? cursor : "already solved" };
   // The search can take a moment; let the button's cooldown paint first.
   await new Promise((resolve) => setTimeout(resolve, 0));
-  const hint = hintFor(puzzle.pieces, target, actions, puzzle.par, SOLUTIONS[level][puzzle.date]);
+  // The par solutions stay off the public site, so there's no fallback when the search runs out of time.
+  const hint = hintFor(puzzle.pieces, target, actions, puzzle.par);
   // Only hints before the first solve count; replays afterwards are practice.
   const counted = !!hint && !loadDailyResults()[level][date];
   return { ok: true, hint, hints: counted ? bumpCount(hintsKey(date, level)) : 0 };
