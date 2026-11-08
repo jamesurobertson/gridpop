@@ -36,7 +36,7 @@ export const KEY_PRESETS: { name: string; keys: Keys }[] = [
   },
 ];
 
-export const DEFAULT_CONTROLS: Controls = { keys: KEY_PRESETS[0].keys, touch: "tap-place" };
+export const DEFAULT_CONTROLS: Controls = { keys: KEY_PRESETS[0].keys, touch: "tap-rotate" };
 
 /** Keys that can't be bound: Escape cancels a rebind, and the rest are for the browser. */
 export const RESERVED_KEYS = new Set(["Escape", "Tab", "Meta", "Control", "Alt", "CapsLock", "Dead", "Unidentified"]);

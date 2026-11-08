@@ -59,8 +59,8 @@ const GridGlyph = ({ n }: { n: number }) => (
 );
 
 const TOUCH_OPTIONS: { value: TouchScheme; label: string; detail: string }[] = [
-  { value: "tap-place", label: "Tap to place", detail: "Double-tap to rotate" },
   { value: "tap-rotate", label: "Tap to rotate", detail: "Double-tap to place" },
+  { value: "tap-place", label: "Tap to place", detail: "Double-tap to rotate" },
   { value: "buttons", label: "Buttons", detail: "Rotate and Place buttons" },
 ];
 
