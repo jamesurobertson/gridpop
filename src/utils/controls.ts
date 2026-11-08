@@ -125,15 +125,3 @@ export function controlText(controls: Controls, touch: boolean) {
     rotate: controls.touch === "buttons" ? "Tap a turn button" : tapPlaces ? "Double-tap to rotate" : "Tap to rotate",
   };
 }
-
-/** The touch gestures, as label and value, for the settings list. */
-export function gestureList(controls: Controls, hold: boolean): [string, string][] {
-  const list: [string, string][] = [["Move", "Drag"]];
-  if (controls.touch === "buttons") list.push(["Place", "Place button"], ["Rotate", "Turn buttons"]);
-  else {
-    const tapPlaces = controls.touch === "tap-place";
-    list.push(["Place", tapPlaces ? "Tap" : "Double-tap"], ["Rotate", tapPlaces ? "Double-tap" : "Tap"]);
-  }
-  if (hold) list.push(["Hold", "Tap Hold"]);
-  return list;
-}

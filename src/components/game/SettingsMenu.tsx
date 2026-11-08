@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { RotateCcw, RotateCw, Volume2, VolumeX, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,6 @@ import {
   MOVE_ACTIONS,
   RESERVED_KEYS,
   bindKey,
-  gestureList,
   keyLabel,
   sameKeys,
   type Controls,
@@ -60,29 +59,15 @@ const GridGlyph = ({ n }: { n: number }) => (
   </span>
 );
 
-const TOUCH_OPTIONS: { value: TouchScheme; label: string }[] = [
-  { value: "tap-place", label: "Tap to place" },
-  { value: "tap-rotate", label: "Tap to rotate" },
-  { value: "buttons", label: "Buttons" },
+const TOUCH_OPTIONS: { value: TouchScheme; label: string; detail: string }[] = [
+  { value: "tap-place", label: "Tap to place", detail: "Double-tap to rotate" },
+  { value: "tap-rotate", label: "Tap to rotate", detail: "Double-tap to place" },
+  { value: "buttons", label: "Buttons", detail: "Rotate and Place buttons" },
 ];
 
-const TURN_OPTIONS: { value: RotateDirection; label: ReactNode }[] = [
-  {
-    value: "counterclockwise",
-    label: (
-      <>
-        <RotateCcw size={14} strokeWidth={3} /> Left
-      </>
-    ),
-  },
-  {
-    value: "clockwise",
-    label: (
-      <>
-        <RotateCw size={14} strokeWidth={3} /> Right
-      </>
-    ),
-  },
+const TURN_OPTIONS: { value: RotateDirection; label: string; Icon: typeof RotateCw }[] = [
+  { value: "counterclockwise", label: "Rotate left", Icon: RotateCcw },
+  { value: "clockwise", label: "Rotate right", Icon: RotateCw },
 ];
 
 const KEY_ROWS: { label: string; actions: KeyAction[] }[] = [
@@ -182,22 +167,49 @@ export const SettingsMenu = ({ isOpen, onClose, controls, onChangeControls, acti
 
           {touch ? (
             <Section title="Touch controls">
-              <div className="space-y-2.5">
-                <Segmented label="Touch controls" value={controls.touch} options={TOUCH_OPTIONS} onChange={(value) => onChangeControls({ ...controls, touch: value })} />
-                {controls.touch !== "buttons" && (
-                  <div className="flex items-center gap-3">
-                    <span className="w-[72px] shrink-0 text-sm font-extrabold">Tap turns</span>
-                    <Segmented label="Tap turns" value={controls.tapRotate} options={TURN_OPTIONS} onChange={(value) => onChangeControls({ ...controls, tapRotate: value })} />
-                  </div>
-                )}
-                <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 rounded-2xl bg-[#FBF6EE] px-4 py-3 text-sm font-bold">
-                  {gestureList(controls, actions.includes("hold")).map(([action, gesture]) => (
-                    <Fragment key={action}>
-                      <dt>{action}</dt>
-                      <dd className="text-[color:var(--gp-muted)]">{gesture}</dd>
-                    </Fragment>
-                  ))}
-                </dl>
+              <div role="radiogroup" aria-label="Touch controls" className="grid gap-2">
+                {TOUCH_OPTIONS.map((option) => {
+                  const selected = controls.touch === option.value;
+                  return (
+                    <div
+                      key={option.value}
+                      className={cn(
+                        "flex items-center gap-2 rounded-2xl border-[2.5px] pr-2.5 transition-colors",
+                        selected ? "border-[#1F1633] bg-[#EFEAFF]" : "border-[color:var(--gp-line)] bg-white hover:border-[#BCAEDB]"
+                      )}
+                    >
+                      <button
+                        role="radio"
+                        aria-checked={selected}
+                        className="min-w-0 flex-1 rounded-2xl py-3 pl-4 text-left focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#7C5CFF]"
+                        onClick={() => onChangeControls({ ...controls, touch: option.value })}
+                      >
+                        <span className="font-display block text-[17px] font-semibold leading-tight">{option.label}</span>
+                        <span className="block text-[13px] font-bold text-[color:var(--gp-muted)]">{option.detail}</span>
+                      </button>
+                      {/* The way a tap (or double-tap) turns the piece, on the choice it belongs to. */}
+                      {selected && option.value !== "buttons" && (
+                        <div role="radiogroup" aria-label="Rotate direction" className="flex shrink-0 gap-1">
+                          {TURN_OPTIONS.map((turn) => (
+                            <button
+                              key={turn.value}
+                              role="radio"
+                              aria-checked={controls.tapRotate === turn.value}
+                              aria-label={turn.label}
+                              className={cn(
+                                "grid h-10 w-10 place-items-center rounded-xl border-2 border-[#1F1633] transition-colors",
+                                controls.tapRotate === turn.value ? "bg-[#7C5CFF] text-white" : "bg-white hover:bg-[#FFF3E2]"
+                              )}
+                              onClick={() => onChangeControls({ ...controls, tapRotate: turn.value })}
+                            >
+                              <turn.Icon size={20} strokeWidth={3} />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </Section>
           ) : (
