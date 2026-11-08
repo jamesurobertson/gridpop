@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { showLoginPrompt, showShareSheet, showToast } from "@devvit/web/client";
-import { CircleHelp, Flame, Lightbulb, Trophy, Undo2, Volume2, VolumeX } from "lucide-react";
+import { CircleHelp, Flame, Lightbulb, Settings2, Trophy, Undo2 } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
 import DailyResultModal from "@/components/game/DailyResultModal";
 import { checkLinesToClear, createEmptyGrid, getCurrentShape, isValidPosition, placeTetromino, tryWallKick } from "@/utils/gameLogic";
@@ -13,18 +13,19 @@ import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
 import { fetchLeaderboard, fetchPuzzle, recordAttempt, requestHint, submitRun } from "./api";
 import { loadClock, loadLevel, saveClock, saveLevel } from "./storage";
-import { STEP_TEXT, TUTORIAL_PIECES, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, tutorialStep } from "./Tutorial";
+import { TUTORIAL_PIECES, TUTORIAL_STEPS, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, stepTitle, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
 import { DemoBoard, usePatientLoading } from "./Loader";
 import { Leaderboard, LeaderboardSkeleton } from "./Leaderboard";
 import { SOLVED_BANNER_MS, SolvedBanner } from "./SolvedBanner";
 import { CommentBox } from "./CommentBox";
-import { GameLayout, KeyHints, NextColumn, TargetCard, useViewport } from "@/components/game/GameLayout";
+import { GameLayout, KeyHints, NextColumn, TargetCard, TouchButtons, useViewport } from "@/components/game/GameLayout";
+import { SettingsMenu } from "@/components/game/SettingsMenu";
+import { DAILY_ACTIONS, actionFor, controlText, keyLabel, useControls } from "@/utils/controls";
 import { useDailyRun } from "./useDailyRun";
 
 const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0, 0, 0, 0] };
 
-const KEYS = { left: "arrowleft", right: "arrowright", up: "arrowup", down: "arrowdown", rotate: "d", rotateBack: "a", place: " ", undo: "z", hint: "h" };
 const HINT_COOLDOWN_MS = 10_000;
 const EMPTY_TARGET = createEmptyGrid(4);
 const FOLDED_ROWS_GUESS = 3;
@@ -72,6 +73,8 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   // A daily run set aside while the tutorial plays, so coming back isn't a new run (or a restart).
   const setAside = useRef<{ level: DailyLevel; run: typeof run; runNumber: number; hintsUsed: number; practice: boolean; clockMs: number } | null>(null);
   const [muted, setMuted] = useState(sfx.muted);
+  const [controls, setControls] = useControls();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const viewport = useViewport();
   const { landscape } = viewport;
   // Runs after the recorded solve: played the same way, but never sent to the server.
@@ -304,7 +307,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
 
   // ---------- controls ----------
 
-  const playable = ready && !!run.current && !run.outcome && !run.pendingClear && !showResult && !tutorialDoneOpen && !(tutorial && !tutorialGoalSeen);
+  const playable = ready && !!run.current && !run.outcome && !run.pendingClear && !showResult && !settingsOpen && !tutorialDoneOpen && !(tutorial && !tutorialGoalSeen);
 
   // The clock runs from the moment the board is ready, so planning counts. The very first game
   // waits for its first move, while the "Match this" pointers are up.
@@ -389,6 +392,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const canUndo = run.history.length > 0 && !run.pendingClear && run.outcome !== "solved";
 
   const undo = () => {
+    if (settingsOpen) return;
     if (!canUndo) return bump();
     sfx.play("hold");
     setShowResult(false);
@@ -398,6 +402,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const hintCoolingMs = Math.max(0, hintReadyAt - now);
 
   const askHint = () => {
+    if (settingsOpen) return;
     if (!puzzle || !run.current || run.outcome || run.pendingClear || tutorial || hintCoolingMs > 0) return bump();
     startClock();
     const askedActions = run.actions;
@@ -500,25 +505,27 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     const onKey = (e: KeyboardEvent) => {
       // Typing in the comment box (or any field) isn't a game move.
       if ((e.target as HTMLElement | null)?.closest?.("input, textarea, [contenteditable]")) return;
-      const key = e.key.toLowerCase();
+      if (settingsOpen) return;
+      const action = actionFor(controls.keys, e.key, DAILY_ACTIONS);
       if (tutorial && !tutorialGoalSeen) {
-        if (key === KEYS.place || key === "enter") {
+        if (action === "drop" || e.key === "Enter") {
           e.preventDefault();
           setGoalDocking(true);
         }
         return;
       }
-      if (Object.values(KEYS).includes(key)) e.preventDefault();
-      if (e.repeat && key === KEYS.place) return;
-      if (key === KEYS.left) move("left");
-      else if (key === KEYS.right) move("right");
-      else if (key === KEYS.up) move("up");
-      else if (key === KEYS.down) move("down");
-      else if (key === KEYS.rotate) rotate("clockwise");
-      else if (key === KEYS.rotateBack) rotate("counterclockwise");
-      else if (key === KEYS.place) place();
-      else if (key === KEYS.undo) undo();
-      else if (key === KEYS.hint) askHint();
+      if (!action) return;
+      e.preventDefault();
+      if (e.repeat && action === "drop") return;
+      if (action === "moveLeft") move("left");
+      else if (action === "moveRight") move("right");
+      else if (action === "moveUp") move("up");
+      else if (action === "moveDown") move("down");
+      else if (action === "rotate") rotate("clockwise");
+      else if (action === "rotateCounter") rotate("counterclockwise");
+      else if (action === "drop") place();
+      else if (action === "undo") undo();
+      else if (action === "hint") askHint();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -527,6 +534,12 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const toggleMute = () => {
     sfx.setMuted(!muted);
     setMuted(!muted);
+    if (muted) sfx.play("click");
+  };
+
+  const openSettings = () => {
+    sfx.play("click");
+    setSettingsOpen(true);
   };
 
   // ---------- layout ----------
@@ -536,6 +549,10 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
 
   const solved = run.outcome === "solved";
   const lesson = tutorialStep(run, tutorialGoalSeen);
+  const words = controlText(controls, touch);
+  const touchButtons = touch && controls.touch === "buttons";
+  const lessonRotating = lesson.step === "rotate" || !!lesson.turn;
+  const lessonAction = lesson.step === "place" || lesson.step === "place2" ? "place" : lessonRotating ? "rotate" : undefined;
   const setup = puzzle && levelPuzzle && target ? { date: puzzle.date, level, number: puzzle.number, pieces: levelPuzzle.pieces, target, par: levelPuzzle.par, showSolved: !!result } : null;
   const stat = (label: string, value: ReactNode) => (
     <div className="text-center">
@@ -613,8 +630,8 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       <button className="gp-icon-btn shrink-0" onClick={startTutorial} aria-label="How to play">
         <CircleHelp size={20} strokeWidth={2.5} />
       </button>
-      <button className="gp-icon-btn shrink-0" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
-        {muted ? <VolumeX size={20} strokeWidth={2.5} /> : <Volume2 size={20} strokeWidth={2.5} />}
+      <button className="gp-icon-btn shrink-0" onClick={openSettings} aria-label="Settings" title="Settings">
+        <Settings2 size={20} strokeWidth={2.5} />
       </button>
     </div>
   );
@@ -639,13 +656,16 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
         showPoints={false}
         hintCells={tutorial ? lesson.spot : hintSpot}
         hintReady={tutorial ? onSpot(run) : onHintSpot}
+        tapAction={touchButtons ? "none" : controls.touch === "tap-rotate" ? "rotate" : "place"}
+        tapRotate={controls.tapRotate}
       />
-      {tutorial && run.current && lesson.step !== "done" && lesson.step !== "goal" && <PieceTip piece={run.current} text={STEP_TEXT[lesson.turn ? "rotate" : lesson.step].title[touch ? 0 : 1]} />}
+      {tutorial && run.current && lesson.step !== "done" && lesson.step !== "goal" && <PieceTip piece={run.current} text={stepTitle(lesson.turn ? "rotate" : lesson.step, words)} />}
       {tutorial && touch && run.current && lesson.step !== "done" && lesson.step !== "goal" && (
         (lesson.step === "move" || lesson.step === "move2") && !lesson.turn ? (
           <DragHand from={pieceCenter(run.current)} to={spotCenter(lesson.spot)} />
         ) : (
-          <TapHand at={pieceCenter(run.current)} taps={lesson.step === "rotate" || lesson.turn ? 2 : 1} />
+          // With on-screen buttons, the button to press glows instead.
+          !touchButtons && <TapHand at={pieceCenter(run.current)} taps={lessonRotating === (controls.touch === "tap-place") ? 2 : 1} />
         )
       )}
       {tutorial &&
@@ -679,7 +699,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       {!solved && (
         <>
           {!tutorial && (
-            <button className="gp-corner-btn -left-2 -top-2" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title="Hint (H)">
+            <button className="gp-corner-btn -left-2 -top-2" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title={touch ? "Hint" : `Hint (${keyLabel(controls.keys.hint)})`}>
               {hintCoolingMs > 0 ? <span className="gp-value text-xl">{Math.ceil(hintCoolingMs / 1000)}</span> : <Lightbulb size={26} strokeWidth={2.75} className="text-[#E0A21B]" />}
             </button>
           )}
@@ -688,18 +708,18 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
             onClick={undo}
             disabled={!canUndo}
             aria-label={undosForHint > 0 ? `Undo ${undosForHint}` : "Undo"}
-            title="Undo (Z)"
+            title={touch ? "Undo" : `Undo (${keyLabel(controls.keys.undo)})`}
           >
             <Undo2 size={26} strokeWidth={2.75} />
             {undosForHint > 0 && <span className="gp-corner-badge">{undosForHint}</span>}
           </button>
         </>
       )}
-      {onHintSpot && !showCoach && coachPill(touch ? "Tap to place" : "Space to place", "bottom-3 left-1/2 -translate-x-1/2")}
+      {onHintSpot && !showCoach && coachPill(words.place, "bottom-3 left-1/2 -translate-x-1/2")}
       {showCoach && (
         <>
-          <Hand at={pieceCenter(run.current)} press={0} />
-          {coachPill(touch ? "Tap to place" : "Space to place", "bottom-3 left-1/2 -translate-x-1/2")}
+          {!touchButtons && <Hand at={pieceCenter(run.current)} press={0} />}
+          {coachPill(words.place, "bottom-3 left-1/2 -translate-x-1/2")}
         </>
       )}
     </div>
@@ -733,7 +753,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     </div>
   );
 
-  const lessonSteps = Object.keys(STEP_TEXT);
+  const lessonSteps: string[] = TUTORIAL_STEPS;
   const lessonIndex = lesson.step === "done" ? lessonSteps.length : lessonSteps.indexOf(lesson.step);
   // Progress dots so the heading reads as where you are, not as a button to a tutorial.
   const tutorialHeader = (
@@ -762,6 +782,13 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const inertSide = <div className="pointer-events-none contents">{landscape ? statsCard : phoneSide}</div>;
   const inertButtons = landscape ? <div className="pointer-events-none contents">{buttons}</div> : null;
 
+  // Keyboards get the key chips under the board; touch screens with buttons get those there instead.
+  const keyHints = <KeyHints keys={{ left: controls.keys.moveLeft, up: controls.keys.moveUp, down: controls.keys.moveDown, right: controls.keys.moveRight, rotateBack: controls.keys.rotateCounter, rotate: controls.keys.rotate, place: controls.keys.drop }} />;
+  const pad = (highlight?: "rotate" | "place") => <TouchButtons onRotate={rotate} onPlace={place} highlight={highlight} />;
+  const underBoard = (live: ReactNode) => (touch ? (touchButtons && landscape ? live : undefined) : keyHints);
+  const belowBoard = (live: ReactNode, landscapeBottom: ReactNode) => (landscape ? landscapeBottom : touchButtons ? live : null);
+  const padHeight = touchButtons ? 68 : undefined;
+
   // While the puzzle loads: the real layout, empty and inert, with the board playing itself if it's slow.
   const loadingLayout = (
     <GameLayout
@@ -771,8 +798,9 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       target={<TargetCard target={EMPTY_TARGET} landscape={landscape} />}
       board={<DemoBoard active={showLoader} className="gp-board-wrap aspect-square w-full" />}
       next={<NextColumn queue={[]} landscape={landscape} />}
-      bottom={inertButtons}
-      hints={touch ? undefined : <KeyHints />}
+      bottom={belowBoard(<div className="pointer-events-none contents">{pad()}</div>, inertButtons)}
+      hints={underBoard(<div className="pointer-events-none pt-4">{pad()}</div>)}
+      hintsHeight={padHeight}
     />
   );
 
@@ -788,8 +816,9 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} landed={lesson.step === "move"} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
           board={gameBoard}
           next={<NextColumn queue={run.queue} landscape={landscape} />}
-          bottom={inertButtons}
-          hints={touch ? undefined : <KeyHints />}
+          bottom={belowBoard(pad(lessonAction), inertButtons)}
+          hints={underBoard(<div className="pt-4">{pad(lessonAction)}</div>)}
+          hintsHeight={padHeight}
         />
       ) : (
         <GameLayout
@@ -803,8 +832,9 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           }
           board={gameBoard}
           next={<NextColumn queue={run.queue} landscape={landscape} />}
-          bottom={landscape ? buttons : null}
-          hints={touch ? undefined : <KeyHints />}
+          bottom={belowBoard(pad(), buttons)}
+          hints={underBoard(<div className="pt-4">{pad()}</div>)}
+          hintsHeight={padHeight}
         />
       )}
 
@@ -821,6 +851,16 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       )}
       <TutorialDone isOpen={tutorial && tutorialDoneOpen} onPlay={finishTutorial} />
       <SolvedBanner show={solvedBanner} />
+      <SettingsMenu
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        controls={controls}
+        onChangeControls={setControls}
+        actions={DAILY_ACTIONS}
+        touch={touch}
+        muted={muted}
+        onToggleMute={toggleMute}
+      />
 
       {setup && (
         <DailyResultModal

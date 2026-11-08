@@ -27,6 +27,9 @@ interface GameBoardProps {
   hintCells?: { x: number; y: number }[];
   /** The piece already covers the hint's cells: ring them above the piece, in green. */
   hintReady?: boolean;
+  /** What a tap does; a double-tap does the other. "none" leaves only dragging (for on-screen buttons). */
+  tapAction?: "place" | "rotate" | "none";
+  tapRotate?: "clockwise" | "counterclockwise";
   className?: string;
 }
 
@@ -54,6 +57,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
   showPoints = true,
   hintCells,
   hintReady,
+  tapAction = "place",
+  tapRotate = "clockwise",
   className,
 }) => {
   const n = grid.length;
@@ -151,7 +156,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [scoreAnimations, animate, scope]);
 
-  // ---------- touch: drag to move, tap to place, double-tap to rotate ----------
+  // ---------- touch: drag to move; tap and double-tap place and rotate ----------
 
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const dragging = useRef(false);
@@ -190,23 +195,26 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const handleTouchEnd = useCallback(() => {
     if (!touchStart.current) return;
-    if (!dragging.current) {
+    if (!dragging.current && tapAction !== "none") {
+      const rotate = () => onPieceRotate(tapRotate);
+      const [single, double] = tapAction === "place" ? [onPiecePlace, rotate] : [rotate, onPiecePlace];
       const now = Date.now();
       if (lastTap.current && now - lastTap.current < 250) {
         if (tapTimer.current) clearTimeout(tapTimer.current);
         lastTap.current = 0;
-        onPieceRotate("clockwise");
+        double();
       } else {
+        // Held back a beat, in case it's the first of a double-tap.
         lastTap.current = now;
         tapTimer.current = setTimeout(() => {
           lastTap.current = 0;
-          onPiecePlace();
+          single();
         }, 250);
       }
     }
     touchStart.current = null;
     dragging.current = false;
-  }, [onPiecePlace, onPieceRotate]);
+  }, [onPiecePlace, onPieceRotate, tapAction, tapRotate]);
 
   useEffect(() => () => void (tapTimer.current && clearTimeout(tapTimer.current)), []);
 

@@ -28,17 +28,6 @@ export type PlayMode = "daily" | "unlimited" | "timed";
 
 export type DailyOutcome = "solved" | "seven" | "empty";
 
-export interface KeyConfig {
-  rotate: string;
-  drop: string;
-  hold: string;
-  moveLeft: string;
-  moveRight: string;
-  moveUp: string;
-  moveDown: string;
-  rotateCounter: string;
-}
-
 export interface ScoreAnimation {
   value: number;
   position: Position;
@@ -59,7 +48,6 @@ export interface HighScore {
 }
 
 export interface GameSettings {
-  keyConfig: KeyConfig;
   gridSize: 4 | 5;
 }
 
@@ -79,7 +67,6 @@ export interface GameState {
   bestScore: number;
   scoreAnimations: ScoreAnimation[];
   gameMode: GameMode;
-  keyConfig: KeyConfig;
   showBoard: boolean;
   gridSize: 4 | 5;
   isTimed: boolean;
@@ -103,7 +90,6 @@ export type GameAction =
   | { type: "CLOSE_TUTORIAL" }
   | { type: "RESET_GAME" }
   | { type: "TOGGLE_SHOW_BOARD" }
-  | { type: "UPDATE_KEY_CONFIG"; config: Partial<KeyConfig> }
   | { type: "REMOVE_SCORE_ANIMATION"; id: number }
   | { type: "CHANGE_GRID_SIZE"; size: 4 | 5 }
   | { type: "UPDATE_HIGH_SCORES"; highScores: HighScore[] }

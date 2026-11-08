@@ -1,4 +1,4 @@
-import { CellValue, GridType, Position, Tetromino, TetrominoShape, KeyConfig, HighScore } from "@/types/game";
+import { CellValue, GridType, Position, Tetromino, TetrominoShape, HighScore } from "@/types/game";
 import { getRandomTetromino } from "./tetrominoShapes";
 
 // Constants
@@ -388,32 +388,22 @@ export const getNextTetromino = (gridSize: number = DEFAULT_GRID_SIZE): Tetromin
   return createTetromino(shape, gridSize);
 };
 
-// Save game settings to local storage
-export const saveGameSettings = (keyConfig: KeyConfig, gridSize: 4 | 5): void => {
+/** The endless modes' board size. Keys moved to `gridpop-controls`; an old `keyConfig` here is left for loadControls to carry over. */
+export const saveGameSettings = (gridSize: 4 | 5): void => {
   try {
-    localStorage.setItem("gridpop-settings", JSON.stringify({ keyConfig, gridSize }));
-  } catch (error) {
-    console.error("Error saving game settings:", error);
+    const saved = JSON.parse(localStorage.getItem("gridpop-settings") ?? "{}");
+    localStorage.setItem("gridpop-settings", JSON.stringify({ ...saved, gridSize }));
+  } catch {
+    // Storage blocked: the size lasts until the page closes.
   }
 };
 
-// Load game settings from local storage
-export const loadGameSettings = (): { keyConfig: KeyConfig | null; gridSize: 4 | 5 } => {
+export const loadGameSettings = (): { gridSize: 4 | 5 } => {
   try {
-    const savedSettings = localStorage.getItem("gridpop-settings");
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
-      return {
-        keyConfig: settings.keyConfig || null,
-        gridSize: settings.gridSize || DEFAULT_GRID_SIZE,
-      };
-    }
-  } catch (error) {
-    console.error("Error loading game settings:", error);
+    const saved = JSON.parse(localStorage.getItem("gridpop-settings") ?? "null");
+    if (saved?.gridSize === 4 || saved?.gridSize === 5) return { gridSize: saved.gridSize };
+  } catch {
+    // Unreadable: the default.
   }
-
-  return {
-    keyConfig: null,
-    gridSize: DEFAULT_GRID_SIZE,
-  };
+  return { gridSize: DEFAULT_GRID_SIZE };
 };

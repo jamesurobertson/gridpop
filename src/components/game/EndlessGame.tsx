@@ -4,9 +4,10 @@ import { RotateCcw, Settings2, Timer, Trophy } from "lucide-react";
 import GameBoard from "./GameBoard";
 import PieceDisplay from "./PieceDisplay";
 import GameOverModal from "./GameOverModal";
-import OptionsMenu from "./OptionsMenu";
+import { SettingsMenu } from "./SettingsMenu";
 import HighScoresModal from "./HighScoresModal";
-import { GameLayout, KeyHints, NextColumn, keyLabel, useViewport } from "./GameLayout";
+import { GameLayout, KeyHints, NextColumn, TouchButtons, useViewport } from "./GameLayout";
+import { ENDLESS_ACTIONS, actionFor, controlText, keyLabel, useControls } from "@/utils/controls";
 import {
   createEmptyGrid,
   getNextTetromino,
@@ -28,21 +29,10 @@ import {
   loadGameSettings,
   DEFAULT_GRID_SIZE,
 } from "@/utils/gameLogic";
-import { CellValue, Position, GameState, GameAction, KeyConfig, PlayMode, Tetromino } from "@/types/game";
+import { CellValue, Position, GameState, GameAction, PlayMode, Tetromino } from "@/types/game";
 import { loadHighScores } from "@/utils/highScores";
 import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
-
-const DEFAULT_KEY_CONFIG: KeyConfig = {
-  rotate: "d",
-  drop: " ",
-  hold: "s",
-  moveLeft: "ArrowLeft",
-  moveRight: "ArrowRight",
-  moveUp: "ArrowUp",
-  moveDown: "ArrowDown",
-  rotateCounter: "a",
-};
 
 const initialState: GameState = {
   grid: createEmptyGrid(),
@@ -60,7 +50,6 @@ const initialState: GameState = {
   bestScore: getBestScore(loadHighScores(), DEFAULT_GRID_SIZE, true),
   scoreAnimations: [],
   gameMode: "standard",
-  keyConfig: loadKeyConfig(),
   showBoard: false,
   gridSize: DEFAULT_GRID_SIZE,
   isTimed: false,
@@ -72,18 +61,6 @@ const initialState: GameState = {
 };
 
 let animationCounter = 0;
-
-function loadKeyConfig(): KeyConfig {
-  const savedConfig = localStorage.getItem("keyConfig");
-  if (savedConfig) {
-    try {
-      return JSON.parse(savedConfig);
-    } catch (e) {
-      console.error("Failed to parse saved key config:", e);
-    }
-  }
-  return DEFAULT_KEY_CONFIG;
-}
 
 /** The queue after the front piece is taken, topped up with a new one. */
 const advanceQueue = (state: GameState): Tetromino[] => [...state.nextQueue.slice(1), getNextTetromino(state.gridSize)];
@@ -115,7 +92,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         showTutorial: false,
         highScores: startHighScores,
         bestScore: startBestScore,
-        keyConfig: state.keyConfig,
         gameMode: "standard",
         gridSize: state.gridSize,
         isTimed: state.isTimed,
@@ -358,7 +334,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case "RESET_GAME": {
       return {
         ...initialState,
-        keyConfig: state.keyConfig,
         gridSize: state.gridSize,
         isTimed: state.isTimed,
         hasStarted: false,
@@ -373,7 +348,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const highScores = loadHighScores();
       return {
         ...initialState,
-        keyConfig: state.keyConfig,
         gridSize,
         isTimed,
         hasStarted: false,
@@ -389,20 +363,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    case "UPDATE_KEY_CONFIG": {
-      const newKeyConfig = {
-        ...state.keyConfig,
-        ...action.config,
-      };
-
-      saveGameSettings(newKeyConfig, state.gridSize);
-      localStorage.setItem("isTimed", state.isTimed.toString());
-      return {
-        ...state,
-        keyConfig: newKeyConfig,
-      };
-    }
-
     case "REMOVE_SCORE_ANIMATION": {
       return {
         ...state,
@@ -412,7 +372,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "CHANGE_GRID_SIZE": {
       if (action.size === state.gridSize) return state;
-      saveGameSettings(state.keyConfig, action.size);
+      saveGameSettings(action.size);
       localStorage.setItem("isTimed", state.isTimed.toString());
       const highScores = loadHighScores();
       const bestScore = getBestScore(highScores, action.size, state.isTimed);
@@ -509,6 +469,7 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
   );
   const [showHighScores, setShowHighScores] = useState(false);
   const [muted, setMuted] = useState(sfx.muted);
+  const [controls, setControls] = useControls();
   const [bumpKey, setBumpKey] = useState(0);
   const [levelToast, setLevelToast] = useState<number | null>(null);
   const viewport = useViewport();
@@ -526,11 +487,6 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
   // The best score when this game began, to tell a new record at game over.
   const bestAtStart = useRef(state.bestScore);
   if (state.turnsPlayed === 0) bestAtStart.current = state.bestScore;
-
-  useEffect(() => {
-    const { keyConfig } = loadGameSettings();
-    if (keyConfig) dispatch({ type: "UPDATE_KEY_CONFIG", config: keyConfig });
-  }, []);
 
   // Start straight away (and again after a reset).
   useEffect(() => {
@@ -661,19 +617,19 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
-      if (state.showOptionsMenu || !state.hasStarted || state.gameOver || (e.repeat && e.key === state.keyConfig.drop)) return;
-      const key = e.key.toLowerCase();
-      const { rotate, drop, hold, moveLeft, moveRight, moveUp, moveDown, rotateCounter } = state.keyConfig;
-      const is = (k?: string) => !!k && key === k.toLowerCase();
-      if (is(rotate)) handlePieceRotate("clockwise");
-      else if (is(rotateCounter)) handlePieceRotate("counterclockwise");
-      else if (is(drop)) handlePlace();
-      else if (is(hold)) handleHold();
-      else if (is(moveLeft)) handleDirectionalMove("left");
-      else if (is(moveRight)) handleDirectionalMove("right");
-      else if (is(moveUp)) handleDirectionalMove("up");
-      else if (is(moveDown)) handleDirectionalMove("down");
+      if (state.showOptionsMenu || !state.hasStarted || state.gameOver) return;
+      const action = actionFor(controls.keys, e.key, ENDLESS_ACTIONS);
+      if (!action) return;
+      e.preventDefault();
+      if (e.repeat && action === "drop") return;
+      if (action === "rotate") handlePieceRotate("clockwise");
+      else if (action === "rotateCounter") handlePieceRotate("counterclockwise");
+      else if (action === "drop") handlePlace();
+      else if (action === "hold") handleHold();
+      else if (action === "moveLeft") handleDirectionalMove("left");
+      else if (action === "moveRight") handleDirectionalMove("right");
+      else if (action === "moveUp") handleDirectionalMove("up");
+      else if (action === "moveDown") handleDirectionalMove("down");
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -705,7 +661,10 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
 
   const showGestureHint = touch && !gestureHintDone && state.hasStarted && !state.gameOver;
   const pieceKey = `${state.turnsPlayed}-${state.canHold ? 0 : 1}-${state.currentPiece?.shape.type}`;
-  const { keyConfig } = state;
+  const { keys } = controls;
+  const touchButtons = touch && controls.touch === "buttons";
+  const words = controlText(controls, true);
+  const pad = <TouchButtons onRotate={handlePieceRotate} onPlace={handlePlace} />;
 
   const board = (
     <div className="relative">
@@ -722,6 +681,8 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
         onPieceRotate={handlePieceRotate}
         gameOver={state.gameOver}
         showPoints
+        tapAction={touchButtons ? "none" : controls.touch === "tap-rotate" ? "rotate" : "place"}
+        tapRotate={controls.tapRotate}
       />
       <AnimatePresence>
         {levelToast !== null && (
@@ -745,7 +706,7 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
             transition={{ delay: 0.6 }}
           >
             <span className="whitespace-nowrap rounded-full border-2 border-[#1F1633] bg-[#7C5CFF] px-3 py-1 text-[12px] font-extrabold text-white">
-              Drag to move · Tap to place · Double-tap to rotate
+              {touchButtons ? words.move : [words.move, words.place, words.rotate].join(" · ")}
             </span>
           </motion.div>
         )}
@@ -757,7 +718,7 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
   const holdCard = (
     <div className={cn("gp-card p-2.5", landscape ? "w-full" : "w-[34%] max-w-[132px] shrink-0")}>
       <div className="gp-label mb-1.5">Hold</div>
-      <div className={cn("gp-well", state.canHold && "gp-well-tap", landscape && "mx-auto max-w-[150px]")} onClick={handleHold} title={`Hold (${keyLabel(keyConfig.hold)})`}>
+      <div className={cn("gp-well", state.canHold && "gp-well-tap", landscape && "mx-auto max-w-[150px]")} onClick={handleHold} title={touch ? "Hold" : `Hold (${keyLabel(keys.hold)})`}>
         <PieceDisplay piece={state.heldPiece} dim={!state.canHold} />
       </div>
     </div>
@@ -790,7 +751,7 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
       <button className="gp-icon-btn shrink-0" onClick={handleNewGame} aria-label="New game" title="New game">
         <RotateCcw size={20} strokeWidth={2.75} />
       </button>
-      <button className="gp-icon-btn shrink-0" onClick={openOptions} aria-label="Options" title="Options">
+      <button className="gp-icon-btn shrink-0" onClick={openOptions} aria-label="Settings" title="Settings">
         <Settings2 size={20} strokeWidth={2.5} />
       </button>
     </div>
@@ -814,23 +775,26 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
         target={holdCard}
         board={board}
         next={<NextColumn queue={state.nextQueue} landscape={landscape} />}
-        bottom={landscape ? buttons : null}
+        bottom={landscape ? buttons : touchButtons ? pad : null}
         hints={
-          touch ? undefined : (
+          touch ? (
+            touchButtons && landscape ? <div className="pt-4">{pad}</div> : undefined
+          ) : (
             <KeyHints
               keys={{
-                left: keyConfig.moveLeft,
-                up: keyConfig.moveUp,
-                down: keyConfig.moveDown,
-                right: keyConfig.moveRight,
-                rotateBack: keyConfig.rotateCounter,
-                rotate: keyConfig.rotate,
-                place: keyConfig.drop,
-                hold: keyConfig.hold,
+                left: keys.moveLeft,
+                up: keys.moveUp,
+                down: keys.moveDown,
+                right: keys.moveRight,
+                rotateBack: keys.rotateCounter,
+                rotate: keys.rotate,
+                place: keys.drop,
+                hold: keys.hold,
               }}
             />
           )
         }
+        hintsHeight={touchButtons ? 68 : undefined}
       />
 
       {state.gameOver && (
@@ -844,20 +808,22 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
         />
       )}
 
-      <OptionsMenu
+      <SettingsMenu
         isOpen={state.showOptionsMenu}
         onClose={() => dispatch({ type: "SET_OPTIONS_MENU", isOpen: false })}
-        onUpdateKeyConfig={(config: Partial<KeyConfig>) => dispatch({ type: "UPDATE_KEY_CONFIG", config })}
-        keyConfig={state.keyConfig}
-        defaultKeyConfig={DEFAULT_KEY_CONFIG}
-        currentGridSize={state.gridSize}
-        showBoardSize
-        onApplyBoardSize={(size: 4 | 5) => {
-          sfx.play("click");
-          dispatch({ type: "CHANGE_GRID_SIZE", size });
-        }}
+        controls={controls}
+        onChangeControls={setControls}
+        actions={ENDLESS_ACTIONS}
+        touch={touch}
         muted={muted}
         onToggleMute={toggleMute}
+        boardSize={{
+          current: state.gridSize,
+          onApply: (size) => {
+            sfx.play("click");
+            dispatch({ type: "CHANGE_GRID_SIZE", size });
+          },
+        }}
       />
 
       <HighScoresModal isOpen={showHighScores} onClose={() => setShowHighScores(false)} highScores={loadHighScores()} gridSize={state.gridSize} isTimed={state.isTimed} />

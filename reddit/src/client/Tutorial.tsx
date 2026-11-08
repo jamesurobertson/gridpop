@@ -85,14 +85,11 @@ export const onSpot = (run: RunState) => {
   return step === "place" || step === "place2";
 };
 
-export const STEP_TEXT: Record<Exclude<TutorialStep, "done">, { title: [string, string] }> = {
-  goal: { title: ["Match the target", "Match the target"] },
-  move: { title: ["Drag to move", "Arrow keys to move"] },
-  place: { title: ["Tap to place", "Space to place"] },
-  rotate: { title: ["Double-tap to rotate", "A or D to rotate"] },
-  move2: { title: ["Drag to move", "Arrow keys to move"] },
-  place2: { title: ["Tap to place", "Space to place"] },
-};
+export const TUTORIAL_STEPS: Exclude<TutorialStep, "done">[] = ["goal", "move", "place", "rotate", "move2", "place2"];
+
+/** The tip over the piece, in the words of the player's own controls. */
+export const stepTitle = (step: Exclude<TutorialStep, "done">, words: { move: string; place: string; rotate: string }) =>
+  step === "goal" ? "Match the target" : step === "move" || step === "move2" ? words.move : step === "rotate" ? words.rotate : words.place;
 
 const Chip = ({ value }: { value: number }) => (
   <span

@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import PieceDisplay from "@/components/game/PieceDisplay";
 import TargetGrid from "@/components/game/TargetGrid";
+import { RotateCcw, RotateCw } from "lucide-react";
 import { Logo } from "@/components/game/Logo";
 import type { GridType, Tetromino } from "@/types/game";
 import { cn } from "@/lib/utils";
+import { keyLabel } from "@/utils/controls";
 
 // Wide views lay out a fixed "stage" (board, Next column, side panel) and scale it as one piece,
 // so the parts keep their proportions from a small desktop modal up to fullscreen.
@@ -91,8 +93,6 @@ export type HintKeys = { left: string; up: string; down: string; right: string; 
 
 const DEFAULT_HINT_KEYS: HintKeys = { left: "ArrowLeft", up: "ArrowUp", down: "ArrowDown", right: "ArrowRight", rotateBack: "a", rotate: "d", place: " " };
 
-const KEY_LABELS: Record<string, string> = { arrowleft: "←", arrowup: "↑", arrowdown: "↓", arrowright: "→", " ": "Space" };
-export const keyLabel = (key: string) => KEY_LABELS[key.toLowerCase()] ?? key.toUpperCase();
 
 /** The keyboard controls, for under the board on wide screens. */
 export const KeyHints = ({ keys = DEFAULT_HINT_KEYS }: { keys?: HintKeys }) => (
@@ -122,6 +122,21 @@ export const KeyHints = ({ keys = DEFAULT_HINT_KEYS }: { keys?: HintKeys }) => (
 );
 
 const HINTS_HEIGHT = 48;
+
+/** Touch controls for players who'd rather not tap the board: turn either way, and place. */
+export const TouchButtons = ({ onRotate, onPlace, highlight }: { onRotate: (direction: "clockwise" | "counterclockwise") => void; onPlace: () => void; highlight?: "rotate" | "place" }) => (
+  <div className="flex shrink-0 gap-2">
+    <button className={cn("gp-icon-btn !h-[52px] !w-[60px]", highlight === "rotate" && "gp-corner-btn-hinted")} onClick={() => onRotate("counterclockwise")} aria-label="Rotate left">
+      <RotateCcw size={24} strokeWidth={2.75} />
+    </button>
+    <button className={cn("gp-icon-btn !h-[52px] !w-[60px]", highlight === "rotate" && "gp-corner-btn-hinted")} onClick={() => onRotate("clockwise")} aria-label="Rotate right">
+      <RotateCw size={24} strokeWidth={2.75} />
+    </button>
+    <button className={cn("gp-btn gp-btn-primary !min-h-[52px] flex-1 text-base", highlight === "place" && "gp-corner-btn-hinted")} onClick={onPlace}>
+      Place
+    </button>
+  </div>
+);
 
 type Slots = { top: ReactNode; side: ReactNode; target: ReactNode; board: ReactNode; next: ReactNode; bottom: ReactNode; hints?: ReactNode; hintsHeight?: number };
 
