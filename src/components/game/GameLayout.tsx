@@ -70,16 +70,29 @@ export const TargetCard = ({
   </div>
 );
 
-// Tetris-style: the next piece on top, the three after it below, smaller and fading.
+const QUEUE_STEPS = [
+  { width: "88%", opacity: 0.9 },
+  { width: "76%", opacity: 0.65 },
+  { width: "64%", opacity: 0.45 },
+];
+
+// The next piece on its own little board, ringed white like the piece in play; the three after it
+// below, smaller and fainter.
 export const NextColumn = ({ queue, landscape, highlight }: { queue: (Tetromino | null)[]; landscape: boolean; highlight?: boolean }) => (
-  <div className={cn("flex shrink-0 flex-col items-center gap-2 rounded-2xl transition-shadow", landscape ? "w-[92px]" : "w-[68px]", highlight && "ring-4 ring-[#7C5CFF]/50 ring-offset-4 ring-offset-[#FFF6EA]")}>
-    <div className={cn("gp-label", highlight && "text-[#7C5CFF]")}>Next</div>
-    <div className={cn("gp-well w-full !p-2", highlight && "ring-[2.5px] ring-inset ring-[#7C5CFF]")}>
-      <PieceDisplay piece={queue[0] ?? null} />
+  <div
+    className={cn(
+      "gp-card flex shrink-0 flex-col items-center gap-2 transition-shadow",
+      landscape ? "w-[100px] p-2 pb-3" : "w-[72px] p-1.5 pb-2.5",
+      highlight && "ring-4 ring-[#7C5CFF]/40"
+    )}
+  >
+    <div className={cn("gp-label pt-0.5", highlight && "text-[#7C5CFF]")}>Next</div>
+    <div className={cn("w-full rounded-[14px] bg-[color:var(--gp-board)]", landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]", highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2")}>
+      <PieceDisplay piece={queue[0] ?? null} frame="wide" ring />
     </div>
-    {[1, 2, 3].map((i) => (
-      <div key={i} className={cn("gp-well !p-1.5", landscape ? "w-[72px]" : "w-[52px]")} style={{ opacity: 1 - i * 0.18 }}>
-        <PieceDisplay piece={queue[i] ?? null} />
+    {QUEUE_STEPS.map((step, i) => (
+      <div key={i} className="mt-1" style={{ width: step.width, opacity: step.opacity }}>
+        <PieceDisplay piece={queue[i + 1] ?? null} frame="wide" />
       </div>
     ))}
   </div>
@@ -180,7 +193,7 @@ const PortraitLayout = ({ top, side, target, board, next, bottom }: Omit<Slots, 
       {/* The board stays square, sized to the space's width (less the Next column) or its height, whichever is smaller. */}
       <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
         <div className="flex items-start gap-2.5">
-          <div style={{ width: "min(calc(100cqw - 78px), 100cqh)" }}>{board}</div>
+          <div style={{ width: "min(calc(100cqw - 82px), 100cqh)" }}>{board}</div>
           {next}
         </div>
       </div>

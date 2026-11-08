@@ -129,8 +129,8 @@
     position: relative;
     background: var(--pc);
     border: 2px solid var(--gp-stroke);
-    box-shadow: 0 0 0 2px #ffffff;
   }
+  .gp-mini-ring { box-shadow: 0 0 0 1.5px #ffffff; }
   .gp-mini::before {
     content: "";
     position: absolute;
