@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
 import { fetchLeaderboard, fetchPuzzle, recordAttempt, requestHint, submitRun } from "./api";
 import { loadClock, loadLevel, saveClock, saveLevel } from "./storage";
-import { TUTORIAL_PIECES, TUTORIAL_STEPS, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, stepTitle, tutorialStep } from "./Tutorial";
+import { NextIntro, TUTORIAL_PIECES, TUTORIAL_STEPS, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, stepTitle, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
 import { DemoBoard, usePatientLoading } from "./Loader";
 import { Leaderboard, LeaderboardSkeleton } from "./Leaderboard";
@@ -85,6 +85,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const [tutorial, setTutorial] = useState(firstVisit);
   const [tutorialDoneOpen, setTutorialDoneOpen] = useState(false);
   const [tutorialGoalSeen, setTutorialGoalSeen] = useState(false);
+  const [tutorialNextSeen, setTutorialNextSeen] = useState(false);
   const [goalDocking, setGoalDocking] = useState(false);
   const targetSlot = useRef<HTMLDivElement>(null);
   // "+1" over each tile a tutorial piece lands on: the game's one rule, shown where it happens.
@@ -307,7 +308,9 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
 
   // ---------- controls ----------
 
-  const playable = ready && !!run.current && !run.outcome && !run.pendingClear && !showResult && !settingsOpen && !tutorialDoneOpen && !(tutorial && !tutorialGoalSeen);
+  // The tutorial's pause on the Next column, after the first piece.
+  const nextBeat = tutorial && tutorialGoalSeen && !tutorialNextSeen && run.moves === 1 && !run.pendingClear && !run.outcome;
+  const playable = !nextBeat && ready && !!run.current && !run.outcome && !run.pendingClear && !showResult && !settingsOpen && !tutorialDoneOpen && !(tutorial && !tutorialGoalSeen);
 
   // The clock runs from the moment the board is ready, so planning counts. The very first game
   // waits for its first move, while the "Match this" pointers are up.
@@ -450,6 +453,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     if (!tutorial && run.actions.length > 0 && !run.outcome) setAside.current = { level, run, runNumber, hintsUsed, practice, clockMs };
     setTutorial(true);
     setTutorialGoalSeen(false);
+    setTutorialNextSeen(false);
     setGoalDocking(false);
     setTutorialDoneOpen(false);
     setShowResult(false);
@@ -514,6 +518,13 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
         }
         return;
       }
+      if (nextBeat) {
+        if (action === "drop" || e.key === "Enter") {
+          e.preventDefault();
+          setTutorialNextSeen(true);
+        }
+        return;
+      }
       if (!action) return;
       e.preventDefault();
       if (e.repeat && action === "drop") return;
@@ -548,7 +559,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const loaded = ready && !!puzzle && !!levelPuzzle && !!target;
 
   const solved = run.outcome === "solved";
-  const lesson = tutorialStep(run, tutorialGoalSeen);
+  const lesson = tutorialStep(run, tutorialGoalSeen, tutorialNextSeen);
   const words = controlText(controls, touch);
   const touchButtons = touch && controls.touch === "buttons";
   const lessonRotating = lesson.step === "rotate" || !!lesson.turn;
@@ -644,7 +655,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       <GameBoard
         className="gp-board-wrap aspect-square w-full"
         grid={run.grid}
-        currentPiece={tutorial && !tutorialGoalSeen ? null : run.current}
+        currentPiece={(tutorial && !tutorialGoalSeen) || nextBeat ? null : run.current}
         pieceKey={`${runNumber}-${run.moves}-${run.current?.shape.type}`}
         pendingClear={run.pendingClear}
         bumpKey={bumpKey}
@@ -658,8 +669,9 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
         hintReady={tutorial ? onSpot(run) : onHintSpot}
         tapAction={touchButtons ? "none" : controls.touch === "tap-rotate" ? "rotate" : "place"}
       />
-      {tutorial && run.current && lesson.step !== "done" && lesson.step !== "goal" && <PieceTip piece={run.current} text={stepTitle(lesson.turn ? "rotate" : lesson.step, words)} />}
-      {tutorial && touch && run.current && lesson.step !== "done" && lesson.step !== "goal" && (
+      {nextBeat && <NextIntro onDone={() => setTutorialNextSeen(true)} />}
+      {tutorial && run.current && lesson.step !== "done" && lesson.step !== "goal" && lesson.step !== "next" && <PieceTip piece={run.current} text={stepTitle(lesson.turn ? "rotate" : lesson.step, words)} />}
+      {tutorial && touch && run.current && lesson.step !== "done" && lesson.step !== "goal" && lesson.step !== "next" && (
         (lesson.step === "move" || lesson.step === "move2") && !lesson.turn ? (
           <DragHand from={pieceCenter(run.current)} to={spotCenter(lesson.spot)} />
         ) : (
@@ -695,7 +707,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           />
         ));
       })()}
-      {!solved && (
+      {!solved && !nextBeat && (
         <>
           {!tutorial && (
             <button className="gp-corner-btn -left-2 -top-2" onClick={askHint} disabled={!run.current || !!run.outcome || hintCoolingMs > 0} aria-label="Hint" title={touch ? "Hint" : `Hint (${keyLabel(controls.keys.hint)})`}>
@@ -814,7 +826,8 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           side={inertSide}
           target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} landed={lesson.step === "move"} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
           board={gameBoard}
-          next={<NextColumn queue={run.queue} landscape={landscape} />}
+          // In the pause, the piece about to come into play still sits at the front of Next.
+          next={<NextColumn queue={nextBeat && run.current ? [run.current, ...run.queue] : run.queue} landscape={landscape} highlight={nextBeat} />}
           bottom={belowBoard(pad(lessonAction), inertButtons)}
           hints={underBoard(<div className="pt-4">{pad(lessonAction)}</div>)}
           hintsHeight={padHeight}

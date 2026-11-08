@@ -46,7 +46,7 @@ const SPOTS = [
   ],
 ];
 
-export type TutorialStep = "goal" | "move" | "place" | "rotate" | "move2" | "place2" | "done";
+export type TutorialStep = "goal" | "move" | "place" | "next" | "rotate" | "move2" | "place2" | "done";
 
 const cellsOf = (piece: Tetromino) =>
   getCurrentShape(piece).flatMap((row, dy) => row.flatMap((on, dx) => (on ? [[piece.position.x + dx, piece.position.y + dy]] : [])));
@@ -64,9 +64,11 @@ const sameShape = (a: number[][], b: number[][]) => {
  * Where the run is in the tutorial, read straight off the board, and the spot the piece should go.
  * It opens on the goal, with no spot shown, until the player has seen what they're building.
  */
-export function tutorialStep(run: RunState, goalSeen: boolean): { step: TutorialStep; spot: { x: number; y: number }[]; turn?: boolean } {
+export function tutorialStep(run: RunState, goalSeen: boolean, nextSeen = true): { step: TutorialStep; spot: { x: number; y: number }[]; turn?: boolean } {
   if (!goalSeen) return { step: "goal", spot: [] };
   if (run.outcome === "solved") return { step: "done", spot: [] };
+  // After the first piece, a pause on the Next column: that's where the piece in play came from.
+  if (run.moves === 1 && !nextSeen) return { step: "next", spot: [] };
   const index = Math.min(run.moves, SPOTS.length - 1);
   const spot = SPOTS[index].map(([x, y]) => ({ x, y }));
   const piece = run.current;
@@ -85,11 +87,11 @@ export const onSpot = (run: RunState) => {
   return step === "place" || step === "place2";
 };
 
-export const TUTORIAL_STEPS: Exclude<TutorialStep, "done">[] = ["goal", "move", "place", "rotate", "move2", "place2"];
+export const TUTORIAL_STEPS: Exclude<TutorialStep, "done">[] = ["goal", "move", "place", "next", "rotate", "move2", "place2"];
 
 /** The tip over the piece, in the words of the player's own controls. */
 export const stepTitle = (step: Exclude<TutorialStep, "done">, words: { move: string; place: string; rotate: string }) =>
-  step === "goal" ? "Match the target" : step === "move" || step === "move2" ? words.move : step === "rotate" ? words.rotate : words.place;
+  step === "goal" ? "Match the target" : step === "next" ? "Next piece is here" : step === "move" || step === "move2" ? words.move : step === "rotate" ? words.rotate : words.place;
 
 const Chip = ({ value }: { value: number }) => (
   <span
@@ -107,6 +109,26 @@ const Lesson = ({ chips, children }: { chips: (number | "→")[]; children: Reac
     </span>
     <span className="font-display text-lg font-bold">{children}</span>
   </li>
+);
+
+/** Over the board while the Next column is lit: points across at it, and waits for Got it. */
+export const NextIntro = ({ onDone }: { onDone: () => void }) => (
+  <>
+    <motion.div
+      className="pointer-events-none absolute right-2 top-[16%] z-40 -translate-y-1/2 whitespace-nowrap rounded-full border-2 border-[#1F1633] bg-[#7C5CFF] px-3.5 py-1.5 text-[15px] font-extrabold text-white shadow-[0_3px_0_#1F1633]"
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: [0, 5, 0] }}
+      transition={{ opacity: { duration: 0.25 }, x: { duration: 1.1, repeat: Infinity, ease: "easeInOut" } }}
+    >
+      Next piece is here
+      <span className="absolute -right-[7px] top-1/2 h-3 w-3 -translate-y-1/2 -rotate-45 border-b-2 border-r-2 border-[#1F1633] bg-[#7C5CFF]" />
+    </motion.div>
+    <div className="absolute inset-x-0 bottom-[7%] z-40 flex justify-center">
+      <motion.button className="gp-btn gp-btn-primary min-w-[150px]" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} onClick={onDone}>
+        Got it
+      </motion.button>
+    </div>
+  </>
 );
 
 /** The card at the end of the tutorial, then into the day's puzzle. */
