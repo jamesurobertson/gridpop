@@ -657,7 +657,6 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
         hintCells={tutorial ? lesson.spot : hintSpot}
         hintReady={tutorial ? onSpot(run) : onHintSpot}
         tapAction={touchButtons ? "none" : controls.touch === "tap-rotate" ? "rotate" : "place"}
-        tapRotate={controls.tapRotate}
       />
       {tutorial && run.current && lesson.step !== "done" && lesson.step !== "goal" && <PieceTip piece={run.current} text={stepTitle(lesson.turn ? "rotate" : lesson.step, words)} />}
       {tutorial && touch && run.current && lesson.step !== "done" && lesson.step !== "goal" && (

@@ -29,7 +29,6 @@ interface GameBoardProps {
   hintReady?: boolean;
   /** What a tap does; a double-tap does the other. "none" leaves only dragging (for on-screen buttons). */
   tapAction?: "place" | "rotate" | "none";
-  tapRotate?: "clockwise" | "counterclockwise";
   className?: string;
 }
 
@@ -58,7 +57,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
   hintCells,
   hintReady,
   tapAction = "place",
-  tapRotate = "clockwise",
   className,
 }) => {
   const n = grid.length;
@@ -196,7 +194,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const handleTouchEnd = useCallback(() => {
     if (!touchStart.current) return;
     if (!dragging.current && tapAction !== "none") {
-      const rotate = () => onPieceRotate(tapRotate);
+      const rotate = () => onPieceRotate("clockwise");
       const [single, double] = tapAction === "place" ? [onPiecePlace, rotate] : [rotate, onPiecePlace];
       const now = Date.now();
       if (lastTap.current && now - lastTap.current < 250) {
@@ -214,7 +212,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     }
     touchStart.current = null;
     dragging.current = false;
-  }, [onPiecePlace, onPieceRotate, tapAction, tapRotate]);
+  }, [onPiecePlace, onPieceRotate, tapAction]);
 
   useEffect(() => () => void (tapTimer.current && clearTimeout(tapTimer.current)), []);
 

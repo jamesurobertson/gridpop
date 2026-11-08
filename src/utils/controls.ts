@@ -5,9 +5,8 @@ export type Keys = Record<KeyAction, string>;
 
 /** What a tap on the board does; a double-tap does the other. "buttons" puts both under the board instead. */
 export type TouchScheme = "tap-place" | "tap-rotate" | "buttons";
-export type RotateDirection = "clockwise" | "counterclockwise";
 
-export type Controls = { keys: Keys; touch: TouchScheme; tapRotate: RotateDirection };
+export type Controls = { keys: Keys; touch: TouchScheme };
 
 export const ACTION_LABELS: Record<KeyAction, string> = {
   moveLeft: "Left",
@@ -37,7 +36,7 @@ export const KEY_PRESETS: { name: string; keys: Keys }[] = [
   },
 ];
 
-export const DEFAULT_CONTROLS: Controls = { keys: KEY_PRESETS[0].keys, touch: "tap-place", tapRotate: "clockwise" };
+export const DEFAULT_CONTROLS: Controls = { keys: KEY_PRESETS[0].keys, touch: "tap-place" };
 
 /** Keys that can't be bound: Escape cancels a rebind, and the rest are for the browser. */
 export const RESERVED_KEYS = new Set(["Escape", "Tab", "Meta", "Control", "Alt", "CapsLock", "Dead", "Unidentified"]);
@@ -76,7 +75,6 @@ export function loadControls(): Controls {
       return {
         keys: saved.keys,
         touch: ["tap-place", "tap-rotate", "buttons"].includes(saved.touch) ? saved.touch : DEFAULT_CONTROLS.touch,
-        tapRotate: saved.tapRotate === "counterclockwise" ? "counterclockwise" : "clockwise",
       };
     }
     // Keys chosen in the old Options menu carry over.

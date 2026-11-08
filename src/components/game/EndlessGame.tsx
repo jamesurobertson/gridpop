@@ -682,7 +682,6 @@ const EndlessGame = ({ timed, modeTabs }: { timed: boolean; modeTabs: ReactNode 
         gameOver={state.gameOver}
         showPoints
         tapAction={touchButtons ? "none" : controls.touch === "tap-rotate" ? "rotate" : "place"}
-        tapRotate={controls.tapRotate}
       />
       <AnimatePresence>
         {levelToast !== null && (
