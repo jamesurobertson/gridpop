@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Flame, RotateCcw, Share2, Undo2 } from "lucide-react";
 import { DailyOutcome } from "@/types/game";
 import { cn } from "@/lib/utils";
+import { SteadyDigits } from "@/components/game/SteadyDigits";
 import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
 
 interface DailyResultModalProps {
@@ -157,7 +158,7 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                   )}
                   <span className="flex items-baseline gap-2">
                     <span className="gp-label">Next puzzle</span>
-                    <span className="gp-value text-base tabular-nums">{formatClock(msLeft)}</span>
+                    <span className="gp-value text-base"><SteadyDigits text={formatClock(msLeft)} /></span>
                   </span>
                 </div>
               </>
@@ -176,7 +177,7 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
               <>
                 <div className="flex items-baseline justify-center gap-2">
                   <span className="gp-label">Next puzzle</span>
-                  <span className="gp-value text-base tabular-nums">{formatClock(msLeft)}</span>
+                  <span className="gp-value text-base"><SteadyDigits text={formatClock(msLeft)} /></span>
                 </div>
                 <button className="gp-btn gp-btn-primary w-full text-base" onClick={onClose}>
                   Keep playing

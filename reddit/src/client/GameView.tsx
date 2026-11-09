@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { showLoginPrompt, showShareSheet, showToast } from "@devvit/web/client";
 import { CircleHelp, Flame, Lightbulb, Settings2, Trophy, Undo2 } from "lucide-react";
@@ -21,12 +21,18 @@ import { Leaderboard, LeaderboardSkeleton } from "./Leaderboard";
 import { SOLVED_BANNER_MS, SolvedBanner } from "./SolvedBanner";
 import { CommentScore } from "./CommentBox";
 import { LevelCards } from "./LevelCards";
+import { cachePuzzle, cachedPuzzle, postDate } from "./puzzleCache";
 import { GameLayout, KeyHints, NextColumn, TargetCard, TouchButtons, useViewport } from "@/components/game/GameLayout";
 import { SettingsMenu } from "@/components/game/SettingsMenu";
+import { SteadyDigits } from "@/components/game/SteadyDigits";
 import { DAILY_ACTIONS, actionFor, controlText, keyLabel, useControls } from "@/utils/controls";
 import { useDailyRun } from "./useDailyRun";
 
 const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0 };
+
+/** A saved puzzle the game can start from: one from Reddit (not the website), with today's rules. */
+const usableCache = (cached: PuzzleResponse | null) =>
+  cached && !cached.local && DAILY_LEVELS.every(({ level }) => cached.levels[level]?.pieces.length === cached.levels[level]?.par) ? cached : null;
 
 const HINT_COOLDOWN_MS = 15_000;
 /** On the clock before the first hint, so it isn't a race to ask. */
@@ -166,22 +172,58 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     }
   };
 
-  useEffect(() => {
+  // The level on screen, for the fresh puzzle arriving after the player may have switched.
+  const levelRef = useRef(level);
+  levelRef.current = level;
+
+  // Before paint, so a cached puzzle never shows a frame of the loading board.
+  useLayoutEffect(() => {
+    // Storage is per device, so an account that has played before skips it on a new device too.
+    const introduce = (data: PuzzleResponse) => {
+      const returning = DAILY_LEVELS.some((option) => data.stats[option.level].played > 0 || data.attempts[option.level] > 0);
+      if (returning) {
+        markSeen();
+        setTutorial(false);
+        setCoaching(false);
+      } else if (firstVisit()) startTutorial();
+    };
+    // The post's cards saved this puzzle on the way in, so the game starts from it at once instead
+    // of showing the loader, then checks with the server.
+    const cached = usableCache(cachedPuzzle(postDate()));
+    if (cached) {
+      setPuzzle(cached);
+      openLevel(cached, level);
+      introduce(cached);
+    }
     fetchPuzzle()
       .then((data) => {
+        if (!data.local) cachePuzzle(data);
+        if (!cached) {
+          setPuzzle(data);
+          openLevel(data, level);
+          introduce(data);
+          return;
+        }
         setPuzzle(data);
-        openLevel(data, level);
-        // Storage is per device, so an account that has played before skips it on a new device too.
-        const returning = DAILY_LEVELS.some((option) => data.stats[option.level].played > 0 || data.attempts[option.level] > 0);
-        if (returning) {
-          markSeen();
-          setTutorial(false);
-          setCoaching(false);
-        } else if (firstVisit()) startTutorial();
+        const now = levelRef.current;
+        // Solved elsewhere since the cache was saved (or the puzzle changed): start that level over from the server's copy.
+        if (!!cached.results[now] !== !!data.results[now] || JSON.stringify(cached.levels[now]) !== JSON.stringify(data.levels[now])) {
+          openLevel(data, now);
+        } else {
+          setStats(data.stats[now]);
+          setAttempts(data.attempts[now]);
+        }
       })
-      .catch(() => setLoadFailed(true));
+      .catch(() => {
+        if (!cached) setLoadFailed(true);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Results and stats change as the player solves; the post's cards read this next time.
+  useEffect(() => {
+    if (puzzle && !puzzle.local) cachePuzzle(puzzle);
+  }, [puzzle]);
 
   const switchLevel = (next: DailyLevel) => {
     if (!puzzle || next === level) return;
@@ -598,7 +640,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   );
 
   const shownClockMs = tutorial ? 0 : clockMs;
-  const statsCard = <div className="gp-card grid content-center px-2 py-2.5">{stat("Time", formatClock(shownClockMs))}</div>;
+  const statsCard = <div className="gp-card grid content-center px-2 py-2.5">{stat("Time", <SteadyDigits text={formatClock(shownClockMs)} />)}</div>;
 
   const showCoach = coaching && !tutorial && !result && run.moves === 0 && !!run.current && !showResult;
 
@@ -772,7 +814,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   // On phones the buttons sit beside the target, under the slim stats, freeing the bottom for the board.
   const phoneSide = (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
-      <div className="gp-card grid flex-1 content-center px-2 py-2">{stat("Time", formatClock(shownClockMs))}</div>
+      <div className="gp-card grid flex-1 content-center px-2 py-2">{stat("Time", <SteadyDigits text={formatClock(shownClockMs)} />)}</div>
       {buttons}
     </div>
   );

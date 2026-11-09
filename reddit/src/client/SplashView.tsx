@@ -1,36 +1,12 @@
 import { useEffect, useState } from "react";
-import { context, requestExpandedMode } from "@devvit/web/client";
-import { DailyLevel, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
+import { requestExpandedMode } from "@devvit/web/client";
+import { DailyLevel, puzzleNumber } from "@/utils/dailyCore";
 import type { PuzzleResponse } from "../shared/api";
 import { fetchPuzzle } from "./api";
 import { saveLevel } from "./storage";
 import { usePatientLoading } from "./Loader";
 import { LevelCards } from "./LevelCards";
-
-const postDate = () => {
-  const date = (context?.postData as { date?: unknown } | undefined)?.date;
-  return typeof date === "string" ? date : easternDateKey();
-};
-
-// The last answer for this post, so a reload draws the cards at once while a fresh one loads.
-const cacheKey = (date: string) => `gridpop-splash:${date}`;
-
-function cachedPuzzle(date: string): PuzzleResponse | null {
-  try {
-    const raw = localStorage.getItem(cacheKey(date));
-    return raw ? (JSON.parse(raw) as PuzzleResponse) : null;
-  } catch {
-    return null;
-  }
-}
-
-function cachePuzzle(puzzle: PuzzleResponse) {
-  try {
-    localStorage.setItem(cacheKey(puzzle.date), JSON.stringify(puzzle));
-  } catch {
-    // Storage blocked or full: the next load waits for the server instead.
-  }
-}
+import { cachePuzzle, cachedPuzzle, postDate } from "./puzzleCache";
 
 const dayName = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
