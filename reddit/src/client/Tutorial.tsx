@@ -96,18 +96,20 @@ export const TUTORIAL_STEPS: Exclude<TutorialStep, "done">[] = ["goal", "move", 
 export const stepTitle = (step: Exclude<TutorialStep, "done">, words: { move: string; place: string; rotate: string }) =>
   step === "goal" ? "Match the target" : step === "next" ? "Next piece is here" : step === "place2" ? "Stacking adds 1" : step === "move" || step === "move2" ? words.move : step === "rotate" ? words.rotate : words.place;
 
+/** A tile as the board draws it: rounded, outlined, with the shine in its corner. */
 const Chip = ({ value }: { value: number }) => (
   <span
-    className="font-display relative inline-grid h-8 w-8 place-items-center overflow-hidden rounded-[9px] text-[15px] font-bold"
-    style={{ background: TILES[value].face, color: TILES[value].text, border: "2.5px solid #1F1633" }}
+    className="font-display relative inline-grid h-9 w-9 place-items-center rounded-[24%] border-[2.5px] border-[#1F1633] text-[18px] font-bold leading-none"
+    style={{ background: TILES[value].face, color: TILES[value].text }}
   >
+    <span className="gp-piece-shine" aria-hidden />
     {TILES[value].label}
   </span>
 );
 
 const Lesson = ({ chips, children }: { chips: (number | "→")[]; children: React.ReactNode }) => (
   <li className="flex items-center gap-3">
-    <span className="flex w-[118px] shrink-0 items-center gap-1">
+    <span className="flex w-[126px] shrink-0 items-center gap-1">
       {chips.map((chip, i) => (chip === "→" ? <span key={i} className="font-extrabold text-[color:var(--gp-muted)]">→</span> : <Chip key={i} value={chip} />))}
     </span>
     <span className="font-display text-lg font-bold">{children}</span>
@@ -190,12 +192,11 @@ export const TutorialDone = ({ isOpen, onPlay }: { isOpen: boolean; onPlay: () =
     >
       <div className="rounded-t-[26px] bg-[#3B2E5A] px-6 pb-4 pt-5 text-center text-white">
         <DialogTitle className="font-display text-[26px] font-bold">Tutorial complete</DialogTitle>
-        <DialogDescription className="mt-1 text-sm font-bold text-white/60">Match the target in as few moves as you can.</DialogDescription>
+        <DialogDescription className="mt-1 text-sm font-bold text-white/60">Match the target as fast as you can.</DialogDescription>
       </div>
       <ul className="space-y-3 px-6 pb-2 pt-5">
         <Lesson chips={[1, "→", 2]}>Tiles stack up</Lesson>
         <Lesson chips={[3, 3, 3]}>Full lines pop</Lesson>
-        <Lesson chips={[6, "→", 7]}>Don't reach 7</Lesson>
       </ul>
       <div className="p-5 pt-4">
         <button className="gp-btn gp-btn-primary w-full text-base" onClick={onPlay}>

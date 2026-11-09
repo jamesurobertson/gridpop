@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { showLoginPrompt, showShareSheet, showToast } from "@devvit/web/client";
 import { CircleHelp, Flame, Lightbulb, Settings2, Trophy, Undo2 } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
@@ -405,9 +405,12 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       sfx.play("place", { jitter: 0.06 });
       const piece = run.current!;
       const cells = getCurrentShape(piece).flatMap((row, dy) => row.flatMap((on, dx) => (on ? [{ x: piece.position.x + dx, y: piece.position.y + dy }] : [])));
-      const id = ++plusOneId.current;
-      setPlusOnes((current) => [...current, { id, cells }]);
-      setTimeout(() => setPlusOnes((current) => current.filter((pop) => pop.id !== id)), 1000);
+      // The stacking step already shows its +1s, which float off as it lands.
+      if (tutorialStep(run, true).step !== "place2") {
+        const id = ++plusOneId.current;
+        setPlusOnes((current) => [...current, { id, cells }]);
+        setTimeout(() => setPlusOnes((current) => current.filter((pop) => pop.id !== id)), 1000);
+      }
       dispatch({ type: "place" });
       return;
     }
@@ -738,21 +741,25 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           />
         ));
       })()}
-      {tutorial &&
-        lesson.step === "place2" &&
-        STACK_CELLS.map(([x, y]) => (
-          // Framer owns the inner transform, so the centring sits on a wrapper.
-          <span key={`${x}-${y}`} className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2" style={{ left: `${x * 24.25 + 13.5}%`, top: `${y * 24.25 + 2.5}%` }}>
-            <motion.span
-              className="gp-value grid h-8 w-10 place-items-center rounded-full border-[2.5px] border-[#1F1633] bg-[#7C5CFF] text-[15px] !text-white"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1, y: [0, -4, 0] }}
-              transition={{ scale: { type: "spring", stiffness: 400, damping: 18 }, y: { duration: 1.2, repeat: Infinity, ease: "easeInOut" } }}
-            >
-              +1
+      <AnimatePresence>
+        {tutorial &&
+          lesson.step === "place2" &&
+          STACK_CELLS.map(([x, y]) => (
+            // Framer owns the inner transform, so the centring sits on a wrapper.
+            <motion.span key={`${x}-${y}`} className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2" style={{ left: `${x * 24.25 + 13.5}%`, top: `${y * 24.25 + 2.5}%` }}>
+              <motion.span
+                className="gp-value grid h-8 w-10 place-items-center rounded-full border-[2.5px] border-[#1F1633] bg-[#7C5CFF] text-[15px] !text-white"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1, y: [0, -4, 0] }}
+                // Once the J lands they float off, like the +1s on the first piece.
+                exit={{ y: -40, opacity: 0, transition: { duration: 0.8, ease: "easeOut" } }}
+                transition={{ scale: { type: "spring", stiffness: 400, damping: 18 }, y: { duration: 1.2, repeat: Infinity, ease: "easeInOut" } }}
+              >
+                +1
+              </motion.span>
             </motion.span>
-          </span>
-        ))}
+          ))}
+      </AnimatePresence>
       {!solved && !nextBeat && (
         <>
           {!tutorial && (

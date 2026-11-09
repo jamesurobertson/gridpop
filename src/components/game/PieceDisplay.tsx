@@ -34,6 +34,12 @@ const PieceDisplay = ({ piece, dim, frame = "square", ring, className }: PieceDi
   // Cells are a quarter of the width, unless the piece is too tall for the frame.
   const rowsFit = frame === "wide" ? 2 : 4;
   const width = (w / Math.max(4, (h * 4) / rowsFit)) * 100;
+  // Optical centring: a lopsided piece (a J's lone corner block) looks off-centre when its box is
+  // centred, so nudge it halfway toward centring its blocks instead.
+  const blocks = shape.flatMap((row, y) => row.flatMap((on, x) => (on ? [{ x, y }] : [])));
+  const nudge = (size: number, mean: number) => ((size / 2 - (mean + 0.5)) / size) * 50;
+  const nudgeX = nudge(w, blocks.reduce((sum, block) => sum + block.x, 0) / blocks.length);
+  const nudgeY = nudge(h, blocks.reduce((sum, block) => sum + block.y, 0) / blocks.length);
   return (
     <motion.div
       key={`${piece.shape.type}-${piece.rotation}`}
@@ -42,7 +48,10 @@ const PieceDisplay = ({ piece, dim, frame = "square", ring, className }: PieceDi
       animate={{ scale: 1, opacity: dim ? 0.35 : 1 }}
       transition={{ type: "spring", stiffness: 500, damping: 24 }}
     >
-      <div className="grid gap-[6%]" style={{ width: `${width}%`, gridTemplateColumns: `repeat(${w}, 1fr)`, gridTemplateRows: `repeat(${h}, 1fr)` }}>
+      <div
+        className="grid gap-[6%]"
+        style={{ width: `${width}%`, gridTemplateColumns: `repeat(${w}, 1fr)`, gridTemplateRows: `repeat(${h}, 1fr)`, transform: `translate(${nudgeX}%, ${nudgeY}%)` }}
+      >
         {shape.flatMap((row, y) =>
           row.map((on, x) => (
             <div key={`${x}-${y}`} className={cn("aspect-square rounded-[28%]", on && "gp-mini", on && ring && "gp-mini-ring")} style={on ? { ["--pc" as string]: color } : undefined} />
