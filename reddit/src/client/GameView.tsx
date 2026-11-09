@@ -889,7 +889,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} landed={lesson.step === "move"} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
           board={gameBoard}
           // In the pause, the piece about to come into play still sits at the front of Next.
-          next={<NextColumn queue={nextBeat && run.current ? [run.current, ...run.queue] : run.queue} landscape={landscape} highlight={nextBeat} countRest />}
+          next={<NextColumn queue={nextBeat && run.current ? [run.current, ...run.queue] : run.queue} landscape={landscape} highlight={nextBeat} pieces={TUTORIAL_PIECES.length} />}
           bottom={belowBoard(pad(lessonAction), inertButtons)}
           hints={underBoard(<div className="pt-4">{pad(lessonAction)}</div>)}
           hintsHeight={padHeight}
@@ -905,7 +905,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
             </TargetCard>
           }
           board={gameBoard}
-          next={<NextColumn queue={run.queue} landscape={landscape} countRest />}
+          next={<NextColumn queue={run.queue} landscape={landscape} pieces={levelPuzzle?.pieces.length} />}
           bottom={belowBoard(pad(), buttons)}
           hints={underBoard(<div className="pt-4">{pad()}</div>)}
           hintsHeight={padHeight}

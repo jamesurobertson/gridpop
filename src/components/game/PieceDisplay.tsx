@@ -50,9 +50,11 @@ const PieceDisplay = ({ piece, dim, frame = "square", ring, className }: PieceDi
   return (
     <motion.div
       key={`${piece.shape.type}-${piece.rotation}`}
-      className={cn("flex w-full items-center justify-center transition-opacity", aspect, dim && "opacity-35", className)}
-      initial={shown.current ? { scale: 0.6, opacity: 0 } : false}
-      animate={{ scale: 1, opacity: dim ? 0.35 : 1 }}
+      className={cn("flex w-full items-center justify-center", aspect, dim && "opacity-35", className)}
+      // Scale only: framer hands opacity springs to the browser, which shows the start value for a
+      // frame as the animation ends, so the piece blinked out just as it settled.
+      initial={shown.current ? { scale: 0.6 } : false}
+      animate={{ scale: 1 }}
       transition={{ type: "spring", stiffness: 500, damping: 24 }}
     >
       <div

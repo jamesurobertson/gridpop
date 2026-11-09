@@ -70,37 +70,46 @@ export const TargetCard = ({
   </div>
 );
 
+// Each piece after the first is a little smaller and fainter than the one before.
 const QUEUE_STEPS = [
   { width: "88%", opacity: 0.9 },
   { width: "76%", opacity: 0.65 },
   { width: "64%", opacity: 0.45 },
+  { width: "56%", opacity: 0.38 },
+  { width: "50%", opacity: 0.32 },
 ];
 
-// The next piece on its own little board, ringed white like the piece in play; the three after it
-// below, smaller and fainter. `countRest` adds how many more follow, for a queue that runs out.
-export const NextColumn = ({ queue, landscape, highlight, countRest }: { queue: (Tetromino | null)[]; landscape: boolean; highlight?: boolean; countRest?: boolean }) => (
-  <div
-    className={cn(
-      "gp-card flex shrink-0 flex-col items-center gap-2 transition-shadow",
-      landscape ? "w-[100px] p-2 pb-3" : "w-[72px] p-1.5 pb-2.5",
-      highlight && "ring-4 ring-[#7C5CFF]/40"
-    )}
-  >
-    <div className={cn("gp-label pt-0.5", highlight && "text-[#7C5CFF]")}>Next</div>
-    <div className={cn("w-full rounded-[14px] transition-colors", queue[0] ? "bg-[color:var(--gp-board)]" : "bg-transparent", landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]", highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2")}>
-      <PieceDisplay piece={queue[0] ?? null} frame="wide" ring />
-    </div>
-    {countRest && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">No more pieces</div>}
-    {QUEUE_STEPS.map((step, i) => (
-      <div key={i} className="mt-1" style={{ width: step.width, opacity: step.opacity }}>
-        <PieceDisplay piece={queue[i + 1] ?? null} frame="wide" />
+// The next piece on its own little board, ringed white like the piece in play; the ones after it
+// below, smaller and fainter. Unlimited shows three after it. A daily passes `pieces`, its whole
+// run, and shows every one (up to a Hard day's seven), sized for the run so the card doesn't shrink
+// as pieces are used, and packed tighter past three.
+export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Tetromino | null)[]; landscape: boolean; highlight?: boolean; pieces?: number }) => {
+  const showAll = pieces !== undefined;
+  // The piece in play and the one in the panel aren't in these slots.
+  const slots = showAll ? Math.min(QUEUE_STEPS.length, Math.max(3, pieces - 2)) : 3;
+  const packed = slots > 3;
+  return (
+    <div
+      className={cn(
+        "gp-card flex shrink-0 flex-col items-center transition-shadow",
+        packed ? "gap-1.5" : "gap-2",
+        landscape ? "w-[100px] p-2 pb-3" : "w-[72px] p-1.5 pb-2.5",
+        highlight && "ring-4 ring-[#7C5CFF]/40"
+      )}
+    >
+      <div className={cn("gp-label pt-0.5", highlight && "text-[#7C5CFF]")}>Next</div>
+      <div className={cn("w-full rounded-[14px] transition-colors", queue[0] ? "bg-[color:var(--gp-board)]" : "bg-transparent", landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]", highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2")}>
+        <PieceDisplay piece={queue[0] ?? null} frame="wide" ring />
       </div>
-    ))}
-    {countRest && queue.length > QUEUE_STEPS.length + 1 && (
-      <div className="gp-value rounded-full bg-[#F1E9DD] px-2 py-0.5 text-[13px] text-[color:var(--gp-muted)]">+{queue.length - QUEUE_STEPS.length - 1}</div>
-    )}
-  </div>
-);
+      {showAll && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">No more pieces</div>}
+      {QUEUE_STEPS.slice(0, slots).map((step, i) => (
+        <div key={i} className={packed ? "mt-0.5" : "mt-1"} style={{ width: step.width, opacity: step.opacity }}>
+          <PieceDisplay piece={queue[i + 1] ?? null} frame="wide" />
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const KeyChip = ({ children }: { children: ReactNode }) => (
   <span className="font-display inline-grid h-7 min-w-[28px] place-items-center rounded-[7px] border-2 border-[#1F1633] bg-white px-1.5 text-[13px] font-bold text-[color:var(--gp-ink)] shadow-[0_2px_0_#1F1633]">{children}</span>

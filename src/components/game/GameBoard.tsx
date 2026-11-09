@@ -305,8 +305,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
                   width: `${size * cell + (size - 1) * 2.2}cqw`,
                   height: `${size * cell + (size - 1) * 2.2}cqw`,
                 }}
-                initial={{ scale: 0.4, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
+                // Scale only: an opacity spring blinks for a frame as it ends (see PieceDisplay).
+                initial={{ scale: 0.4 }}
+                animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 500, damping: 22 }}
               >
                 <motion.div
