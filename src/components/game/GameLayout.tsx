@@ -98,7 +98,7 @@ export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Te
       )}
     >
       <div className={cn("gp-label pt-0.5", highlight && "text-[#7C5CFF]")}>Next</div>
-      <div className={cn("w-full rounded-[14px] transition-colors", queue[0] ? "bg-[color:var(--gp-board)]" : "bg-transparent", landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]", highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2")}>
+      <div data-next-panel className={cn("w-full rounded-[14px] transition-colors", queue[0] ? "bg-[color:var(--gp-board)]" : "bg-transparent", landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]", highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2")}>
         <PieceDisplay piece={queue[0] ?? null} frame="wide" ring />
       </div>
       {showAll && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">No more pieces</div>}

@@ -117,24 +117,48 @@ const Lesson = ({ chips, children }: { chips: (number | "→")[]; children: Reac
 );
 
 /** Over the board while the Next column is lit: points across at it, and waits for Got it. */
-export const NextIntro = ({ onDone }: { onDone: () => void }) => (
+export const NextIntro = ({ onDone }: { onDone: () => void }) => {
+  const pillRef = useRef<HTMLDivElement>(null);
+  // Level with the middle of the Next column's first piece, measured, since that column's layout
+  // doesn't scale with the board.
+  const [top, setTop] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const board = pillRef.current?.offsetParent as HTMLElement | null;
+      const panel = document.querySelector("[data-next-panel]");
+      if (!board || !panel) return;
+      const panelBox = panel.getBoundingClientRect();
+      const boardBox = board.getBoundingClientRect();
+      // Wide screens draw the whole stage scaled, so screen pixels convert back to the board's own.
+      const scale = boardBox.height / board.offsetHeight || 1;
+      setTop((panelBox.top + panelBox.height / 2 - boardBox.top) / scale);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  return (
   <>
-    <motion.div
-      className="pointer-events-none absolute right-2 top-[16%] z-40 -translate-y-1/2 whitespace-nowrap rounded-full border-2 border-[#1F1633] bg-[#7C5CFF] px-3.5 py-1.5 text-[15px] font-extrabold text-white shadow-[0_3px_0_#1F1633]"
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: [0, 5, 0] }}
-      transition={{ opacity: { duration: 0.25 }, x: { duration: 1.1, repeat: Infinity, ease: "easeInOut" } }}
-    >
-      Next piece is here
-      <span className="absolute -right-[7px] top-1/2 h-3 w-3 -translate-y-1/2 -rotate-45 border-b-2 border-r-2 border-[#1F1633] bg-[#7C5CFF]" />
-    </motion.div>
+    {/* Framer owns the pill's transform (its nudge), so the centring sits on a wrapper. */}
+    <div ref={pillRef} className="pointer-events-none absolute right-2 z-40 -translate-y-1/2" style={{ top: top ?? "16%" }}>
+      <motion.div
+        className="relative whitespace-nowrap rounded-full border-2 border-[#1F1633] bg-[#7C5CFF] px-3.5 py-1.5 text-[15px] font-extrabold text-white shadow-[0_3px_0_#1F1633]"
+        initial={{ opacity: 0, x: -8 }}
+        animate={{ opacity: 1, x: [0, 5, 0] }}
+        transition={{ opacity: { duration: 0.25 }, x: { duration: 1.1, repeat: Infinity, ease: "easeInOut" } }}
+      >
+        Next piece is here
+        <span className="absolute -right-[7px] top-1/2 h-3 w-3 -translate-y-1/2 -rotate-45 border-b-2 border-r-2 border-[#1F1633] bg-[#7C5CFF]" />
+      </motion.div>
+    </div>
     <div className="absolute inset-x-0 bottom-[7%] z-40 flex justify-center">
       <motion.button className="gp-btn gp-btn-primary min-w-[150px]" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} onClick={onDone}>
         Got it
       </motion.button>
     </div>
   </>
-);
+  );
+};
 
 /** The card at the end of the tutorial, then into the day's puzzle. */
 /**

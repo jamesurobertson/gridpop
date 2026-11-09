@@ -42,11 +42,11 @@ const PieceDisplay = ({ piece, dim, frame = "square", ring, className }: PieceDi
   const rowsFit = frame === "wide" ? 2 : 4;
   const width = (w / Math.max(4, (h * 4) / rowsFit)) * 100;
   // Optical centring: a lopsided piece (a J's lone corner block) looks off-centre when its box is
-  // centred, so nudge it halfway toward centring its blocks instead.
+  // centred, so nudge it sideways halfway toward centring its blocks. Not up or down: a two-row
+  // piece already fills a wide frame's height and would be pushed out of it.
   const blocks = shape.flatMap((row, y) => row.flatMap((on, x) => (on ? [{ x, y }] : [])));
   const nudge = (size: number, mean: number) => ((size / 2 - (mean + 0.5)) / size) * 50;
   const nudgeX = nudge(w, blocks.reduce((sum, block) => sum + block.x, 0) / blocks.length);
-  const nudgeY = nudge(h, blocks.reduce((sum, block) => sum + block.y, 0) / blocks.length);
   return (
     <motion.div
       key={`${piece.shape.type}-${piece.rotation}`}
@@ -59,7 +59,7 @@ const PieceDisplay = ({ piece, dim, frame = "square", ring, className }: PieceDi
     >
       <div
         className="grid gap-[6%]"
-        style={{ width: `${width}%`, gridTemplateColumns: `repeat(${w}, 1fr)`, gridTemplateRows: `repeat(${h}, 1fr)`, transform: `translate(${nudgeX}%, ${nudgeY}%)` }}
+        style={{ width: `${width}%`, gridTemplateColumns: `repeat(${w}, 1fr)`, gridTemplateRows: `repeat(${h}, 1fr)`, transform: `translateX(${nudgeX}%)` }}
       >
         {shape.flatMap((row, y) =>
           row.map((on, x) => (
