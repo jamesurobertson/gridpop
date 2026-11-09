@@ -40,12 +40,12 @@ const dayName = (date: string) =>
     timeZone: "UTC",
   });
 
-/** The static wordmark (the animated one would pull the animation library into the feed). */
+/** The wordmark, animated in plain CSS (the game's version would pull the animation library into the feed). */
 const Wordmark = () => (
   <h1 className="gp-logo text-[34px]" aria-label="GridPop">
-    <span className="gp-logo-mark" aria-hidden>
-      {["#FFD45E", "#7CCBFF", "#7BDEA3", "#FF5A6E"].map((color) => (
-        <i key={color} style={{ background: color }} />
+    <span className="gp-logo-mark gp-logo-mark-in" aria-hidden>
+      {["#FFD45E", "#7CCBFF", "#7BDEA3", "#FF5A6E"].map((color, i) => (
+        <i key={color} style={{ background: color }} className={i === 3 ? "gp-logo-mark-pop" : undefined} />
       ))}
     </span>
     <span className="gp-logo-word">Grid</span>
@@ -57,17 +57,19 @@ const Wordmark = () => (
           ["P", "#FF5A6E", "#C92841", "#FFFFFF", -3],
         ] as const
       ).map(([letter, face, edge, text, tilt], i) => (
-        <span
-          key={i}
-          className="gp-logo-tile"
-          style={{
-            ["--f" as string]: face,
-            ["--e" as string]: edge,
-            ["--t" as string]: text,
-            ["--r" as string]: `${tilt}deg`,
-          }}
-        >
-          {letter}
+        <span key={i} className="gp-logo-drop" style={{ animationDelay: `${0.15 + i * 0.09}s` }}>
+          <span
+            className="gp-logo-tile"
+            style={{
+              ["--f" as string]: face,
+              ["--e" as string]: edge,
+              ["--t" as string]: text,
+              ["--r" as string]: `${tilt}deg`,
+              ["--d" as string]: `${1.2 + i * 0.12}s`,
+            }}
+          >
+            {letter}
+          </span>
         </span>
       ))}
     </span>

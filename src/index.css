@@ -398,8 +398,20 @@
   93% { transform: translateY(0.02em) rotate(var(--r)); }
 }
 
+/* The wordmark's entrance in plain CSS, for the post's feed view (the game's uses springs). */
+.gp-logo-mark-in { animation: gp-mark-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes gp-mark-in {
+  from { transform: scale(0.4) rotate(-20deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.gp-logo-drop { display: inline-block; animation: gp-drop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes gp-drop {
+  from { transform: translateY(-18px) scale(0.5); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .gp-danger, .gp-skull, .gp-will-clear, .gp-hint, .gp-logo-tile, .gp-logo-mark-pop, .gp-corner-btn-hinted { animation: none; }
+  .gp-danger, .gp-skull, .gp-will-clear, .gp-hint, .gp-logo-tile, .gp-logo-mark-pop, .gp-logo-mark-in, .gp-logo-drop, .gp-corner-btn-hinted { animation: none; }
 }
 
 /* ---------- mode tabs ---------- */
