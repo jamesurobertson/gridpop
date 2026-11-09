@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Tetromino } from "@/types/game";
 import { getCurrentShape } from "@/utils/gameLogic";
@@ -26,6 +27,12 @@ function trimmed(piece: Tetromino): boolean[][] {
 /** A small preview of a piece (Hold and Next), on a frame four cells wide so sizes stay consistent. */
 const PieceDisplay = ({ piece, dim, frame = "square", ring, className }: PieceDisplayProps) => {
   const aspect = frame === "wide" ? "aspect-[2/1]" : "aspect-square";
+  // Pops in when a new piece arrives here, but not on the first draw: a board that just opened
+  // shows its queue already in place.
+  const shown = useRef(false);
+  useEffect(() => {
+    if (piece) shown.current = true;
+  }, [piece]);
   if (!piece) return <div className={cn(aspect, "w-full", className)} />;
   const shape = trimmed(piece);
   const w = shape[0].length;
@@ -44,7 +51,7 @@ const PieceDisplay = ({ piece, dim, frame = "square", ring, className }: PieceDi
     <motion.div
       key={`${piece.shape.type}-${piece.rotation}`}
       className={cn("flex w-full items-center justify-center transition-opacity", aspect, dim && "opacity-35", className)}
-      initial={{ scale: 0.6, opacity: 0 }}
+      initial={shown.current ? { scale: 0.6, opacity: 0 } : false}
       animate={{ scale: 1, opacity: dim ? 0.35 : 1 }}
       transition={{ type: "spring", stiffness: 500, damping: 24 }}
     >
