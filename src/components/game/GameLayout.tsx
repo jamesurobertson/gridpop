@@ -90,7 +90,7 @@ export const NextColumn = ({ queue, landscape, highlight, countRest }: { queue: 
     <div className={cn("w-full rounded-[14px] transition-colors", queue[0] ? "bg-[color:var(--gp-board)]" : "bg-transparent", landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]", highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2")}>
       <PieceDisplay piece={queue[0] ?? null} frame="wide" ring />
     </div>
-    {countRest && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">Last piece</div>}
+    {countRest && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">No more pieces</div>}
     {QUEUE_STEPS.map((step, i) => (
       <div key={i} className="mt-1" style={{ width: step.width, opacity: step.opacity }}>
         <PieceDisplay piece={queue[i + 1] ?? null} frame="wide" />
