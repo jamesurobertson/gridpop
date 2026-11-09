@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
 import { fetchLeaderboard, fetchPuzzle, recordAttempt, requestHint, submitRun } from "./api";
 import { loadClock, loadLevel, saveClock, saveLevel } from "./storage";
-import { NextIntro, TUTORIAL_PIECES, TUTORIAL_STEPS, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, stepTitle, tutorialStep } from "./Tutorial";
+import { NextIntro, STACK_CELLS, TUTORIAL_PIECES, TUTORIAL_STEPS, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, stepTitle, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
 import { DemoBoard, usePatientLoading } from "./Loader";
 import { Leaderboard, LeaderboardSkeleton } from "./Leaderboard";
@@ -691,6 +691,21 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           />
         ));
       })()}
+      {tutorial &&
+        lesson.step === "place2" &&
+        STACK_CELLS.map(([x, y]) => (
+          // Framer owns the inner transform, so the centring sits on a wrapper.
+          <span key={`${x}-${y}`} className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2" style={{ left: `${x * 24.25 + 13.5}%`, top: `${y * 24.25 + 2.5}%` }}>
+            <motion.span
+              className="gp-value grid h-8 w-10 place-items-center rounded-full border-[2.5px] border-[#1F1633] bg-[#7C5CFF] text-[15px] !text-white"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1, y: [0, -4, 0] }}
+              transition={{ scale: { type: "spring", stiffness: 400, damping: 18 }, y: { duration: 1.2, repeat: Infinity, ease: "easeInOut" } }}
+            >
+              +1
+            </motion.span>
+          </span>
+        ))}
       {!solved && !nextBeat && (
         <>
           {!tutorial && (
@@ -721,6 +736,11 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   );
 
   const shownRun = practice ? practiceResult : result;
+  // The next level along (wrapping round) that hasn't been solved today.
+  const levelIndex = DAILY_LEVELS.findIndex((option) => option.level === level);
+  const nextLevel = puzzle
+    ? [1, 2].map((step) => DAILY_LEVELS[(levelIndex + step) % DAILY_LEVELS.length]).find((option) => !puzzle.results[option.level])
+    : undefined;
   // The day's leaderboard and comments belong with every result, practice runs included.
   const resultExtra = puzzle?.local ? null : puzzle?.username ? (
     <>
@@ -868,6 +888,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           onShare={puzzle?.local ? undefined : (text) => void showShareSheet({ title: "GridPop", text }).catch(() => undefined)}
           practice={practice}
           onReplay={result ? restart : undefined}
+          nextLevel={nextLevel && { label: nextLevel.label, onPlay: () => switchLevel(nextLevel.level) }}
           onUndo={run.outcome && run.outcome !== "solved" && run.history.length > 0 ? undo : undefined}
           extra={resultExtra}
         />

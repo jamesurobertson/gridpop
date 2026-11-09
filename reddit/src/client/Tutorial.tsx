@@ -46,6 +46,9 @@ const SPOTS = [
   ],
 ];
 
+/** Where the J lands on the square: tiles that go from 1 to 2. */
+export const STACK_CELLS = SPOTS[1].filter(([x, y]) => SPOTS[0].some(([ox, oy]) => ox === x && oy === y));
+
 export type TutorialStep = "goal" | "move" | "place" | "next" | "rotate" | "move2" | "place2" | "done";
 
 const cellsOf = (piece: Tetromino) =>
@@ -91,7 +94,7 @@ export const TUTORIAL_STEPS: Exclude<TutorialStep, "done">[] = ["goal", "move", 
 
 /** The tip over the piece, in the words of the player's own controls. */
 export const stepTitle = (step: Exclude<TutorialStep, "done">, words: { move: string; place: string; rotate: string }) =>
-  step === "goal" ? "Match the target" : step === "next" ? "Next piece is here" : step === "move" || step === "move2" ? words.move : step === "rotate" ? words.rotate : words.place;
+  step === "goal" ? "Match the target" : step === "next" ? "Next piece is here" : step === "place2" ? "Each piece adds 1" : step === "move" || step === "move2" ? words.move : step === "rotate" ? words.rotate : words.place;
 
 const Chip = ({ value }: { value: number }) => (
   <span

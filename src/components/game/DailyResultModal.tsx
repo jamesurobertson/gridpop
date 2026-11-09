@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Flame, RotateCcw, Share2, Undo2 } from "lucide-react";
+import { ArrowRight, Flame, RotateCcw, Share2, Undo2 } from "lucide-react";
 import { DailyOutcome } from "@/types/game";
+import { cn } from "@/lib/utils";
 import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
 
 interface DailyResultModalProps {
@@ -19,6 +20,8 @@ interface DailyResultModalProps {
   onShare?: (text: string) => void;
   /** Offered once solved: another run that isn't recorded. */
   onReplay?: () => void;
+  /** Offered once solved: a level not yet played today. */
+  nextLevel?: { label: string; onPlay: () => void };
   /** Offered after a tile reaches 7 or the pieces run out: take back the last placement. */
   onUndo?: () => void;
   /** The run shown was a replay after the recorded solve. */
@@ -55,7 +58,7 @@ const InlineStat = ({ label, value }: { label: string; value: React.ReactNode })
   </span>
 );
 
-const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, onReplay, practice, onUndo, msUntilNext = msUntilNextPuzzle }) => {
+const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, onReplay, nextLevel, practice, onUndo, msUntilNext = msUntilNextPuzzle }) => {
   const [copied, setCopied] = useState(false);
   const msLeft = useCountdown(isOpen, msUntilNext);
   const solved = outcome === "solved" && run;
@@ -131,6 +134,12 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
               </div>
             )}
             {solved ? (
+              <>
+              {nextLevel && (
+                <button className="gp-btn gp-btn-primary w-full whitespace-nowrap text-base" onClick={nextLevel.onPlay}>
+                  Try {nextLevel.label} <ArrowRight size={18} strokeWidth={3} />
+                </button>
+              )}
               <div className="flex gap-2.5">
                 {onReplay && (
                   <button className="gp-btn flex-1 whitespace-nowrap text-base" onClick={onReplay}>
@@ -138,11 +147,12 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                   </button>
                 )}
                 {!practice && (
-                  <button className="gp-btn gp-btn-primary flex-1 whitespace-nowrap text-base" onClick={handleShare}>
+                  <button className={cn("gp-btn flex-1 whitespace-nowrap text-base", !nextLevel && "gp-btn-primary")} onClick={handleShare}>
                     <Share2 size={18} strokeWidth={2.5} /> {copied ? "Copied!" : "Share"}
                   </button>
                 )}
               </div>
+              </>
             ) : outcome ? (
               <div className="flex gap-2.5">
                 {onUndo && (
