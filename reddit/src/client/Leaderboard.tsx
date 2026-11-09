@@ -5,37 +5,27 @@ import { Lightbulb, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LeaderboardEntry, LeaderboardResponse } from "../shared/api";
 
-const Count = ({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) => (
-  <span className="inline-flex items-center gap-0.5 tabular-nums" title={label} aria-label={`${value} ${label}`}>
-    {icon}
-    {value}
-  </span>
-);
-
-const COLUMNS = "grid-cols-[1.25rem_minmax(0,1fr)_2.25rem_2.75rem]";
+const COLUMNS = "grid-cols-[1.25rem_minmax(0,1fr)_1.75rem_1.75rem_3.25rem]";
 
 // Reddit names run to 20 characters; longer ones step down a size so they fit a phone row whole.
 const nameSize = (name: string) => (name.length > 17 ? "text-[12px] tracking-[-0.01em]" : name.length > 14 ? "text-[13px]" : undefined);
 
-// Ranked by moves, then time; hints and restarts are shown, not ranked. They follow the name on its
-// line; a name too long for both wraps rather than being cut.
+// Ranked by time; hints and restarts get their own columns but don't rank. A long name wraps rather
+// than being cut.
 const Row = ({ entry, mine, placeholder }: { entry: LeaderboardEntry; mine: boolean; placeholder?: boolean }) => {
   // A placeholder draws the same text, invisible on a soft bar, so it takes exactly a real row's size.
   const bar = placeholder ? "rounded-md bg-[#F1E9DD] text-transparent" : undefined;
   return (
     <li className={cn("grid items-center gap-1.5 rounded-xl px-2.5 py-1 text-sm font-extrabold", COLUMNS, mine && !placeholder && "bg-[#EFEAFF]")} aria-hidden={placeholder}>
       <span className={cn("text-[color:var(--gp-muted)]", bar)}>{entry.rank}</span>
-      <span className="flex min-w-0 flex-wrap items-center gap-x-2 text-left leading-tight">
-        <span className={cn("[overflow-wrap:anywhere]", nameSize(entry.username), bar)}>{entry.username}</span>
-        {!placeholder && (entry.hints > 0 || entry.restarts > 0) && (
-          <span className="flex gap-2 text-[11px] leading-none text-[color:var(--gp-muted)]">
-            {entry.hints > 0 && <Count icon={<Lightbulb size={11} strokeWidth={2.75} />} value={entry.hints} label="hints" />}
-            {entry.restarts > 0 && <Count icon={<RotateCcw size={10} strokeWidth={3} />} value={entry.restarts} label="restarts" />}
-          </span>
-        )}
+      <span className={cn("min-w-0 text-left leading-tight [overflow-wrap:anywhere]", nameSize(entry.username), bar)}>{entry.username}</span>
+      <span className={cn("text-center tabular-nums text-[color:var(--gp-muted)]", entry.hints === 0 && "opacity-40", bar)} aria-label={`${entry.hints} hints`}>
+        {entry.hints}
       </span>
-      <span className={cn("gp-value justify-self-end text-base", bar)}>{entry.moves}</span>
-      <span className={cn("justify-self-end text-[color:var(--gp-muted)]", bar)}>{formatClock(entry.timeMs)}</span>
+      <span className={cn("text-center tabular-nums text-[color:var(--gp-muted)]", entry.restarts === 0 && "opacity-40", bar)} aria-label={`${entry.restarts} restarts`}>
+        {entry.restarts}
+      </span>
+      <span className={cn("gp-value justify-self-end text-base", bar)}>{formatClock(entry.timeMs)}</span>
     </li>
   );
 };
@@ -54,7 +44,12 @@ const Header = ({ total }: { total: number }) => (
     <span className="col-span-2 truncate">
       {subreddit ? <span className="normal-case tracking-normal">r/{subreddit}</span> : "Leaderboard"} · {total}
     </span>
-    <span className="text-right">Moves</span>
+    <span className="flex justify-center" title="Hints" aria-label="Hints">
+      <Lightbulb size={13} strokeWidth={2.75} />
+    </span>
+    <span className="flex justify-center" title="Restarts" aria-label="Restarts">
+      <RotateCcw size={12} strokeWidth={3} />
+    </span>
     <span className="text-right">Time</span>
   </div>
 );
@@ -90,7 +85,7 @@ export const Leaderboard = ({ board, username }: { board: LeaderboardResponse | 
   );
 };
 
-const SAMPLE: LeaderboardEntry = { rank: 1, username: "placeholder_name", score: 3, moves: 3, restarts: 0, hints: 0, timeMs: 30_000 };
+const SAMPLE: LeaderboardEntry = { rank: 1, username: "placeholder_name", moves: 3, restarts: 0, hints: 0, timeMs: 30_000 };
 
 /**
  * The leaderboard's shape while it loads, sized from the player's saved rank and the day's count,

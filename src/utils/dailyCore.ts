@@ -28,9 +28,6 @@ export interface DailyResult {
   timeMs: number;
 }
 
-/** Like golf: every placement and every restart is a stroke. */
-/** Pieces placed. Restarts don't add to it; they only break ties. */
-export const dailyScore = (result: Pick<DailyResult, "moves">) => result.moves;
 
 export const DAY_MS = 86_400_000;
 export const FIRST_DAY = "2026-11-05";
@@ -52,7 +49,9 @@ export const puzzleNumber = (date: string) => dayIndex(date) + 1;
 /** The puzzle for a date; past the end of the generated list, the puzzles come round again. */
 export function pickPuzzle(list: DailyPuzzle[], date: string): DailyPuzzle {
   const index = dayIndex(date);
-  return list.find((p) => p.date === date) ?? list[((index % list.length) + list.length) % list.length];
+  const puzzle = list.find((p) => p.date === date) ?? list[((index % list.length) + list.length) % list.length];
+  // The target was built from its first `par` pieces in order, so those are all a player gets.
+  return { ...puzzle, pieces: puzzle.pieces.slice(0, puzzle.par) };
 }
 
 export const parseTarget = (target: string): GridType => target.split("/").map((row) => [...row].map(Number) as CellValue[]);
@@ -77,9 +76,6 @@ export function formatClock(ms: number) {
   const seconds = String(totalSeconds % 60).padStart(2, "0");
   return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}` : `${minutes}:${seconds}`;
 }
-
-/** 0 for par, then +1, +2 and +3 or more. */
-export const overParBucket = (score: number, par: number) => Math.min(3, Math.max(0, score - par));
 
 const TILE_EMOJI = ["⬛", "🟨", "🟦", "🟩", "🟪", "🟧", "🟥"];
 

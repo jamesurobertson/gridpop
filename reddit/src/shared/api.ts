@@ -8,8 +8,6 @@ export type LevelStats = {
   played: number;
   streak: number;
   bestStreak: number;
-  /** Solves at par, +1, +2 and +3 or more. */
-  overPar: [number, number, number, number];
 };
 
 export type SavedResult = DailyResult & { restarts: number; hints: number; rank: number; total: number };
@@ -28,7 +26,7 @@ export type PuzzleResponse = {
   attempts: Record<DailyLevel, number>;
 };
 
-export type LeaderboardEntry = { rank: number; username: string; score: number; moves: number; restarts: number; hints: number; timeMs: number };
+export type LeaderboardEntry = { rank: number; username: string; moves: number; restarts: number; hints: number; timeMs: number };
 
 export type Distribution = { score: number; count: number }[];
 

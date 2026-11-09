@@ -29,7 +29,7 @@ export function markSeen() {
 
 // The tutorial level: two different pieces. The square drops into the middle; the J turns twice
 // and slides over it, stacking two 2s.
-export const TUTORIAL_PIECES: TetrominoType[] = ["O", "J", "T", "S", "L"];
+export const TUTORIAL_PIECES: TetrominoType[] = ["O", "J"];
 export const TUTORIAL_TARGET: GridType = parseTarget("0000/0221/0111/0000");
 const SPOTS = [
   [

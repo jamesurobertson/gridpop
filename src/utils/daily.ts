@@ -1,5 +1,5 @@
 import { GridType, TetrominoType } from "@/types/game";
-import { DAILY_LEVELS, DailyLevel, DailyResult, dailyScore, emojiBoard, formatClock, overParBucket, shiftDate, utcDateKey } from "./dailyCore";
+import { DAILY_LEVELS, DailyLevel, DailyResult, emojiBoard, formatClock, shiftDate, utcDateKey } from "./dailyCore";
 
 export * from "./dailyCore";
 
@@ -49,8 +49,6 @@ export interface DailyStats {
   played: number;
   streak: number;
   bestStreak: number;
-  /** Solves at par, +1, +2 and +3 or more. */
-  overPar: [number, number, number, number];
 }
 
 export function dailyStats(results: Record<string, DailyResult>, today = utcDateKey()): DailyStats {
@@ -68,17 +66,13 @@ export function dailyStats(results: Record<string, DailyResult>, today = utcDate
     streak++;
     cursor = shiftDate(cursor, -1);
   }
-  const overPar: DailyStats["overPar"] = [0, 0, 0, 0];
-  for (const result of Object.values(results)) overPar[overParBucket(dailyScore(result), result.par)]++;
-  return { played: dates.length, streak, bestStreak, overPar };
+  return { played: dates.length, streak, bestStreak };
 }
 
 // ---------- sharing ----------
 
 
-export function dailyShareText(setup: DailySetup, result: DailyResult, { withGoal = true } = {}) {
+export function dailyShareText(setup: DailySetup, result: DailyResult) {
   const label = DAILY_LEVELS.find((option) => option.level === setup.level)?.label;
-  const board = emojiBoard(setup.target);
-  const goal = withGoal ? ` · Goal ${result.par}` : "";
-  return `GridPop #${setup.number} ${label} · Score ${dailyScore(result)}${goal} · ${formatClock(result.timeMs)}\n${board}`;
+  return `GridPop #${setup.number} ${label} · ${formatClock(result.timeMs)}\n${emojiBoard(setup.target)}`;
 }

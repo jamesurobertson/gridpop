@@ -1,22 +1,21 @@
 import { redis } from "@devvit/web/server";
-import { DAILY_LEVELS, DailyLevel, dailyScore, overParBucket, shiftDate, easternDateKey } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, shiftDate, easternDateKey } from "@/utils/dailyCore";
 import type { Distribution, LeaderboardEntry, LeaderboardResponse, LevelStats, SavedResult } from "../shared/api";
 
 type StoredResult = { username: string; moves: number; restarts: number; hints?: number; par: number; timeMs: number };
 
 const resultsKey = (date: string, level: DailyLevel) => `results:${date}:${level}`;
-// v4: ranked by moves, then time; hints and restarts show but don't rank (v3 ranked them before time).
-const boardKey = (date: string, level: DailyLevel) => `board4:${date}:${level}`;
+// v5: ranked by time alone, since every solve uses the same pieces; hints and restarts show but don't rank.
+const boardKey = (date: string, level: DailyLevel) => `board5:${date}:${level}`;
 const distributionKey = (date: string, level: DailyLevel) => `dist:${date}:${level}`;
 const attemptsKey = (date: string, level: DailyLevel, userId: string) => `attempts:${date}:${level}:${userId}`;
 const hintsKey = (date: string, level: DailyLevel, userId: string) => `hints:${date}:${level}:${userId}`;
 const lastHintKey = (date: string, level: DailyLevel, userId: string) => `hint-at:${date}:${level}:${userId}`;
 
-export const HINT_COOLDOWN_MS = 10_000;
+export const HINT_COOLDOWN_MS = 15_000;
 const statsKey = (level: DailyLevel, userId: string) => `stats:${level}:${userId}`;
 
-// Lower is better: score, then milliseconds (capped below a billion).
-const boardScore = (result: StoredResult) => dailyScore(result) * 1e9 + Math.min(result.timeMs, 1e9 - 1);
+const boardScore = (result: StoredResult) => result.timeMs;
 
 export async function countAttempt(date: string, level: DailyLevel, userId: string) {
   return redis.incrBy(attemptsKey(date, level, userId), 1);
@@ -57,7 +56,7 @@ async function ensureIndexes(date: string, level: DailyLevel) {
   const counts: Record<string, string> = {};
   const members = entries.map(([userId, raw]) => {
     const result = JSON.parse(raw) as StoredResult;
-    const score = String(dailyScore(result));
+    const score = String(result.moves);
     counts[score] = String(Number(counts[score] ?? 0) + 1);
     return { member: userId, score: boardScore(result) };
   });
@@ -82,7 +81,7 @@ export async function saveResult(date: string, level: DailyLevel, userId: string
   const isNew = await redis.hSetNX(resultsKey(date, level), userId, JSON.stringify(result));
   if (!isNew) return false;
   await redis.zAdd(boardKey(date, level), { member: userId, score: boardScore(result) });
-  await redis.hIncrBy(distributionKey(date, level), String(dailyScore(result)), 1);
+  await redis.hIncrBy(distributionKey(date, level), String(result.moves), 1);
   await updateStats(date, level, userId, result);
   return true;
 }
@@ -97,13 +96,11 @@ async function updateStats(date: string, level: DailyLevel, userId: string, resu
     streak = last && shiftDate(last, 1) === date ? streak + 1 : 1;
     latest = date;
   }
-  const bucket = `p${overParBucket(dailyScore(result), result.par)}`;
   await redis.hSet(statsKey(level, userId), {
     last: latest ?? date,
     streak: String(streak),
     best: String(Math.max(Number(saved.best ?? 0), streak)),
     played: String(Number(saved.played ?? 0) + 1),
-    [bucket]: String(Number(saved[bucket] ?? 0) + 1),
   });
 }
 
@@ -116,7 +113,6 @@ export async function statsFor(level: DailyLevel, userId: string): Promise<Level
     played: Number(saved.played ?? 0),
     streak: alive ? Number(saved.streak ?? 0) : 0,
     bestStreak: Number(saved.best ?? 0),
-    overPar: [0, 1, 2, 3].map((i) => Number(saved[`p${i}`] ?? 0)) as LevelStats["overPar"],
   };
 }
 
@@ -140,7 +136,7 @@ export async function leaderboard(date: string, level: DailyLevel, userId: strin
   const entry = async (member: string, rank: number): Promise<LeaderboardEntry | null> => {
     const result = await storedResult(date, level, member);
     return (
-      result && { rank: rank + 1, username: result.username, score: dailyScore(result), moves: result.moves, restarts: result.restarts, hints: result.hints ?? 0, timeMs: result.timeMs }
+      result && { rank: rank + 1, username: result.username, moves: result.moves, restarts: result.restarts, hints: result.hints ?? 0, timeMs: result.timeMs }
     );
   };
   const entries = (await Promise.all(top.map(({ member }, i) => entry(member, i)))).filter((e): e is LeaderboardEntry => e !== null);

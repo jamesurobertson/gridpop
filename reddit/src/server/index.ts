@@ -48,7 +48,7 @@ app.get("/api/puzzle", async (c) => {
       return [level, { pieces, target, par }];
     })
   ) as PuzzleResponse["levels"];
-  const emptyStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0, 0, 0, 0] as [number, number, number, number] };
+  const emptyStats = { played: 0, streak: 0, bestStreak: 0 };
   const response: PuzzleResponse = {
     date,
     number: puzzleNumber(date),

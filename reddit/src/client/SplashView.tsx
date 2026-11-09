@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { context, requestExpandedMode } from "@devvit/web/client";
 import { Timer } from "lucide-react";
 import TargetGrid from "@/components/game/TargetGrid";
-import { DAILY_LEVELS, DailyLevel, dailyScore, formatClock, parseTarget, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, formatClock, parseTarget, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
 import { createEmptyGrid } from "@/utils/gameLogic";
 import type { PuzzleResponse } from "../shared/api";
 import { fetchPuzzle } from "./api";
@@ -119,7 +119,7 @@ export const Splash = () => {
               )}
               {result ? (
                 <span className="flex min-h-[32px] flex-col items-center justify-center text-sm font-extrabold leading-tight tabular-nums">
-                  <span className="whitespace-nowrap text-[color:var(--gp-muted)]">Score {dailyScore(result)}</span>
+                  {result.rank > 0 && <span className="whitespace-nowrap text-[color:var(--gp-muted)]">#{result.rank}</span>}
                   <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
                     <Timer size={14} strokeWidth={2.75} className="text-[color:var(--gp-muted)]" />
                     {formatClock(result.timeMs)}

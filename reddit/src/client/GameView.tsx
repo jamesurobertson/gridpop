@@ -7,7 +7,7 @@ import DailyResultModal from "@/components/game/DailyResultModal";
 import { checkLinesToClear, createEmptyGrid, getCurrentShape, isValidPosition, placeTetromino, tryWallKick } from "@/utils/gameLogic";
 import type { Placement, RunAction } from "@/utils/dailyRun";
 import type { Tetromino } from "@/types/game";
-import { DAILY_LEVELS, DailyLevel, DailyResult, dailyScore, formatClock, msUntilEasternMidnight, parseTarget } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, msUntilEasternMidnight, parseTarget } from "@/utils/dailyCore";
 import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
@@ -24,9 +24,11 @@ import { SettingsMenu } from "@/components/game/SettingsMenu";
 import { DAILY_ACTIONS, actionFor, controlText, keyLabel, useControls } from "@/utils/controls";
 import { useDailyRun } from "./useDailyRun";
 
-const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0, overPar: [0, 0, 0, 0] };
+const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0 };
 
-const HINT_COOLDOWN_MS = 10_000;
+const HINT_COOLDOWN_MS = 15_000;
+/** On the clock before the first hint, so it isn't a race to ask. */
+const FIRST_HINT_MS = 15_000;
 const EMPTY_TARGET = createEmptyGrid(4);
 const FOLDED_ROWS_GUESS = 3;
 
@@ -402,7 +404,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     dispatch({ type: "undo" });
   };
 
-  const hintCoolingMs = Math.max(0, hintReadyAt - now);
+  const hintCoolingMs = Math.max(0, hintReadyAt - now, tutorial ? 0 : FIRST_HINT_MS - clockMs);
 
   const askHint = () => {
     if (settingsOpen) return;
@@ -590,26 +592,8 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     </>
   );
 
-  const moves = result && !practice && !tutorial ? result.moves : run.moves;
   const shownClockMs = tutorial ? 0 : clockMs;
-  // Wide screens have room for a full card; phones get one slim strip so the board keeps the space.
-  const statsCard = landscape ? (
-    <div className="gp-card grid grid-cols-2 content-center px-2 py-2.5">
-      {stat("Moves", moves)}
-      {stat("Time", formatClock(shownClockMs))}
-    </div>
-  ) : (
-    <div className="gp-card flex items-center justify-around px-3 py-2">
-      <span className="flex items-baseline gap-1.5">
-        <span className="gp-label">Moves</span>
-        <span className="gp-value text-lg">{moves}</span>
-      </span>
-      <span className="flex items-baseline gap-1.5">
-        <span className="gp-label">Time</span>
-        <span className="gp-value text-lg">{formatClock(shownClockMs)}</span>
-      </span>
-    </div>
-  );
+  const statsCard = <div className="gp-card grid content-center px-2 py-2.5">{stat("Time", formatClock(shownClockMs))}</div>;
 
   const showCoach = coaching && !tutorial && !result && run.moves === 0 && !!run.current && !showResult;
 
@@ -745,7 +729,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       ) : (
         <Leaderboard board={board} username={puzzle.username} />
       )}
-      {result && setup && <CommentBox score={`GridPop #${setup.number} ${DAILY_LEVELS.find((option) => option.level === level)?.label} · Score ${dailyScore(result)} · ${formatClock(result.timeMs)}`} />}
+      {result && setup && <CommentBox score={`GridPop #${setup.number} ${DAILY_LEVELS.find((option) => option.level === level)?.label} · ${formatClock(result.timeMs)}`} />}
     </>
   ) : (
     <button className="gp-btn mt-4 w-full" onClick={() => showLoginPrompt()}>
@@ -756,10 +740,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   // On phones the buttons sit beside the target, under the slim stats, freeing the bottom for the board.
   const phoneSide = (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
-      <div className="gp-card grid flex-1 grid-cols-2 content-center px-2 py-2">
-        {stat("Moves", moves)}
-        {stat("Time", formatClock(shownClockMs))}
-      </div>
+      <div className="gp-card grid flex-1 content-center px-2 py-2">{stat("Time", formatClock(shownClockMs))}</div>
       {buttons}
     </div>
   );
@@ -827,7 +808,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           target={<TargetCard target={TUTORIAL_TARGET} landscape={landscape} gridRef={targetSlot} hideGrid={!tutorialGoalSeen} landed={lesson.step === "move"} highlight={lesson.step === "done" ? "solved" : lesson.step === "goal" || lesson.step === "place2" ? "flash" : undefined} />}
           board={gameBoard}
           // In the pause, the piece about to come into play still sits at the front of Next.
-          next={<NextColumn queue={nextBeat && run.current ? [run.current, ...run.queue] : run.queue} landscape={landscape} highlight={nextBeat} />}
+          next={<NextColumn queue={nextBeat && run.current ? [run.current, ...run.queue] : run.queue} landscape={landscape} highlight={nextBeat} countRest />}
           bottom={belowBoard(pad(lessonAction), inertButtons)}
           hints={underBoard(<div className="pt-4">{pad(lessonAction)}</div>)}
           hintsHeight={padHeight}
@@ -843,7 +824,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
             </TargetCard>
           }
           board={gameBoard}
-          next={<NextColumn queue={run.queue} landscape={landscape} />}
+          next={<NextColumn queue={run.queue} landscape={landscape} countRest />}
           bottom={belowBoard(pad(), buttons)}
           hints={underBoard(<div className="pt-4">{pad()}</div>)}
           hintsHeight={padHeight}
@@ -885,8 +866,6 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           stats={stats}
           onRestart={restart}
           onShare={puzzle?.local ? undefined : (text) => void showShareSheet({ title: "GridPop", text }).catch(() => undefined)}
-          // On the website there's no leaderboard, so the goal is what a score is measured against.
-          hideGoal={!puzzle?.local}
           practice={practice}
           onReplay={result ? restart : undefined}
           onUndo={run.outcome && run.outcome !== "solved" && run.history.length > 0 ? undo : undefined}

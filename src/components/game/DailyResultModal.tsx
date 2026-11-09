@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Flame, RotateCcw, Share2, Undo2 } from "lucide-react";
 import { DailyOutcome } from "@/types/game";
-import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyScore, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
-import { cn } from "@/lib/utils";
+import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
 
 interface DailyResultModalProps {
   isOpen: boolean;
@@ -18,8 +17,6 @@ interface DailyResultModalProps {
   extra?: React.ReactNode;
   /** Replaces the browser share (the Reddit app uses its own share sheet). */
   onShare?: (text: string) => void;
-  /** Keep the fewest possible secret (on Reddit the leaderboard says what's good). */
-  hideGoal?: boolean;
   /** Offered once solved: another run that isn't recorded. */
   onReplay?: () => void;
   /** Offered after a tile reaches 7 or the pieces run out: take back the last placement. */
@@ -31,8 +28,6 @@ interface DailyResultModalProps {
 }
 
 const SITE = "https://jamesurobertson.github.io/gridpop/";
-const STAT_COLUMNS: Record<number, string> = { 3: "grid-cols-3", 4: "grid-cols-4", 5: "grid-cols-5" };
-const OVER_GOAL_LABELS = ["Goal", "+1", "+2", "+3"];
 
 function useCountdown(active: boolean, msUntilNext: () => number) {
   const [msLeft, setMsLeft] = useState(msUntilNext);
@@ -60,23 +55,21 @@ const InlineStat = ({ label, value }: { label: string; value: React.ReactNode })
   </span>
 );
 
-const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, hideGoal, onReplay, practice, onUndo, msUntilNext = msUntilNextPuzzle }) => {
+const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, onReplay, practice, onUndo, msUntilNext = msUntilNextPuzzle }) => {
   const [copied, setCopied] = useState(false);
   const msLeft = useCountdown(isOpen, msUntilNext);
   const solved = outcome === "solved" && run;
-  const score = run ? dailyScore(run) : 0;
-  const overPar = solved ? Math.min(3, Math.max(0, score - run.par)) : -1;
   const puzzleName = `Daily #${setup.number} · ${DAILY_LEVELS.find((option) => option.level === setup.level)?.label}${practice ? " · Practice" : ""}`;
 
   const heading =
     outcome === "seven" ? "A tile reached 7" :
     outcome === "empty" ? "Out of pieces" :
-    solved ? (!hideGoal && score <= run.par ? "Perfect!" : "Solved") :
+    solved ? "Solved" :
     puzzleName;
 
   function handleShare() {
     if (!run) return;
-    const text = dailyShareText(setup, run, { withGoal: !hideGoal });
+    const text = dailyShareText(setup, run);
     if (onShare) {
       onShare(text);
     } else if (navigator.share) {
@@ -88,8 +81,6 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
       });
     }
   }
-
-  const mostAtOneScore = Math.max(1, ...stats.overPar);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -105,12 +96,10 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
 
         <div className="px-4 pb-4 pt-3 text-center [@media(max-height:640px)]:pt-2">
           {solved && (
-            <div className={cn("mb-3 grid gap-2 [@media(max-height:640px)]:mb-2", STAT_COLUMNS[3 + (hideGoal ? 0 : 1) + (run.hints !== undefined ? 1 : 0)])}>
-              <Stat label="Moves" value={run.moves} />
-              <Stat label="Restarts" value={run.restarts ?? 0} />
-              {run.hints !== undefined && <Stat label="Hints" value={run.hints} />}
-              {!hideGoal && <Stat label="Goal" value={run.par} />}
+            <div className="mb-3 grid grid-cols-3 gap-2 [@media(max-height:640px)]:mb-2">
               <Stat label="Time" value={formatClock(run.timeMs)} />
+              <Stat label="Hints" value={run.hints ?? 0} />
+              <Stat label="Restarts" value={run.restarts ?? 0} />
             </div>
           )}
 
@@ -128,21 +117,6 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                   }
                 />
                 <InlineStat label="Best" value={stats.bestStreak} />
-              </div>
-              <div className={cn("mt-3 space-y-1", hideGoal && "hidden")}>
-                {stats.overPar.map((count, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm font-extrabold">
-                    <span className="w-8 text-left text-[color:var(--gp-muted)]">{OVER_GOAL_LABELS[i]}</span>
-                    <span className="flex-1">
-                      <span
-                        className={cn("block min-w-[28px] rounded-md px-2 text-right text-[13px] leading-5 text-white", i === overPar ? "bg-[#45D486]" : "bg-[#B8A3FF]")}
-                        style={{ width: `${Math.max(12, (count / mostAtOneScore) * 100)}%` }}
-                      >
-                        {count}
-                      </span>
-                    </span>
-                  </div>
-                ))}
               </div>
               {extra}
             </>
