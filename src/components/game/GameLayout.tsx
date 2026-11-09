@@ -87,7 +87,7 @@ export const NextColumn = ({ queue, landscape, highlight }: { queue: (Tetromino 
     )}
   >
     <div className={cn("gp-label pt-0.5", highlight && "text-[#7C5CFF]")}>Next</div>
-    <div className={cn("w-full rounded-[14px] bg-[color:var(--gp-board)]", landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]", highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2")}>
+    <div className={cn("w-full rounded-[14px] transition-colors", queue[0] ? "bg-[color:var(--gp-board)]" : "bg-transparent", landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]", highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2")}>
       <PieceDisplay piece={queue[0] ?? null} frame="wide" ring />
     </div>
     {QUEUE_STEPS.map((step, i) => (
