@@ -4,6 +4,7 @@ import { showLoginPrompt, showShareSheet, showToast } from "@devvit/web/client";
 import { CircleHelp, Flame, Lightbulb, Settings2, Trophy, Undo2 } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
 import DailyResultModal from "@/components/game/DailyResultModal";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { checkLinesToClear, createEmptyGrid, getCurrentShape, isValidPosition, placeTetromino, tryWallKick } from "@/utils/gameLogic";
 import type { Placement, RunAction } from "@/utils/dailyRun";
 import type { Tetromino } from "@/types/game";
@@ -18,7 +19,8 @@ import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coa
 import { DemoBoard, usePatientLoading } from "./Loader";
 import { Leaderboard, LeaderboardSkeleton } from "./Leaderboard";
 import { SOLVED_BANNER_MS, SolvedBanner } from "./SolvedBanner";
-import { CommentBox } from "./CommentBox";
+import { CommentScore } from "./CommentBox";
+import { LevelCards } from "./LevelCards";
 import { GameLayout, KeyHints, NextColumn, TargetCard, TouchButtons, useViewport } from "@/components/game/GameLayout";
 import { SettingsMenu } from "@/components/game/SettingsMenu";
 import { DAILY_ACTIONS, actionFor, controlText, keyLabel, useControls } from "@/utils/controls";
@@ -77,6 +79,9 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const [muted, setMuted] = useState(sfx.muted);
   const [controls, setControls] = useControls();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [levelPickerOpen, setLevelPickerOpen] = useState(false);
+  /** Comments posted this visit, by "date:level", so the card can link to them. */
+  const [commented, setCommented] = useState<Record<string, string>>({});
   const viewport = useViewport();
   const { landscape } = viewport;
   // Runs after the recorded solve: played the same way, but never sent to the server.
@@ -736,11 +741,19 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   );
 
   const shownRun = practice ? practiceResult : result;
-  // The next level along (wrapping round) that hasn't been solved today.
-  const levelIndex = DAILY_LEVELS.findIndex((option) => option.level === level);
-  const nextLevel = puzzle
-    ? [1, 2].map((step) => DAILY_LEVELS[(levelIndex + step) % DAILY_LEVELS.length]).find((option) => !puzzle.results[option.level])
-    : undefined;
+  const otherLevelOpen = !!puzzle && DAILY_LEVELS.some((option) => option.level !== level && !puzzle.results[option.level]);
+  const saved = puzzle?.results[level];
+  const commentKey = puzzle ? `${puzzle.date}:${level}` : "";
+  const commentButton =
+    result && !practice && setup && puzzle?.username && !puzzle.local ? (
+      <CommentScore
+        level={level}
+        score={`GridPop #${setup.number} ${DAILY_LEVELS.find((option) => option.level === level)?.label} · ${formatClock(result.timeMs)}`}
+        username={puzzle.username}
+        postedUrl={commented[commentKey] ?? null}
+        onPosted={(url) => setCommented((posted) => ({ ...posted, [commentKey]: url }))}
+      />
+    ) : undefined;
   // The day's leaderboard and comments belong with every result, practice runs included.
   const resultExtra = puzzle?.local ? null : puzzle?.username ? (
     <>
@@ -749,7 +762,6 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       ) : (
         <Leaderboard board={board} username={puzzle.username} />
       )}
-      {result && setup && <CommentBox score={`GridPop #${setup.number} ${DAILY_LEVELS.find((option) => option.level === level)?.label} · ${formatClock(result.timeMs)}`} />}
     </>
   ) : (
     <button className="gp-btn mt-4 w-full" onClick={() => showLoginPrompt()}>
@@ -875,6 +887,20 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
         onToggleMute={toggleMute}
       />
 
+      <Dialog open={levelPickerOpen} onOpenChange={setLevelPickerOpen}>
+        <DialogContent className="max-w-[min(92vw,440px)] gap-4 rounded-[28px] border-[2.5px] border-[#1F1633] bg-[color:var(--gp-bg)] p-5 outline-none" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <DialogTitle className="font-display text-center text-[22px] font-bold leading-tight">Daily #{puzzle?.number}</DialogTitle>
+          <DialogDescription className="sr-only">Choose a difficulty</DialogDescription>
+          <LevelCards
+            puzzle={puzzle}
+            onPick={(_, next) => {
+              setLevelPickerOpen(false);
+              switchLevel(next);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
       {setup && (
         <DailyResultModal
           msUntilNext={msUntilEasternMidnight}
@@ -888,7 +914,16 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           onShare={puzzle?.local ? undefined : (text) => void showShareSheet({ title: "GridPop", text }).catch(() => undefined)}
           practice={practice}
           onReplay={result ? restart : undefined}
-          nextLevel={nextLevel && { label: nextLevel.label, onPlay: () => switchLevel(nextLevel.level) }}
+          onOtherLevel={
+            result && otherLevelOpen
+              ? () => {
+                  setShowResult(false);
+                  setLevelPickerOpen(true);
+                }
+              : undefined
+          }
+          rank={!practice && saved && saved.rank > 0 ? { rank: saved.rank, total: saved.total } : undefined}
+          comment={commentButton}
           onUndo={run.outcome && run.outcome !== "solved" && run.history.length > 0 ? undo : undefined}
           extra={resultExtra}
         />

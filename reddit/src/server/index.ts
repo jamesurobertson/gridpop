@@ -5,7 +5,7 @@ import type { TaskResponse } from "@devvit/web/server";
 import type { TriggerResponse, UiResponse } from "@devvit/web/shared";
 import puzzles from "@/data/dailyPuzzles.json";
 import solutions from "@/data/dailySolutions.json";
-import { DAILY_LEVELS, DailyLevel, DailyPuzzle, parseTarget, pickPuzzle, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
+import { DAILY_LEVELS, DailyLevel, DailyPuzzle, formatClock, parseTarget, pickPuzzle, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
 import { hintFor, replayRun, replayTo } from "@/utils/dailyRun";
 import type {
   AttemptRequest,
@@ -19,7 +19,7 @@ import type {
   SubmitResponse,
 } from "../shared/api";
 import { attemptsFor, countAttempt, countHint, hintWaitMs, hintsFor, leaderboard, resultFor, saveResult, statsFor } from "./store";
-import { backfillShareImage, ensureDailyPost } from "./posts";
+import { backfillShareImage, ensureDailyPost, scoresComment } from "./posts";
 import { updateScoreFlair } from "./flair";
 
 const PUZZLES = puzzles as unknown as Record<DailyLevel, DailyPuzzle[]>;
@@ -119,15 +119,22 @@ app.post("/api/hint", async (c) => {
 });
 
 app.post("/api/comment", async (c) => {
-  const { text } = await c.req.json<CommentRequest>();
+  const { level, message } = await c.req.json<CommentRequest>();
   const { userId, postId } = context;
   const fail = (reason: string) => c.json<CommentResponse>({ ok: false, reason }, 400);
-  const body = typeof text === "string" ? text.trim() : "";
   if (!userId || !postId) return fail("logged out");
-  if (!body || body.length > 2000) return fail("bad comment");
+  if (!isLevel(level) || typeof message !== "string" || message.length > 1900) return fail("bad comment");
+  const date = postDate();
+  const result = await resultFor(date, level, userId);
+  if (!result) return fail("not solved");
+  const label = DAILY_LEVELS.find((option) => option.level === level)!.label;
+  const score = `GridPop #${puzzleNumber(date)} ${label} · ${formatClock(result.timeMs)}`;
+  const note = message.trim();
   try {
-    await reddit.submitComment({ id: postId, text: body, runAs: "USER" });
-    return c.json<CommentResponse>({ ok: true });
+    // A score alone replies under the pinned scores comment; one with the player's own words joins the thread.
+    const parent = note ? (postId as `t3_${string}`) : await scoresComment(postId as `t3_${string}`);
+    const comment = await reddit.submitComment({ id: parent, text: note ? `${note}\n\n${score}` : score, runAs: "USER" });
+    return c.json<CommentResponse>({ ok: true, url: comment.url });
   } catch (e) {
     console.error(`Couldn't post comment: ${e}`);
     return fail("not posted");

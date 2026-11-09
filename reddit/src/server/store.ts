@@ -146,6 +146,21 @@ export async function leaderboard(date: string, level: DailyLevel, userId: strin
 
 // ---------- daily posts ----------
 
+const scoresCommentKey = (postId: string) => `scores-comment:${postId}`;
+
+export async function scoresCommentFor(postId: string) {
+  return (await redis.get(scoresCommentKey(postId))) as `t1_${string}` | undefined;
+}
+
+export async function rememberScoresComment(postId: string, commentId: string) {
+  await redis.set(scoresCommentKey(postId), commentId);
+}
+
+/** True for exactly one caller per post, so two players can't both start the scores comment. */
+export async function claimScoresComment(postId: string) {
+  return Boolean(await redis.set(`${scoresCommentKey(postId)}:claim`, "1", { nx: true, expiration: new Date(Date.now() + 60_000) }));
+}
+
 export const postKey = (date: string) => `post:${date}`;
 
 export async function postFor(date: string) {

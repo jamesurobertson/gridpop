@@ -14,5 +14,5 @@ export const recordAttempt = (date: string, level: DailyLevel) => call<AttemptRe
 export const submitRun = (date: string, level: DailyLevel, actions: RunAction[], timeMs: number) =>
   call<SubmitResponse>("/api/submit", { date, level, actions, timeMs });
 export const fetchLeaderboard = (level: DailyLevel) => call<LeaderboardResponse>(`/api/leaderboard?level=${level}`);
-export const postComment = (text: string) => call<CommentResponse>("/api/comment", { text });
+export const postComment = (level: DailyLevel, message: string) => call<CommentResponse>("/api/comment", { level, message });
 export const requestHint = (date: string, level: DailyLevel, actions: RunAction[]) => call<HintResponse>("/api/hint", { date, level, actions });

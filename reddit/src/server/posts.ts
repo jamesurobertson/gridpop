@@ -1,6 +1,6 @@
 import { context, reddit } from "@devvit/web/server";
 import { puzzleNumber, shiftDate } from "@/utils/dailyCore";
-import { claimPost, postFor, rememberPost } from "./store";
+import { claimPost, claimScoresComment, postFor, rememberPost, rememberScoresComment, scoresCommentFor } from "./store";
 import { shareImageUrl } from "./shareImage";
 
 const dayName = (date: string) =>
@@ -21,6 +21,34 @@ export async function backfillShareImage(today: string, days = 30) {
   }
 }
 
+const SCORES_TEXT = "Today's scores 👇";
+
+/**
+ * The app's pinned comment that score comments reply under (Reddit's rule for generic score
+ * comments), made the first time it's needed.
+ */
+export async function scoresComment(postId: `t3_${string}`): Promise<`t1_${string}`> {
+  const saved = await scoresCommentFor(postId);
+  if (saved) return saved;
+  if (!(await claimScoresComment(postId))) {
+    // Another request is making it; wait for its id.
+    for (let i = 0; i < 10; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const made = await scoresCommentFor(postId);
+      if (made) return made;
+    }
+    throw new Error("scores comment not ready");
+  }
+  const comment = await reddit.submitComment({ id: postId, text: SCORES_TEXT, runAs: "APP" });
+  try {
+    await comment.distinguish(true);
+  } catch (e) {
+    console.warn(`Couldn't pin the scores comment: ${e}`);
+  }
+  await rememberScoresComment(postId, comment.id);
+  return comment.id;
+}
+
 /** Today's post, made (and pinned in place of yesterday's) if it doesn't exist yet. */
 export async function ensureDailyPost(date: string): Promise<string | undefined> {
   const existing = await postFor(date);
@@ -36,7 +64,7 @@ export async function ensureDailyPost(date: string): Promise<string | undefined>
     postData: { date },
     styles: { backgroundColor: "#FFF6EAFF", ...(shareImage && { shareImageUrl: shareImage }) },
     textFallback: {
-      text: `GridPop daily #${number}: build the target board in as few pieces as you can. Open this post on new Reddit or the Reddit app to play.`,
+      text: `GridPop daily #${number}: build the target board as fast as you can. Open this post on new Reddit or the Reddit app to play.`,
     },
   });
   await rememberPost(date, post.id);
@@ -52,6 +80,11 @@ export async function ensureDailyPost(date: string): Promise<string | undefined>
     await post.sticky(1);
   } catch (e) {
     console.warn(`Couldn't pin today's post: ${e}`);
+  }
+  try {
+    await scoresComment(post.id);
+  } catch (e) {
+    console.warn(`Couldn't start the scores comment: ${e}`);
   }
   return post.id;
 }

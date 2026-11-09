@@ -22,3 +22,5 @@ export function showToast(text: string) {
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 2200);
 }
+
+export const navigateTo = (url: string) => window.open(url, "_blank", "noopener");

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { ArrowRight, Flame, RotateCcw, Share2, Undo2 } from "lucide-react";
+import { Flame, RotateCcw, Share2, Undo2 } from "lucide-react";
 import { DailyOutcome } from "@/types/game";
 import { cn } from "@/lib/utils";
 import { DAILY_LEVELS, DailyResult, DailySetup, DailyStats, dailyShareText, formatClock, msUntilNextPuzzle } from "@/utils/daily";
@@ -20,8 +20,12 @@ interface DailyResultModalProps {
   onShare?: (text: string) => void;
   /** Offered once solved: another run that isn't recorded. */
   onReplay?: () => void;
-  /** Offered once solved: a level not yet played today. */
-  nextLevel?: { label: string; onPlay: () => void };
+  /** Offered once solved, while another level is still unsolved today. */
+  onOtherLevel?: () => void;
+  /** Where this result stands on the leaderboard (Reddit only). */
+  rank?: { rank: number; total: number };
+  /** The comment-your-score button (Reddit only), beside Share. */
+  comment?: React.ReactNode;
   /** Offered after a tile reaches 7 or the pieces run out: take back the last placement. */
   onUndo?: () => void;
   /** The run shown was a replay after the recorded solve. */
@@ -43,22 +47,14 @@ function useCountdown(active: boolean, msUntilNext: () => number) {
   return msLeft;
 }
 
-const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
+const Stat = ({ label, value, big }: { label: string; value: React.ReactNode; big?: boolean }) => (
   <div>
     <div className="gp-label">{label}</div>
-    <div className="gp-value mt-0.5 text-xl">{value}</div>
+    <div className={cn("gp-value mt-0.5", big ? "text-[28px]" : "text-xl")}>{value}</div>
   </div>
 );
 
-/** Label and value side by side, for the slim streak strip. */
-const InlineStat = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <span className="flex items-baseline gap-1.5">
-    <span className="gp-label">{label}</span>
-    <span className="gp-value text-lg">{value}</span>
-  </span>
-);
-
-const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, onReplay, nextLevel, practice, onUndo, msUntilNext = msUntilNextPuzzle }) => {
+const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, setup, outcome, run, stats, onRestart, extra, onShare, onReplay, onOtherLevel, rank, comment, practice, onUndo, msUntilNext = msUntilNextPuzzle }) => {
   const [copied, setCopied] = useState(false);
   const msLeft = useCountdown(isOpen, msUntilNext);
   const solved = outcome === "solved" && run;
@@ -99,59 +95,71 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
 
         <div className="px-4 pb-4 pt-3 text-center [@media(max-height:640px)]:pt-2">
           {solved && (
-            <div className="mb-3 grid grid-cols-3 gap-2 [@media(max-height:640px)]:mb-2">
-              <Stat label="Time" value={formatClock(run.timeMs)} />
-              <Stat label="Hints" value={run.hints ?? 0} />
-              <Stat label="Restarts" value={run.restarts ?? 0} />
+            <div className={cn("mb-2 grid gap-2", rank ? "grid-cols-2" : "grid-cols-3")}>
+              <Stat label="Time" value={formatClock(run.timeMs)} big />
+              {rank ? (
+                <Stat
+                  label="Rank"
+                  value={
+                    <>
+                      #{rank.rank} <span className="text-base text-[color:var(--gp-muted)]">of {rank.total}</span>
+                    </>
+                  }
+                  big
+                />
+              ) : (
+                <>
+                  <Stat label="Hints" value={run.hints ?? 0} big />
+                  <Stat label="Restarts" value={run.restarts ?? 0} big />
+                </>
+              )}
             </div>
           )}
 
           {(solved || !outcome) && (
             <>
-              <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 rounded-2xl bg-[#FBF6EE] px-3 py-2">
-                <InlineStat label="Played" value={stats.played} />
-                <InlineStat
-                  label="Streak"
-                  value={
-                    <span className="inline-flex items-center gap-0.5">
-                      <Flame size={16} strokeWidth={2.75} className="self-center text-[#FF7A3D]" />
-                      {stats.streak}
-                    </span>
-                  }
-                />
-                <InlineStat label="Best" value={stats.bestStreak} />
-              </div>
+              {stats.streak > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FBF6EE] px-3.5 py-1 text-sm font-extrabold">
+                  <Flame size={16} strokeWidth={2.75} className="text-[#FF7A3D]" />
+                  {stats.streak}-day streak
+                </span>
+              )}
               {extra}
             </>
           )}
 
           {/* Kept in view at the bottom of a card that scrolls on short screens. */}
-          <div className="sticky bottom-0 -mx-4 -mb-4 mt-3 flex flex-col gap-2 bg-white px-4 pb-4 pt-2 [@media(max-height:640px)]:mt-2 [@media(max-height:640px)]:pb-3 [@media(max-height:640px)]:pt-1">
-            {(solved || !outcome) && (
-              <div className="flex items-baseline justify-center gap-2">
-                <span className="gp-label">Next puzzle</span>
-                <span className="gp-value text-base tabular-nums">{formatClock(msLeft)}</span>
-              </div>
-            )}
+          <div className="sticky bottom-0 -mx-4 -mb-4 mt-3 flex flex-col gap-2 bg-white px-4 pb-3 pt-2 [@media(max-height:640px)]:mt-2 [@media(max-height:640px)]:pt-1">
             {solved ? (
               <>
-              {nextLevel && (
-                <button className="gp-btn gp-btn-primary w-full whitespace-nowrap text-base" onClick={nextLevel.onPlay}>
-                  Try {nextLevel.label} <ArrowRight size={18} strokeWidth={3} />
-                </button>
-              )}
-              <div className="flex gap-2.5">
-                {onReplay && (
-                  <button className="gp-btn flex-1 whitespace-nowrap text-base" onClick={onReplay}>
-                    <RotateCcw size={18} strokeWidth={3} /> Play again
+                {(comment || !practice) && (
+                  <div className="flex gap-2.5">
+                    {comment}
+                    {!practice && (
+                      <button className="gp-btn flex-1 whitespace-nowrap text-base" onClick={handleShare}>
+                        <Share2 size={18} strokeWidth={2.5} /> {copied ? "Copied!" : "Share"}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {onOtherLevel && (
+                  <button className="gp-btn gp-btn-primary w-full whitespace-nowrap text-base" onClick={onOtherLevel}>
+                    Play another difficulty
                   </button>
                 )}
-                {!practice && (
-                  <button className={cn("gp-btn flex-1 whitespace-nowrap text-base", !nextLevel && "gp-btn-primary")} onClick={handleShare}>
-                    <Share2 size={18} strokeWidth={2.5} /> {copied ? "Copied!" : "Share"}
-                  </button>
-                )}
-              </div>
+                <div className="flex items-center justify-between gap-2">
+                  {onReplay ? (
+                    <button className="inline-flex items-center gap-1.5 py-1.5 text-sm font-extrabold text-[color:var(--gp-accent-edge)]" onClick={onReplay}>
+                      <RotateCcw size={16} strokeWidth={3} /> Play again
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  <span className="flex items-baseline gap-2">
+                    <span className="gp-label">Next puzzle</span>
+                    <span className="gp-value text-base tabular-nums">{formatClock(msLeft)}</span>
+                  </span>
+                </div>
               </>
             ) : outcome ? (
               <div className="flex gap-2.5">
@@ -165,9 +173,15 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
                 </button>
               </div>
             ) : (
-              <button className="gp-btn gp-btn-primary w-full text-base" onClick={onClose}>
-                Keep playing
-              </button>
+              <>
+                <div className="flex items-baseline justify-center gap-2">
+                  <span className="gp-label">Next puzzle</span>
+                  <span className="gp-value text-base tabular-nums">{formatClock(msLeft)}</span>
+                </div>
+                <button className="gp-btn gp-btn-primary w-full text-base" onClick={onClose}>
+                  Keep playing
+                </button>
+              </>
             )}
           </div>
         </div>

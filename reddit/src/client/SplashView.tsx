@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { context, requestExpandedMode } from "@devvit/web/client";
-import { Timer } from "lucide-react";
-import TargetGrid from "@/components/game/TargetGrid";
-import { DAILY_LEVELS, DailyLevel, formatClock, parseTarget, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
-import { createEmptyGrid } from "@/utils/gameLogic";
+import { DailyLevel, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
 import type { PuzzleResponse } from "../shared/api";
 import { fetchPuzzle } from "./api";
 import { saveLevel } from "./storage";
 import { usePatientLoading } from "./Loader";
+import { LevelCards } from "./LevelCards";
 
 const postDate = () => {
   const date = (context?.postData as { date?: unknown } | undefined)?.date;
@@ -33,8 +31,6 @@ function cachePuzzle(puzzle: PuzzleResponse) {
     // Storage blocked or full: the next load waits for the server instead.
   }
 }
-
-const EMPTY_TARGET = createEmptyGrid(4);
 
 const dayName = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -106,32 +102,7 @@ export const Splash = () => {
         <div className="gp-value text-xl">Daily #{puzzleNumber(date)}</div>
         <div className="text-sm font-bold text-[color:var(--gp-muted)]">{dayName(date)}</div>
       </div>
-      <div className="grid w-full max-w-[420px] grid-cols-3 gap-2.5">
-        {DAILY_LEVELS.map(({ level, label }) => {
-          const result = ready ? puzzle?.results[level] : null;
-          return (
-            <button key={level} className="gp-card flex flex-col items-center gap-2 p-2.5 transition-transform active:scale-95" onClick={(e) => play(e, level)}>
-              <span className="font-display text-base font-bold">{label}</span>
-              {puzzle && ready ? (
-                <TargetGrid grid={parseTarget(puzzle.levels[level].target)} reveal={waited} className="w-full" />
-              ) : (
-                <TargetGrid grid={EMPTY_TARGET} shimmer={showLoader} className="w-full" />
-              )}
-              {result ? (
-                <span className="flex min-h-[32px] flex-col items-center justify-center text-sm font-extrabold leading-tight tabular-nums">
-                  {result.rank > 0 && <span className="whitespace-nowrap text-[color:var(--gp-muted)]">#{result.rank}</span>}
-                  <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
-                    <Timer size={14} strokeWidth={2.75} className="text-[color:var(--gp-muted)]" />
-                    {formatClock(result.timeMs)}
-                  </span>
-                </span>
-              ) : (
-                <span className="gp-btn gp-btn-primary pointer-events-none !min-h-[32px] w-full !px-2 text-sm">Play</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <LevelCards puzzle={puzzle} onPick={play} ready={ready} reveal={waited} shimmer={showLoader} />
     </div>
   );
 };

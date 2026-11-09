@@ -32,8 +32,9 @@ export type Distribution = { score: number; count: number }[];
 
 export type LeaderboardResponse = { top: LeaderboardEntry[]; me: LeaderboardEntry | null; total: number; distribution: Distribution };
 
-export type CommentRequest = { text: string };
-export type CommentResponse = { ok: true } | { ok: false; reason: string };
+/** Comments the player's recorded score for a level, with an optional message of their own. */
+export type CommentRequest = { level: DailyLevel; message: string };
+export type CommentResponse = { ok: true; url: string } | { ok: false; reason: string };
 
 export type HintRequest = { date: string; level: DailyLevel; actions: RunAction[] };
 /** `placement` is where the piece in play should go; null means the target can't be reached from here. */
