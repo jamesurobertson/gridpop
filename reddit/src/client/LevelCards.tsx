@@ -2,6 +2,7 @@ import { Timer } from "lucide-react";
 import TargetGrid from "@/components/game/TargetGrid";
 import { DAILY_LEVELS, DailyLevel, formatClock, parseTarget } from "@/utils/dailyCore";
 import { createEmptyGrid } from "@/utils/gameLogic";
+import { cn } from "@/lib/utils";
 import type { PuzzleResponse } from "../shared/api";
 
 const EMPTY_TARGET = createEmptyGrid(4);
@@ -34,7 +35,10 @@ export const LevelCards = ({
           ) : (
             <TargetGrid grid={EMPTY_TARGET} shimmer={shimmer} className="w-full" />
           )}
-          {result ? (
+          {!ready ? (
+            // Until it loads, neither Play nor a time: either could be wrong for this player.
+            <span className={cn("block h-[32px] w-full rounded-full bg-[#F1E9DD]", shimmer && "animate-pulse")} aria-hidden />
+          ) : result ? (
             <span className="flex min-h-[32px] flex-col items-center justify-center text-sm font-extrabold leading-tight tabular-nums">
               {result.rank > 0 && <span className="whitespace-nowrap text-[color:var(--gp-muted)]">#{result.rank}</span>}
               <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
