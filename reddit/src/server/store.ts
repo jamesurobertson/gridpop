@@ -2,13 +2,17 @@ import { redis } from "@devvit/web/server";
 import { DAILY_LEVELS, DailyLevel, shiftDate, easternDateKey } from "@/utils/dailyCore";
 import type { Distribution, LeaderboardEntry, LeaderboardResponse, LevelStats, SavedResult } from "../shared/api";
 
-type StoredResult = { username: string; moves: number; restarts: number; hints?: number; par: number; timeMs: number };
+// `restarts` is the older name for `undos`, from before undos counted.
+type StoredResult = { username: string; moves: number; undos?: number; restarts?: number; hints?: number; par: number; timeMs: number };
+const undosOf = (result: StoredResult) => result.undos ?? result.restarts ?? 0;
 
 const resultsKey = (date: string, level: DailyLevel) => `results:${date}:${level}`;
-// v5: ranked by time alone, since every solve uses the same pieces; hints and restarts show but don't rank.
+// v5: ranked by time alone, since every solve uses the same pieces; hints and undos show but don't rank.
 const boardKey = (date: string, level: DailyLevel) => `board5:${date}:${level}`;
 const distributionKey = (date: string, level: DailyLevel) => `dist:${date}:${level}`;
 const attemptsKey = (date: string, level: DailyLevel, userId: string) => `attempts:${date}:${level}:${userId}`;
+const undosKey = (date: string, level: DailyLevel, userId: string) => `undos:${date}:${level}:${userId}`;
+const commentKey = (date: string, level: DailyLevel, userId: string) => `comment:${date}:${level}:${userId}`;
 const hintsKey = (date: string, level: DailyLevel, userId: string) => `hints:${date}:${level}:${userId}`;
 const lastHintKey = (date: string, level: DailyLevel, userId: string) => `hint-at:${date}:${level}:${userId}`;
 
@@ -19,6 +23,18 @@ const boardScore = (result: StoredResult) => result.timeMs;
 
 export async function countAttempt(date: string, level: DailyLevel, userId: string) {
   return redis.incrBy(attemptsKey(date, level, userId), 1);
+}
+
+export async function countUndo(date: string, level: DailyLevel, userId: string) {
+  return redis.incrBy(undosKey(date, level, userId), 1);
+}
+
+export async function commentFor(date: string, level: DailyLevel, userId: string) {
+  return (await redis.get(commentKey(date, level, userId))) ?? null;
+}
+
+export async function rememberComment(date: string, level: DailyLevel, userId: string, url: string) {
+  await redis.set(commentKey(date, level, userId), url);
 }
 
 export async function hintsFor(date: string, level: DailyLevel, userId: string) {
@@ -37,10 +53,13 @@ export async function countHint(date: string, level: DailyLevel, userId: string)
   return redis.incrBy(hintsKey(date, level, userId), 1);
 }
 
-export async function attemptsFor(date: string, userId: string) {
-  const values = await redis.mGet(DAILY_LEVELS.map(({ level }) => attemptsKey(date, level, userId)));
+async function countsFor(key: (date: string, level: DailyLevel, userId: string) => string, date: string, userId: string) {
+  const values = await redis.mGet(DAILY_LEVELS.map(({ level }) => key(date, level, userId)));
   return Object.fromEntries(DAILY_LEVELS.map(({ level }, i) => [level, Number(values[i] ?? 0)])) as Record<DailyLevel, number>;
 }
+
+export const attemptsFor = (date: string, userId: string) => countsFor(attemptsKey, date, userId);
+export const undosFor = (date: string, userId: string) => countsFor(undosKey, date, userId);
 
 async function storedResult(date: string, level: DailyLevel, userId: string): Promise<StoredResult | null> {
   const raw = await redis.hGet(resultsKey(date, level), userId);
@@ -67,7 +86,7 @@ async function ensureIndexes(date: string, level: DailyLevel) {
 async function withRank(date: string, level: DailyLevel, userId: string, result: StoredResult): Promise<SavedResult> {
   await ensureIndexes(date, level);
   const [rank, total] = await Promise.all([redis.zRank(boardKey(date, level), userId), redis.zCard(boardKey(date, level))]);
-  return { moves: result.moves, restarts: result.restarts, hints: result.hints ?? 0, par: result.par, timeMs: result.timeMs, rank: (rank ?? 0) + 1, total };
+  return { moves: result.moves, undos: undosOf(result), hints: result.hints ?? 0, par: result.par, timeMs: result.timeMs, rank: (rank ?? 0) + 1, total };
 }
 
 export async function resultFor(date: string, level: DailyLevel, userId: string) {
@@ -136,7 +155,7 @@ export async function leaderboard(date: string, level: DailyLevel, userId: strin
   const entry = async (member: string, rank: number): Promise<LeaderboardEntry | null> => {
     const result = await storedResult(date, level, member);
     return (
-      result && { rank: rank + 1, username: result.username, moves: result.moves, restarts: result.restarts, hints: result.hints ?? 0, timeMs: result.timeMs }
+      result && { rank: rank + 1, username: result.username, moves: result.moves, undos: undosOf(result), hints: result.hints ?? 0, timeMs: result.timeMs }
     );
   };
   const entries = (await Promise.all(top.map(({ member }, i) => entry(member, i)))).filter((e): e is LeaderboardEntry => e !== null);

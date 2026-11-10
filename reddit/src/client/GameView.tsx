@@ -12,7 +12,7 @@ import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, msUntilEasternMidni
 import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
-import { fetchLeaderboard, fetchPuzzle, recordAttempt, requestHint, submitRun } from "./api";
+import { fetchLeaderboard, fetchPuzzle, recordAttempt, recordUndo, requestHint, submitRun } from "./api";
 import { loadClock, loadLevel, saveClock, saveLevel } from "./storage";
 import { NextIntro, STACK_CELLS, TUTORIAL_PIECES, TUTORIAL_STEPS, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, stepTitle, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
@@ -32,7 +32,7 @@ const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0 };
 
 /** A saved puzzle the game can start from: one from Reddit (not the website), with today's rules. */
 const usableCache = (cached: PuzzleResponse | null) =>
-  cached && !cached.local && DAILY_LEVELS.every(({ level }) => cached.levels[level]?.pieces.length === cached.levels[level]?.par) ? cached : null;
+  cached && !cached.local && !!cached.undos && !!cached.comments && DAILY_LEVELS.every(({ level }) => cached.levels[level]?.pieces.length === cached.levels[level]?.par) ? cached : null;
 
 const HINT_COOLDOWN_MS = 15_000;
 /** On the clock before the first hint, so it isn't a race to ask. */
@@ -70,6 +70,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const [result, setResult] = useState<DailyResult | null>(null);
   const [stats, setStats] = useState<LevelStats>(NO_STATS);
   const [attempts, setAttempts] = useState(0);
+  const [undos, setUndos] = useState(0);
   const [board, setBoard] = useState<LeaderboardResponse | null>(null);
   const [showResult, setShowResult] = useState(false);
   // A solve gets the SOLVED banner first; the results card waits for it to finish.
@@ -86,13 +87,12 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const [controls, setControls] = useControls();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [levelPickerOpen, setLevelPickerOpen] = useState(false);
-  /** Comments posted this visit, by "date:level", so the card can link to them. */
-  const [commented, setCommented] = useState<Record<string, string>>({});
   const viewport = useViewport();
   const { landscape } = viewport;
   // Runs after the recorded solve: played the same way, but never sent to the server.
   const [practice, setPractice] = useState(false);
   const [practiceAttempts, setPracticeAttempts] = useState(0);
+  const [practiceUndos, setPracticeUndos] = useState(0);
   const [practiceResult, setPracticeResult] = useState<DailyResult | null>(null);
   // The tutorial level plays on the real board; first-time players start there.
   const [tutorial, setTutorial] = useState(firstVisit);
@@ -129,13 +129,15 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const leaderboardWait = usePatientLoading(boardLoading && !board);
 
   /** Keeps the loaded puzzle in step, so switching levels and back shows what happened there. */
-  const remember = (forLevel: DailyLevel, change: { result?: SavedResult; stats?: LevelStats; attempts?: number }) =>
+  const remember = (forLevel: DailyLevel, change: { result?: SavedResult; stats?: LevelStats; attempts?: number; undos?: number; comment?: string }) =>
     setPuzzle((current) =>
       current && {
         ...current,
         results: change.result ? { ...current.results, [forLevel]: change.result } : current.results,
         stats: change.stats ? { ...current.stats, [forLevel]: change.stats } : current.stats,
         attempts: change.attempts !== undefined ? { ...current.attempts, [forLevel]: change.attempts } : current.attempts,
+        undos: change.undos !== undefined ? { ...current.undos, [forLevel]: change.undos } : current.undos,
+        comments: change.comment !== undefined ? { ...current.comments, [forLevel]: change.comment } : current.comments,
       }
     );
 
@@ -148,6 +150,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     setResult(saved);
     setStats(data.stats[next]);
     setAttempts(data.attempts[next]);
+    setUndos(data.undos[next]);
     setClockMs(saved ? saved.timeMs : loadClock(data.date, next));
     setClockRunning(false);
     setBoard(null);
@@ -212,6 +215,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
         } else {
           setStats(data.stats[now]);
           setAttempts(data.attempts[now]);
+          setUndos(data.undos[now]);
         }
       })
       .catch(() => {
@@ -311,7 +315,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     if (practice) {
       if (run.outcome === "solved") {
         sfx.play("best", { delay: 0.25 });
-        setPracticeResult({ moves: run.moves, restarts: Math.max(0, practiceAttempts - 1), hints: hintsUsed, par: levelPuzzle.par, timeMs: clockMs });
+        setPracticeResult({ moves: run.moves, undos: Math.max(0, practiceAttempts - 1) + practiceUndos, hints: hintsUsed, par: levelPuzzle.par, timeMs: clockMs });
         celebrate();
         openResultAfterBanner();
       } else {
@@ -328,10 +332,10 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     }
     sfx.play("best", { delay: 0.25 });
     celebrate();
-    const local: DailyResult = { moves: run.moves, restarts: Math.max(0, attempts - 1), hints: hintsUsed, par: levelPuzzle.par, timeMs: clockMs };
+    const local: DailyResult = { moves: run.moves, undos: Math.max(0, attempts - 1) + undos, hints: hintsUsed, par: levelPuzzle.par, timeMs: clockMs };
     const keepLocal = () => {
       setResult(local);
-      remember(level, { result: { ...local, restarts: local.restarts ?? 0, hints: hintsUsed, rank: 0, total: 0 } });
+      remember(level, { result: { ...local, undos: local.undos ?? 0, hints: hintsUsed, rank: 0, total: 0 } });
     };
     if (!puzzle.username && !puzzle.local) {
       keepLocal();
@@ -419,7 +423,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     countedRun.current = runNumber;
     if (firstPlacement && practice) setPracticeAttempts((n) => n + 1);
     else if (firstPlacement) {
-      // Every run that gets a piece down counts; all but the solving one are restarts.
+      // Every run that gets a piece down counts; all but the solving one are restarts, which count as undos.
       const counted = attempts + 1;
       setAttempts(counted);
       remember(level, { attempts: counted });
@@ -452,6 +456,13 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     sfx.play("hold");
     setShowResult(false);
     dispatch({ type: "undo" });
+    // The undos a hint asks for are part of that hint, which already counts.
+    if (tutorial || undosForHint > 0) return;
+    if (practice) return setPracticeUndos((n) => n + 1);
+    // The server keeps its own count for the leaderboard, so this one is only for the card when logged out.
+    setUndos(undos + 1);
+    remember(level, { undos: undos + 1 });
+    if (puzzle && (puzzle.username || puzzle.local)) void recordUndo(puzzle.date, level).catch(() => undefined);
   };
 
   const hintCoolingMs = Math.max(0, hintReadyAt - now, tutorial ? 0 : FIRST_HINT_MS - clockMs);
@@ -547,7 +558,10 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     setRunNumber((n) => n + 1);
     if (result) {
       // Once it's solved, every new run is practice, with its own clock.
-      if (!practice) setPracticeAttempts(0);
+      if (!practice) {
+        setPracticeAttempts(0);
+        setPracticeUndos(0);
+      }
       setPractice(true);
       setPracticeResult(null);
       if (!practice) setHintsUsed(0);
@@ -792,15 +806,14 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const shownRun = practice ? practiceResult : result;
   const otherLevelOpen = !!puzzle && DAILY_LEVELS.some((option) => option.level !== level && !puzzle.results[option.level]);
   const saved = puzzle?.results[level];
-  const commentKey = puzzle ? `${puzzle.date}:${level}` : "";
   const commentButton =
     result && !practice && setup && puzzle?.username && !puzzle.local ? (
       <CommentScore
         level={level}
         score={`GridPop #${setup.number} ${DAILY_LEVELS.find((option) => option.level === level)?.label} · ${formatClock(result.timeMs)}`}
         username={puzzle.username}
-        postedUrl={commented[commentKey] ?? null}
-        onPosted={(url) => setCommented((posted) => ({ ...posted, [commentKey]: url }))}
+        postedUrl={puzzle.comments[level]}
+        onPosted={(url) => remember(level, { comment: url })}
       />
     ) : undefined;
   // The day's leaderboard and comments belong with every result, practice runs included.

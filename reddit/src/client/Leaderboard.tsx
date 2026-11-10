@@ -1,7 +1,7 @@
 import { context } from "@devvit/web/client";
 import { useState } from "react";
 import { formatClock } from "@/utils/dailyCore";
-import { Lightbulb, RotateCcw } from "lucide-react";
+import { Lightbulb, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LeaderboardEntry, LeaderboardResponse } from "../shared/api";
 
@@ -10,7 +10,7 @@ const COLUMNS = "grid-cols-[1.25rem_minmax(0,1fr)_1.75rem_1.75rem_3.25rem]";
 // Reddit names run to 20 characters; longer ones step down a size so they fit a phone row whole.
 const nameSize = (name: string) => (name.length > 17 ? "text-[12px] tracking-[-0.01em]" : name.length > 14 ? "text-[13px]" : undefined);
 
-// Ranked by time; hints and restarts get their own columns but don't rank. A long name wraps rather
+// Ranked by time; hints and undos get their own columns but don't rank. A long name wraps rather
 // than being cut.
 const Row = ({ entry, mine, placeholder }: { entry: LeaderboardEntry; mine: boolean; placeholder?: boolean }) => {
   // A placeholder draws the same text, invisible on a soft bar, so it takes exactly a real row's size.
@@ -22,8 +22,8 @@ const Row = ({ entry, mine, placeholder }: { entry: LeaderboardEntry; mine: bool
       <span className={cn("text-center tabular-nums text-[color:var(--gp-muted)]", entry.hints === 0 && "opacity-40", bar)} aria-label={`${entry.hints} hints`}>
         {entry.hints}
       </span>
-      <span className={cn("text-center tabular-nums text-[color:var(--gp-muted)]", entry.restarts === 0 && "opacity-40", bar)} aria-label={`${entry.restarts} restarts`}>
-        {entry.restarts}
+      <span className={cn("text-center tabular-nums text-[color:var(--gp-muted)]", entry.undos === 0 && "opacity-40", bar)} aria-label={`${entry.undos} undos`}>
+        {entry.undos}
       </span>
       <span className={cn("gp-value justify-self-end text-base", bar)}>{formatClock(entry.timeMs)}</span>
     </li>
@@ -47,8 +47,8 @@ const Header = ({ total }: { total: number }) => (
     <span className="flex justify-center" title="Hints" aria-label="Hints">
       <Lightbulb size={13} strokeWidth={2.75} />
     </span>
-    <span className="flex justify-center" title="Restarts" aria-label="Restarts">
-      <RotateCcw size={12} strokeWidth={3} />
+    <span className="flex justify-center" title="Undos" aria-label="Undos">
+      <Undo2 size={13} strokeWidth={3} />
     </span>
     <span className="text-right">Time</span>
   </div>
@@ -85,7 +85,7 @@ export const Leaderboard = ({ board, username }: { board: LeaderboardResponse | 
   );
 };
 
-const SAMPLE: LeaderboardEntry = { rank: 1, username: "placeholder_name", moves: 3, restarts: 0, hints: 0, timeMs: 30_000 };
+const SAMPLE: LeaderboardEntry = { rank: 1, username: "placeholder_name", moves: 3, undos: 0, hints: 0, timeMs: 30_000 };
 
 /**
  * The leaderboard's shape while it loads, sized from the player's saved rank and the day's count,

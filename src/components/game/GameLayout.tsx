@@ -71,22 +71,16 @@ export const TargetCard = ({
 );
 
 // Each piece after the first is a little smaller and fainter than the one before.
-const QUEUE_STEPS = [
-  { width: "88%", opacity: 0.9 },
-  { width: "76%", opacity: 0.65 },
-  { width: "64%", opacity: 0.45 },
-  { width: "56%", opacity: 0.38 },
-  { width: "50%", opacity: 0.32 },
-];
+const QUEUE_OPACITY = [0.9, 0.65, 0.45, 0.38, 0.32];
 
 // The next piece on its own little board, ringed white like the piece in play; the ones after it
-// below, smaller and fainter. Unlimited shows three after it. A daily passes `pieces`, its whole
-// run, and shows every one (up to a Hard day's seven), sized for the run so the card doesn't shrink
-// as pieces are used, and packed tighter past three.
+// below, the same size and fainter. Unlimited shows three after it. A daily passes `pieces`, its
+// whole run, and shows every one (up to a Hard day's seven), sized for the run so the card doesn't
+// shrink as pieces are used, and packed tighter past three.
 export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Tetromino | null)[]; landscape: boolean; highlight?: boolean; pieces?: number }) => {
   const showAll = pieces !== undefined;
   // The piece in play and the one in the panel aren't in these slots.
-  const slots = showAll ? Math.min(QUEUE_STEPS.length, Math.max(3, pieces - 2)) : 3;
+  const slots = showAll ? Math.min(QUEUE_OPACITY.length, Math.max(3, pieces - 2)) : 3;
   const packed = slots > 3;
   return (
     <div
@@ -102,8 +96,9 @@ export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Te
         <PieceDisplay piece={queue[0] ?? null} frame="wide" ring />
       </div>
       {showAll && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">No more pieces</div>}
-      {QUEUE_STEPS.slice(0, slots).map((step, i) => (
-        <div key={i} className={packed ? "mt-0.5" : "mt-1"} style={{ width: step.width, opacity: step.opacity }}>
+      {QUEUE_OPACITY.slice(0, slots).map((opacity, i) => (
+        // As wide as the piece on the panel above, so every tile is the same size.
+        <div key={i} className={cn(packed ? "mt-0.5" : "mt-1", landscape ? "w-[76%]" : "w-[82%]")} style={{ opacity }}>
           <PieceDisplay piece={queue[i + 1] ?? null} frame="wide" />
         </div>
       ))}

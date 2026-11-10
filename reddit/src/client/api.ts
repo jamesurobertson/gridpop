@@ -1,6 +1,6 @@
 import type { DailyLevel } from "@/utils/dailyCore";
 import type { RunAction } from "@/utils/dailyRun";
-import type { AttemptResponse, CommentResponse, HintResponse, LeaderboardResponse, PuzzleResponse, SubmitResponse } from "../shared/api";
+import type { AttemptResponse, CommentResponse, HintResponse, LeaderboardResponse, PuzzleResponse, SubmitResponse, UndoResponse } from "../shared/api";
 
 async function call<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, body === undefined ? undefined : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -11,6 +11,7 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 
 export const fetchPuzzle = () => call<PuzzleResponse>("/api/puzzle");
 export const recordAttempt = (date: string, level: DailyLevel) => call<AttemptResponse>("/api/attempt", { date, level });
+export const recordUndo = (date: string, level: DailyLevel) => call<UndoResponse>("/api/undo", { date, level });
 export const submitRun = (date: string, level: DailyLevel, actions: RunAction[], timeMs: number) =>
   call<SubmitResponse>("/api/submit", { date, level, actions, timeMs });
 export const fetchLeaderboard = (level: DailyLevel) => call<LeaderboardResponse>(`/api/leaderboard?level=${level}`);

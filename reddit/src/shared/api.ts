@@ -10,7 +10,7 @@ export type LevelStats = {
   bestStreak: number;
 };
 
-export type SavedResult = DailyResult & { restarts: number; hints: number; rank: number; total: number };
+export type SavedResult = DailyResult & { undos: number; hints: number; rank: number; total: number };
 
 export type PuzzleResponse = {
   date: string;
@@ -24,9 +24,13 @@ export type PuzzleResponse = {
   stats: Record<DailyLevel, LevelStats>;
   /** Runs with at least one piece placed, per level; every one after the first is a restart. */
   attempts: Record<DailyLevel, number>;
+  /** Undos before the solve, per level. */
+  undos: Record<DailyLevel, number>;
+  /** The link to the player's score comment, per level. */
+  comments: Record<DailyLevel, string | null>;
 };
 
-export type LeaderboardEntry = { rank: number; username: string; moves: number; restarts: number; hints: number; timeMs: number };
+export type LeaderboardEntry = { rank: number; username: string; moves: number; undos: number; hints: number; timeMs: number };
 
 export type Distribution = { score: number; count: number }[];
 
@@ -40,8 +44,9 @@ export type HintRequest = { date: string; level: DailyLevel; actions: RunAction[
 /** `placement` is where the piece in play should go; null means the target can't be reached from here. */
 export type HintResponse = { ok: true; hint: HintAdvice | null; hints: number } | { ok: false; reason: string; waitMs?: number };
 
-export type AttemptRequest = { date: string; level: DailyLevel };
+export type CountRequest = { date: string; level: DailyLevel };
 export type AttemptResponse = { attempts: number };
+export type UndoResponse = { undos: number };
 
 export type SubmitRequest = { date: string; level: DailyLevel; actions: RunAction[]; timeMs: number };
 export type SubmitResponse =

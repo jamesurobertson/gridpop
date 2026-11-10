@@ -111,7 +111,7 @@ const DailyResultModal: React.FC<DailyResultModalProps> = ({ isOpen, onClose, se
               ) : (
                 <>
                   <Stat label="Hints" value={run.hints ?? 0} big />
-                  <Stat label="Restarts" value={run.restarts ?? 0} big />
+                  <Stat label="Undos" value={run.undos ?? 0} big />
                 </>
               )}
             </div>

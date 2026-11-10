@@ -8,8 +8,8 @@ import solutions from "@/data/dailySolutions.json";
 import { DAILY_LEVELS, DailyLevel, DailyPuzzle, formatClock, parseTarget, pickPuzzle, puzzleNumber, easternDateKey } from "@/utils/dailyCore";
 import { hintFor, replayRun, replayTo } from "@/utils/dailyRun";
 import type {
-  AttemptRequest,
   AttemptResponse,
+  CountRequest,
   CommentRequest,
   CommentResponse,
   HintRequest,
@@ -17,8 +17,23 @@ import type {
   PuzzleResponse,
   SubmitRequest,
   SubmitResponse,
+  UndoResponse,
 } from "../shared/api";
-import { attemptsFor, countAttempt, countHint, hintWaitMs, hintsFor, leaderboard, resultFor, saveResult, statsFor } from "./store";
+import {
+  attemptsFor,
+  commentFor,
+  countAttempt,
+  countHint,
+  countUndo,
+  hintWaitMs,
+  hintsFor,
+  leaderboard,
+  rememberComment,
+  resultFor,
+  saveResult,
+  statsFor,
+  undosFor,
+} from "./store";
 import { backfillShareImage, ensureDailyPost, scoresComment } from "./posts";
 import { updateScoreFlair } from "./flair";
 
@@ -57,15 +72,24 @@ app.get("/api/puzzle", async (c) => {
     results: await perLevel((level) => (userId ? resultFor(date, level, userId) : Promise.resolve(null))),
     stats: await perLevel((level) => (userId ? statsFor(level, userId) : Promise.resolve(emptyStats))),
     attempts: userId ? await attemptsFor(date, userId) : { easy: 0, normal: 0, hard: 0 },
+    undos: userId ? await undosFor(date, userId) : { easy: 0, normal: 0, hard: 0 },
+    comments: await perLevel((level) => (userId ? commentFor(date, level, userId) : Promise.resolve(null))),
   };
   return c.json(response);
 });
 
 app.post("/api/attempt", async (c) => {
-  const { date, level } = await c.req.json<AttemptRequest>();
+  const { date, level } = await c.req.json<CountRequest>();
   const { userId } = context;
   if (!userId || date !== postDate() || !isLevel(level)) return c.json<AttemptResponse>({ attempts: 0 });
   return c.json<AttemptResponse>({ attempts: await countAttempt(date, level, userId) });
+});
+
+app.post("/api/undo", async (c) => {
+  const { date, level } = await c.req.json<CountRequest>();
+  const { userId } = context;
+  if (!userId || date !== postDate() || !isLevel(level)) return c.json<UndoResponse>({ undos: 0 });
+  return c.json<UndoResponse>({ undos: await countUndo(date, level, userId) });
 });
 
 app.post("/api/submit", async (c) => {
@@ -80,12 +104,17 @@ app.post("/api/submit", async (c) => {
   const replay = replayRun(puzzle.pieces, parseTarget(puzzle.target), actions);
   if (!replay.solved) return fail(replay.reason);
 
-  const [username, attempts, hints] = await Promise.all([reddit.getCurrentUsername(), attemptsFor(date, userId), hintsFor(date, level, userId)]);
+  const [username, attempts, undos, hints] = await Promise.all([
+    reddit.getCurrentUsername(),
+    attemptsFor(date, userId),
+    undosFor(date, userId),
+    hintsFor(date, level, userId),
+  ]);
   const counted = await saveResult(date, level, userId, {
     username: username ?? "someone",
     moves: replay.moves,
-    // The solving run is one of the attempts; a solve without any recorded counts as none.
-    restarts: Math.max(0, attempts[level] - 1),
+    // A restart counts as one undo. The solving run is one of the attempts; a solve without any recorded counts as none.
+    undos: Math.max(0, attempts[level] - 1) + undos[level],
     hints,
     par: puzzle.par,
     timeMs: Math.round(timeMs),
@@ -134,6 +163,7 @@ app.post("/api/comment", async (c) => {
     // A score alone replies under the pinned scores comment; one with the player's own words joins the thread.
     const parent = note ? (postId as `t3_${string}`) : await scoresComment(postId as `t3_${string}`);
     const comment = await reddit.submitComment({ id: parent, text: note ? `${note}\n\n${score}` : score, runAs: "USER" });
+    await rememberComment(date, level, userId, comment.url);
     return c.json<CommentResponse>({ ok: true, url: comment.url });
   } catch (e) {
     console.error(`Couldn't post comment: ${e}`);
