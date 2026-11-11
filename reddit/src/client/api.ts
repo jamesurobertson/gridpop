@@ -12,6 +12,11 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 export const fetchPuzzle = () => call<PuzzleResponse>("/api/puzzle");
 export const recordAttempt = (date: string, level: DailyLevel) => call<AttemptResponse>("/api/attempt", { date, level });
 export const recordUndo = (date: string, level: DailyLevel) => call<UndoResponse>("/api/undo", { date, level });
+/** Fire and forget; `keepalive` lets it finish while the page is closing. */
+export const recordClock = (date: string, level: DailyLevel, timeMs: number) =>
+  void fetch("/api/clock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date, level, timeMs: Math.round(timeMs) }), keepalive: true }).catch(
+    () => undefined
+  );
 export const submitRun = (date: string, level: DailyLevel, actions: RunAction[], timeMs: number) =>
   call<SubmitResponse>("/api/submit", { date, level, actions, timeMs });
 export const fetchLeaderboard = (level: DailyLevel) => call<LeaderboardResponse>(`/api/leaderboard?level=${level}`);

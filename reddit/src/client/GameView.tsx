@@ -12,7 +12,7 @@ import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, msUntilEasternMidni
 import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
 import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
-import { fetchLeaderboard, fetchPuzzle, recordAttempt, recordUndo, requestHint, submitRun } from "./api";
+import { fetchLeaderboard, fetchPuzzle, recordAttempt, recordClock, recordUndo, requestHint, submitRun } from "./api";
 import { loadClock, loadLevel, saveClock, saveLevel } from "./storage";
 import { NextIntro, STACK_CELLS, TUTORIAL_PIECES, TUTORIAL_STEPS, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, stepTitle, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
@@ -32,9 +32,10 @@ const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0 };
 
 /** A saved puzzle the game can start from: one from Reddit (not the website), with today's rules. */
 const usableCache = (cached: PuzzleResponse | null) =>
-  cached && !cached.local && !!cached.undos && !!cached.comments && DAILY_LEVELS.every(({ level }) => cached.levels[level]?.pieces.length === cached.levels[level]?.par) ? cached : null;
+  cached && !cached.local && !!cached.undos && !!cached.comments && !!cached.clocks && DAILY_LEVELS.every(({ level }) => cached.levels[level]?.pieces.length === cached.levels[level]?.par) ? cached : null;
 
 const HINT_COOLDOWN_MS = 15_000;
+const CLOCK_REPORT_MS = 5_000;
 /** On the clock before the first hint, so it isn't a race to ask. */
 const FIRST_HINT_MS = 15_000;
 const EMPTY_TARGET = createEmptyGrid(4);
@@ -151,7 +152,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     setStats(data.stats[next]);
     setAttempts(data.attempts[next]);
     setUndos(data.undos[next]);
-    setClockMs(saved ? saved.timeMs : loadClock(data.date, next));
+    setClockMs(saved ? saved.timeMs : Math.max(loadClock(data.date, next), data.clocks[next]));
     setClockRunning(false);
     setBoard(null);
     setRunNumber((n) => n + 1);
@@ -216,6 +217,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           setStats(data.stats[now]);
           setAttempts(data.attempts[now]);
           setUndos(data.undos[now]);
+          if (!data.results[now]) setClockMs((ms) => Math.max(ms, data.clocks[now]));
         }
       })
       .catch(() => {
@@ -233,7 +235,10 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     if (!puzzle || next === level) return;
     sfx.play("click");
     // Leaving mid-run keeps the clock; coming back starts a fresh run, which counts as a restart.
-    if (!result) saveClock(puzzle.date, level, clockMs);
+    if (!result) {
+      saveClock(puzzle.date, level, clockMs);
+      if (puzzle.username) recordClock(puzzle.date, level, clockMs);
+    }
     openLevel(puzzle, next);
   };
 
@@ -255,6 +260,30 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   useEffect(() => {
     if (puzzle && !result && clockMs > 0) saveClock(puzzle.date, level, clockMs);
   }, [puzzle, result, level, clockMs]);
+
+  // The server keeps the clock too (this device's storage can be cleared, or not kept at all), so
+  // reloading can't start it over: every few seconds while it runs, and as the page goes away.
+  const clockRef = useRef(clockMs);
+  clockRef.current = clockMs;
+  const reportsClock = !!puzzle?.username && !puzzle.local && !result && !tutorial;
+  const puzzleDate = puzzle?.date;
+  useEffect(() => {
+    if (!puzzleDate || !reportsClock) return;
+    const report = () => {
+      if (clockRef.current > 0) recordClock(puzzleDate, level, clockRef.current);
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") report();
+    };
+    const id = clockRunning ? setInterval(report, CLOCK_REPORT_MS) : undefined;
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", report);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", report);
+    };
+  }, [puzzleDate, level, reportsClock, clockRunning]);
 
   // ---------- turn flow ----------
 

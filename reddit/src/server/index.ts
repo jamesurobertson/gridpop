@@ -9,6 +9,7 @@ import { DAILY_LEVELS, DailyLevel, DailyPuzzle, formatClock, parseTarget, pickPu
 import { hintFor, replayRun, replayTo } from "@/utils/dailyRun";
 import type {
   AttemptResponse,
+  ClockRequest,
   CountRequest,
   CommentRequest,
   CommentResponse,
@@ -21,6 +22,7 @@ import type {
 } from "../shared/api";
 import {
   attemptsFor,
+  clocksFor,
   commentFor,
   countAttempt,
   countHint,
@@ -30,6 +32,7 @@ import {
   leaderboard,
   rememberComment,
   resultFor,
+  saveClock,
   saveResult,
   statsFor,
   undosFor,
@@ -74,6 +77,7 @@ app.get("/api/puzzle", async (c) => {
     attempts: userId ? await attemptsFor(date, userId) : { easy: 0, normal: 0, hard: 0 },
     undos: userId ? await undosFor(date, userId) : { easy: 0, normal: 0, hard: 0 },
     comments: await perLevel((level) => (userId ? commentFor(date, level, userId) : Promise.resolve(null))),
+    clocks: userId ? await clocksFor(date, userId) : { easy: 0, normal: 0, hard: 0 },
   };
   return c.json(response);
 });
@@ -83,6 +87,14 @@ app.post("/api/attempt", async (c) => {
   const { userId } = context;
   if (!userId || date !== postDate() || !isLevel(level)) return c.json<AttemptResponse>({ attempts: 0 });
   return c.json<AttemptResponse>({ attempts: await countAttempt(date, level, userId) });
+});
+
+app.post("/api/clock", async (c) => {
+  const { date, level, timeMs } = await c.req.json<ClockRequest>();
+  const { userId } = context;
+  if (!userId || date !== postDate() || !isLevel(level) || typeof timeMs !== "number" || !Number.isFinite(timeMs) || timeMs < 0) return c.body(null, 204);
+  await saveClock(date, level, userId, timeMs);
+  return c.body(null, 204);
 });
 
 app.post("/api/undo", async (c) => {
@@ -104,11 +116,12 @@ app.post("/api/submit", async (c) => {
   const replay = replayRun(puzzle.pieces, parseTarget(puzzle.target), actions);
   if (!replay.solved) return fail(replay.reason);
 
-  const [username, attempts, undos, hints] = await Promise.all([
+  const [username, attempts, undos, hints, clocks] = await Promise.all([
     reddit.getCurrentUsername(),
     attemptsFor(date, userId),
     undosFor(date, userId),
     hintsFor(date, level, userId),
+    clocksFor(date, userId),
   ]);
   const counted = await saveResult(date, level, userId, {
     username: username ?? "someone",
@@ -117,7 +130,8 @@ app.post("/api/submit", async (c) => {
     undos: Math.max(0, attempts[level] - 1) + undos[level],
     hints,
     par: puzzle.par,
-    timeMs: Math.round(timeMs),
+    // Never less than the clock the server saw while they played, so reloading can't reset it.
+    timeMs: Math.round(Math.max(timeMs, clocks[level])),
   });
   if (counted && username) await updateScoreFlair(userId, username);
   const [result, stats, board] = await Promise.all([resultFor(date, level, userId), statsFor(level, userId), leaderboard(date, level, userId)]);

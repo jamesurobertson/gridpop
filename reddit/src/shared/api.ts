@@ -28,6 +28,8 @@ export type PuzzleResponse = {
   undos: Record<DailyLevel, number>;
   /** The link to the player's score comment, per level. */
   comments: Record<DailyLevel, string | null>;
+  /** Time on each unsolved level so far, so a reload can't restart the clock. */
+  clocks: Record<DailyLevel, number>;
 };
 
 export type LeaderboardEntry = { rank: number; username: string; moves: number; undos: number; hints: number; timeMs: number };
@@ -47,6 +49,7 @@ export type HintResponse = { ok: true; hint: HintAdvice | null; hints: number } 
 export type CountRequest = { date: string; level: DailyLevel };
 export type AttemptResponse = { attempts: number };
 export type UndoResponse = { undos: number };
+export type ClockRequest = { date: string; level: DailyLevel; timeMs: number };
 
 export type SubmitRequest = { date: string; level: DailyLevel; actions: RunAction[]; timeMs: number };
 export type SubmitResponse =

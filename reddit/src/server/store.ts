@@ -12,6 +12,7 @@ const boardKey = (date: string, level: DailyLevel) => `board5:${date}:${level}`;
 const distributionKey = (date: string, level: DailyLevel) => `dist:${date}:${level}`;
 const attemptsKey = (date: string, level: DailyLevel, userId: string) => `attempts:${date}:${level}:${userId}`;
 const undosKey = (date: string, level: DailyLevel, userId: string) => `undos:${date}:${level}:${userId}`;
+const clockKey = (date: string, level: DailyLevel, userId: string) => `clock:${date}:${level}:${userId}`;
 const commentKey = (date: string, level: DailyLevel, userId: string) => `comment:${date}:${level}:${userId}`;
 const hintsKey = (date: string, level: DailyLevel, userId: string) => `hints:${date}:${level}:${userId}`;
 const lastHintKey = (date: string, level: DailyLevel, userId: string) => `hint-at:${date}:${level}:${userId}`;
@@ -27,6 +28,13 @@ export async function countAttempt(date: string, level: DailyLevel, userId: stri
 
 export async function countUndo(date: string, level: DailyLevel, userId: string) {
   return redis.incrBy(undosKey(date, level, userId), 1);
+}
+
+/** Keeps the longest time reported, so a stale or replayed report can't wind the clock back. */
+export async function saveClock(date: string, level: DailyLevel, userId: string, timeMs: number) {
+  const key = clockKey(date, level, userId);
+  const saved = Number((await redis.get(key)) ?? 0);
+  if (timeMs > saved) await redis.set(key, String(Math.round(timeMs)), { expiration: new Date(Date.now() + 3 * 86_400_000) });
 }
 
 export async function commentFor(date: string, level: DailyLevel, userId: string) {
@@ -60,6 +68,7 @@ async function countsFor(key: (date: string, level: DailyLevel, userId: string) 
 
 export const attemptsFor = (date: string, userId: string) => countsFor(attemptsKey, date, userId);
 export const undosFor = (date: string, userId: string) => countsFor(undosKey, date, userId);
+export const clocksFor = (date: string, userId: string) => countsFor(clockKey, date, userId);
 
 async function storedResult(date: string, level: DailyLevel, userId: string): Promise<StoredResult | null> {
   const raw = await redis.hGet(resultsKey(date, level), userId);
