@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>GridPop hackathon image</title>
+<link rel="stylesheet" href="brand.css">
+<script src="fontcheck.js"></script>
+<style>
+  html, body { width: 1500px; height: 1000px; }
+  body {
+    position: relative;
+    overflow: hidden;
+    --warm-peach: 1100px 760px;
+    --warm-lilac: 1000px 820px;
+    --warm-sky: 1200px 520px;
+  }
+  .abs { position: absolute; }
+
+  .brand {
+    left: 112px;
+    top: 50%;
+    transform: translateY(-52%);
+    display: flex;
+    flex-direction: column;
+    gap: 34px;
+  }
+  .brand .logo { font-size: 116px; }
+  .headline {
+    font-family: "Fredoka", sans-serif;
+    font-weight: 700;
+    font-size: 60px;
+    line-height: 1.1;
+    color: var(--gp-ink);
+  }
+  .tagline {
+    font-family: "Nunito", sans-serif;
+    font-weight: 900;
+    font-size: 26px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gp-muted);
+  }
+  .tagline em { font-style: normal; color: var(--gp-accent); }
+  .levels { display: flex; gap: 12px; }
+  .chip {
+    font-family: "Nunito", sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+    padding: 8px 20px;
+    border-radius: 999px;
+    border: 3px solid var(--gp-stroke);
+    background: #fff;
+    color: var(--gp-ink);
+    box-shadow: 0 4px 0 var(--gp-stroke);
+  }
+  .chip.on { background: var(--gp-accent); color: #fff; }
+
+  .board-main { --w: 520px; left: 862px; top: 214px; transform: rotate(5deg); box-shadow: 0 30px 0 rgba(31, 22, 51, 0.12); }
+  /* The piece in play: ringed white and lifted, about to land and finish the row of 3s. */
+  .board .tile.live {
+    box-shadow: 0 0 0 calc(var(--w) * 0.009) #fff, 0 calc(var(--w) * 0.02) 0 rgba(15, 8, 32, 0.35);
+    transform: translateY(calc(var(--w) * -0.016));
+    z-index: 2;
+  }
+
+  .card {
+    background: #fff;
+    border: 3px solid var(--gp-stroke);
+    border-radius: 30px;
+    box-shadow: 0 8px 0 rgba(31, 22, 51, 0.12);
+  }
+  .label {
+    font-family: "Nunito", sans-serif;
+    font-weight: 900;
+    font-size: 17px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gp-muted);
+  }
+  .target-card { left: 628px; top: 690px; padding: 16px 18px 18px; transform: rotate(-6deg); display: flex; flex-direction: column; gap: 10px; }
+  .target-card .board { --w: 180px; border-width: 3px; }
+  .clock-card { left: 1196px; top: 92px; padding: 14px 30px 12px; transform: rotate(6deg); text-align: center; }
+  .clock-card .value { font-family: "Fredoka", sans-serif; font-weight: 600; font-size: 52px; line-height: 1.05; color: var(--gp-ink); font-variant-numeric: tabular-nums; }
+
+  .loose .tile { position: absolute; }
+</style>
+</head>
+<body class="gp-warm">
+  <div class="loose">
+    <div class="tile v5" style="--s: 84px; left: 770px; top: 120px; transform: rotate(-12deg)"><span>5</span></div>
+    <div class="tile v6" style="--s: 78px; left: 1382px; top: 806px; transform: rotate(-8deg)"><span>6</span></div>
+    <div class="tile v2" style="--s: 60px; left: 1040px; top: 880px; transform: rotate(9deg)"><span>2</span></div>
+    <div class="tile v4" style="--s: 56px; left: 610px; top: 86px; transform: rotate(10deg)"><span>4</span></div>
+  </div>
+
+  <div class="abs brand">
+    <div class="logo">
+      <span class="logo-mark"><i style="background:#FFD45E"></i><i style="background:#7CCBFF"></i><i style="background:#7BDEA3"></i><i style="background:#FF5A6E"></i></span>
+      <span class="logo-word">Grid</span>
+      <span class="logo-pop"><span class="logo-tile lp1"><b>P</b></span><span class="logo-tile lp2"><b>O</b></span><span class="logo-tile lp3"><b>P</b></span></span>
+    </div>
+    <div class="headline">Match the target.<br>Beat the clock.</div>
+    <div class="levels"><span class="chip">Easy</span><span class="chip">Normal</span><span class="chip on">Hard</span></div>
+    <div class="tagline">A new puzzle <em>every day</em></div>
+  </div>
+
+  <div class="abs card clock-card">
+    <div class="label">Time</div>
+    <div class="value">0:42</div>
+  </div>
+
+  <div class="abs board board-main">
+    <div class="socket"><div class="tile v1"><span>1</span></div></div>
+    <div class="socket"><div class="tile v2"><span>2</span></div></div>
+    <div class="socket"><div class="tile v1 live"><span>1</span></div></div>
+    <div class="socket"><div class="tile v4"><span>4</span></div></div>
+
+    <div class="socket"><div class="tile v3"><span>3</span></div></div>
+    <div class="socket"><div class="tile v3 live"><span>3</span></div></div>
+    <div class="socket"><div class="tile v3 live"><span>3</span></div></div>
+    <div class="socket"><div class="tile v3 live"><span>3</span></div></div>
+
+    <div class="socket"><div class="tile v2"><span>2</span></div></div>
+    <div class="socket"></div>
+    <div class="socket"><div class="tile v5"><span>5</span></div></div>
+    <div class="socket"><div class="tile v1"><span>1</span></div></div>
+
+    <div class="socket"><div class="tile v1"><span>1</span></div></div>
+    <div class="socket"><div class="tile v4"><span>4</span></div></div>
+    <div class="socket"><div class="tile v2"><span>2</span></div></div>
+    <div class="socket"></div>
+
+    <div class="will-clear" style="grid-area: 2 / 1 / 3 / 5; inset: -8px"></div>
+  </div>
+
+  <div class="abs card target-card">
+    <div class="label">Target</div>
+    <div class="board">
+      <div class="socket"><div class="tile v1"><span>1</span></div></div>
+      <div class="socket"><div class="tile v2"><span>2</span></div></div>
+      <div class="socket"><div class="tile v1"><span>1</span></div></div>
+      <div class="socket"><div class="tile v4"><span>4</span></div></div>
+
+      <div class="socket"></div>
+      <div class="socket"></div>
+      <div class="socket"></div>
+      <div class="socket"></div>
+
+      <div class="socket"><div class="tile v2"><span>2</span></div></div>
+      <div class="socket"></div>
+      <div class="socket"><div class="tile v5"><span>5</span></div></div>
+      <div class="socket"><div class="tile v1"><span>1</span></div></div>
+
+      <div class="socket"><div class="tile v1"><span>1</span></div></div>
+      <div class="socket"><div class="tile v4"><span>4</span></div></div>
+      <div class="socket"><div class="tile v2"><span>2</span></div></div>
+      <div class="socket"></div>
+    </div>
+  </div>
+</body>
+</html>
