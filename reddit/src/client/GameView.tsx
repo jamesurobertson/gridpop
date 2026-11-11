@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showLoginPrompt, showShareSheet, showToast } from "@devvit/web/client";
-import { CircleHelp, Flame, Lightbulb, Settings2, Trophy, Undo2 } from "lucide-react";
+import { CircleHelp, Flame, Lightbulb, Play, Settings2, Trophy, Undo2 } from "lucide-react";
 import GameBoard from "@/components/game/GameBoard";
 import DailyResultModal from "@/components/game/DailyResultModal";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +27,8 @@ import { SettingsMenu } from "@/components/game/SettingsMenu";
 import { SteadyDigits } from "@/components/game/SteadyDigits";
 import { DAILY_ACTIONS, actionFor, controlText, keyLabel, useControls } from "@/utils/controls";
 import { useDailyRun } from "./useDailyRun";
+import { Replay } from "./Replay";
+import { loadReplay, recordStep, type ReplayStep } from "./replayLog";
 
 const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0 };
 
@@ -95,6 +97,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const [practiceAttempts, setPracticeAttempts] = useState(0);
   const [practiceUndos, setPracticeUndos] = useState(0);
   const [practiceResult, setPracticeResult] = useState<DailyResult | null>(null);
+  const [replaySteps, setReplaySteps] = useState<ReplayStep[] | null>(null);
   // The tutorial level plays on the real board; first-time players start there.
   const [tutorial, setTutorial] = useState(firstVisit);
   const [tutorialDoneOpen, setTutorialDoneOpen] = useState(false);
@@ -487,6 +490,8 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           })
           .catch(() => undefined);
     }
+    const piece = run.current;
+    if (piece && !practice && !result) logStep({ type: "place", rotation: piece.rotation, x: piece.position.x, y: piece.position.y });
     sfx.play("place", { jitter: 0.06 });
     if (coaching) {
       setCoaching(false);
@@ -499,6 +504,11 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     dispatch({ type: "place" });
   };
 
+  // Every placement, undo and restart before the solve, for the replay.
+  const logStep = (step: ReplayStep) => {
+    if (puzzle && !tutorial) recordStep(puzzle.date, level, step, run.actions);
+  };
+
   const canUndo = run.history.length > 0 && !run.pendingClear && run.outcome !== "solved";
 
   const undo = () => {
@@ -507,6 +517,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     sfx.play("hold");
     setShowResult(false);
     dispatch({ type: "undo" });
+    if (!tutorial && !practice && !result) logStep({ type: "undo" });
     // This run had a piece down, so it's counted, even if it was picked up after a reload.
     countedRun.current = runNumber;
     // The undos a hint asks for are part of that hint, which already counts.
@@ -606,6 +617,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
 
   const restart = () => {
     if (!levelPuzzle) return;
+    if (!result && run.actions.length > 0) logStep({ type: "restart" });
     sfx.play("click");
     setShowResult(false);
     setRunNumber((n) => n + 1);
@@ -870,7 +882,20 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       />
     ) : undefined;
   // The day's leaderboard and comments belong with every result, practice runs included.
-  const resultExtra = puzzle?.local ? null : puzzle?.username ? (
+  // Website only for now, while the replay is tried out.
+  const replayButton =
+    puzzle?.local && result && !practice && loadReplay(puzzle.date, level).length > 0 ? (
+      <button
+        className="gp-btn mt-3 w-full text-base"
+        onClick={() => {
+          setShowResult(false);
+          setReplaySteps(loadReplay(puzzle.date, level));
+        }}
+      >
+        <Play size={18} strokeWidth={2.75} /> Watch replay
+      </button>
+    ) : null;
+  const resultExtra = puzzle?.local ? replayButton : puzzle?.username ? (
     <>
       {!leaderboardWait.ready ? (
         <LeaderboardSkeleton rank={puzzle.results[level]?.rank ?? 1} total={puzzle.results[level]?.total ?? FOLDED_ROWS_GUESS} pulse={leaderboardWait.showLoader} />
@@ -1015,6 +1040,19 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           />
         </DialogContent>
       </Dialog>
+
+      {replaySteps && levelPuzzle && target && (
+        <Replay
+          open
+          onClose={() => {
+            setReplaySteps(null);
+            setShowResult(true);
+          }}
+          pieces={levelPuzzle.pieces}
+          target={target}
+          steps={replaySteps}
+        />
+      )}
 
       {setup && (
         <DailyResultModal

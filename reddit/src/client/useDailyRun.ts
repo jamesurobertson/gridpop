@@ -36,6 +36,8 @@ type RunEvent =
   | { type: "start"; pieces: TetrominoType[]; grid?: GridType; at?: Position }
   | { type: "showSolved"; target: GridType }
   | { type: "move"; position: Position }
+  /** Put the piece straight on a spot it was placed on before (for the replay). */
+  | { type: "aim"; rotation: number; position: Position }
   | { type: "rotate"; direction: "clockwise" | "counterclockwise" }
   | { type: "place" }
   | { type: "clear"; target: GridType }
@@ -82,6 +84,8 @@ function reduce(state: RunState, event: RunEvent): RunState {
       const moved = { ...state.current!, position: event.position };
       return isValidPosition(state.grid, moved) ? { ...state, current: moved } : state;
     }
+    case "aim":
+      return playable ? { ...state, current: { ...state.current!, rotation: event.rotation, position: event.position } } : state;
     case "rotate": {
       if (!playable) return state;
       const piece = state.current!;
