@@ -75,13 +75,23 @@ const QUEUE_OPACITY = [0.9, 0.65, 0.45, 0.38, 0.32];
 
 // The next piece on its own little board, ringed white like the piece in play; the ones after it
 // below, the same size and fainter. Unlimited shows three after it. A daily passes `pieces`, its
-// whole run, and shows every one (up to a Hard day's seven), sized for the run so the card doesn't
+// whole run, and shows every one (up to a Hard day's seven) with a count where the line ends, so
+// the space below doesn't look like more to come. It's sized for the whole run so the card doesn't
 // shrink as pieces are used, and packed tighter past three.
 export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Tetromino | null)[]; landscape: boolean; highlight?: boolean; pieces?: number }) => {
   const showAll = pieces !== undefined;
   // The piece in play and the one in the panel aren't in these slots.
   const slots = showAll ? Math.min(QUEUE_OPACITY.length, Math.max(3, pieces - 2)) : 3;
   const packed = slots > 3;
+  const remaining = queue.filter(Boolean).length;
+  // Slots holding a piece, after the one on the panel; the empty ones only hold the card's height.
+  const shown = Math.min(slots, Math.max(0, remaining - 1));
+  const queueSlots = QUEUE_OPACITY.slice(0, slots).map((opacity, i) => (
+    // As wide as the piece on the panel above, so every tile is the same size.
+    <div key={i} className={cn(packed ? "mt-0.5" : "mt-1", landscape ? "w-[76%]" : "w-[82%]")} style={{ opacity }}>
+      <PieceDisplay piece={queue[i + 1] ?? null} frame="wide" />
+    </div>
+  ));
   return (
     <div
       className={cn(
@@ -96,12 +106,19 @@ export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Te
         <PieceDisplay piece={queue[0] ?? null} frame="wide" ring />
       </div>
       {showAll && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">No more pieces</div>}
-      {QUEUE_OPACITY.slice(0, slots).map((opacity, i) => (
-        // As wide as the piece on the panel above, so every tile is the same size.
-        <div key={i} className={cn(packed ? "mt-0.5" : "mt-1", landscape ? "w-[76%]" : "w-[82%]")} style={{ opacity }}>
-          <PieceDisplay piece={queue[i + 1] ?? null} frame="wide" />
-        </div>
-      ))}
+      {showAll ? (
+        <>
+          {queueSlots.slice(0, shown)}
+          {/* Always laid out, so the card keeps its height once the queue is empty. */}
+          <div className={cn("flex w-full flex-col items-center gap-1", packed ? "mt-0.5" : "mt-1", !queue[0] && "invisible")}>
+            <div className="w-[60%] border-t-2 border-dashed border-[color:var(--gp-line)]" />
+            <div className="gp-label !text-[color:var(--gp-ink)]">{remaining} left</div>
+          </div>
+          {queueSlots.slice(shown)}
+        </>
+      ) : (
+        queueSlots
+      )}
     </div>
   );
 };
