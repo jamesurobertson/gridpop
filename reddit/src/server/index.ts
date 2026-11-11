@@ -9,12 +9,12 @@ import { DAILY_LEVELS, DailyLevel, DailyPuzzle, formatClock, parseTarget, pickPu
 import { hintFor, replayRun, replayTo } from "@/utils/dailyRun";
 import type {
   AttemptResponse,
-  ClockRequest,
   CountRequest,
   CommentRequest,
   CommentResponse,
   HintRequest,
   HintResponse,
+  ProgressRequest,
   PuzzleResponse,
   SubmitRequest,
   SubmitResponse,
@@ -32,8 +32,10 @@ import {
   leaderboard,
   rememberComment,
   resultFor,
+  runFor,
   saveClock,
   saveResult,
+  saveRun,
   statsFor,
   undosFor,
 } from "./store";
@@ -78,6 +80,7 @@ app.get("/api/puzzle", async (c) => {
     undos: userId ? await undosFor(date, userId) : { easy: 0, normal: 0, hard: 0 },
     comments: await perLevel((level) => (userId ? commentFor(date, level, userId) : Promise.resolve(null))),
     clocks: userId ? await clocksFor(date, userId) : { easy: 0, normal: 0, hard: 0 },
+    runs: await perLevel((level) => (userId ? runFor(date, level, userId) : Promise.resolve(null))),
   };
   return c.json(response);
 });
@@ -89,11 +92,16 @@ app.post("/api/attempt", async (c) => {
   return c.json<AttemptResponse>({ attempts: await countAttempt(date, level, userId) });
 });
 
-app.post("/api/clock", async (c) => {
-  const { date, level, timeMs } = await c.req.json<ClockRequest>();
+// The clock and the run so far, so a reload picks up where the player was.
+app.post("/api/progress", async (c) => {
+  const { date, level, timeMs, run } = await c.req.json<ProgressRequest>();
   const { userId } = context;
   if (!userId || date !== postDate() || !isLevel(level) || typeof timeMs !== "number" || !Number.isFinite(timeMs) || timeMs < 0) return c.body(null, 204);
   await saveClock(date, level, userId, timeMs);
+  if (run && typeof run.at === "number" && Array.isArray(run.actions) && run.actions.length <= 200) {
+    const puzzle = pickPuzzle(PUZZLES[level], date);
+    if (typeof replayTo(puzzle.pieces, parseTarget(puzzle.target), run.actions) !== "string") await saveRun(date, level, userId, { at: run.at, actions: run.actions });
+  }
   return c.body(null, 204);
 });
 

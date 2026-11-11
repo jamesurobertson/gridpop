@@ -1,6 +1,6 @@
 import { redis } from "@devvit/web/server";
 import { DAILY_LEVELS, DailyLevel, shiftDate, easternDateKey } from "@/utils/dailyCore";
-import type { Distribution, LeaderboardEntry, LeaderboardResponse, LevelStats, SavedResult } from "../shared/api";
+import type { Distribution, LeaderboardEntry, LeaderboardResponse, LevelStats, SavedResult, SavedRun } from "../shared/api";
 
 // `restarts` is the older name for `undos`, from before undos counted.
 type StoredResult = { username: string; moves: number; undos?: number; restarts?: number; hints?: number; par: number; timeMs: number };
@@ -12,6 +12,7 @@ const boardKey = (date: string, level: DailyLevel) => `board5:${date}:${level}`;
 const distributionKey = (date: string, level: DailyLevel) => `dist:${date}:${level}`;
 const attemptsKey = (date: string, level: DailyLevel, userId: string) => `attempts:${date}:${level}:${userId}`;
 const undosKey = (date: string, level: DailyLevel, userId: string) => `undos:${date}:${level}:${userId}`;
+const runKey = (date: string, level: DailyLevel, userId: string) => `run:${date}:${level}:${userId}`;
 const clockKey = (date: string, level: DailyLevel, userId: string) => `clock:${date}:${level}:${userId}`;
 const commentKey = (date: string, level: DailyLevel, userId: string) => `comment:${date}:${level}:${userId}`;
 const hintsKey = (date: string, level: DailyLevel, userId: string) => `hints:${date}:${level}:${userId}`;
@@ -35,6 +36,18 @@ export async function saveClock(date: string, level: DailyLevel, userId: string,
   const key = clockKey(date, level, userId);
   const saved = Number((await redis.get(key)) ?? 0);
   if (timeMs > saved) await redis.set(key, String(Math.round(timeMs)), { expiration: new Date(Date.now() + 3 * 86_400_000) });
+}
+
+export async function runFor(date: string, level: DailyLevel, userId: string): Promise<SavedRun | null> {
+  const raw = await redis.get(runKey(date, level, userId));
+  return raw ? (JSON.parse(raw) as SavedRun) : null;
+}
+
+/** Keeps the newest copy, since reports from a closing page can arrive late. */
+export async function saveRun(date: string, level: DailyLevel, userId: string, run: SavedRun) {
+  const saved = await runFor(date, level, userId);
+  if (saved && saved.at >= run.at) return;
+  await redis.set(runKey(date, level, userId), JSON.stringify(run), { expiration: new Date(Date.now() + 3 * 86_400_000) });
 }
 
 export async function commentFor(date: string, level: DailyLevel, userId: string) {

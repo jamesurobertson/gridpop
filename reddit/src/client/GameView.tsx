@@ -11,9 +11,9 @@ import type { Tetromino } from "@/types/game";
 import { DAILY_LEVELS, DailyLevel, DailyResult, formatClock, msUntilEasternMidnight, parseTarget } from "@/utils/dailyCore";
 import { sfx } from "@/audio/sfx";
 import { cn } from "@/lib/utils";
-import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult } from "../shared/api";
-import { fetchLeaderboard, fetchPuzzle, recordAttempt, recordClock, recordUndo, requestHint, submitRun } from "./api";
-import { loadClock, loadLevel, saveClock, saveLevel } from "./storage";
+import type { LeaderboardResponse, LevelStats, PuzzleResponse, SavedResult, SavedRun } from "../shared/api";
+import { fetchLeaderboard, fetchPuzzle, recordAttempt, recordProgress, recordUndo, requestHint, submitRun } from "./api";
+import { loadClock, loadLevel, loadRun, saveClock, saveLevel, saveRun } from "./storage";
 import { NextIntro, STACK_CELLS, TUTORIAL_PIECES, TUTORIAL_STEPS, TUTORIAL_TARGET, TutorialDone, TutorialIntro, firstVisit, markSeen, onSpot, stepTitle, tutorialStep } from "./Tutorial";
 import { DragHand, Hand, PieceTip, TapHand, pieceCenter, usesTouch } from "./Coach";
 import { DemoBoard, usePatientLoading } from "./Loader";
@@ -32,7 +32,7 @@ const NO_STATS: LevelStats = { played: 0, streak: 0, bestStreak: 0 };
 
 /** A saved puzzle the game can start from: one from Reddit (not the website), with today's rules. */
 const usableCache = (cached: PuzzleResponse | null) =>
-  cached && !cached.local && !!cached.undos && !!cached.comments && !!cached.clocks && DAILY_LEVELS.every(({ level }) => cached.levels[level]?.pieces.length === cached.levels[level]?.par) ? cached : null;
+  cached && !cached.local && !!cached.undos && !!cached.comments && !!cached.clocks && !!cached.runs && DAILY_LEVELS.every(({ level }) => cached.levels[level]?.pieces.length === cached.levels[level]?.par) ? cached : null;
 
 const HINT_COOLDOWN_MS = 15_000;
 const CLOCK_REPORT_MS = 5_000;
@@ -123,6 +123,8 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const [now, setNow] = useState(Date.now);
   // The run whose first placement was counted as an attempt, so undoing back to empty doesn't count again.
   const countedRun = useRef(-1);
+  // When the run on screen was saved, so a newer copy from the server can replace it.
+  const resumedAt = useRef(0);
 
   const levelPuzzle = puzzle?.levels[level];
   const target = levelPuzzle ? parseTarget(levelPuzzle.target) : null;
@@ -171,7 +173,11 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
           .finally(() => setBoardLoading(false));
       }
     } else {
-      dispatch({ type: "start", pieces: data.levels[next].pieces });
+      // The newest of this device's copy and the server's: a reload, or coming back from another level, carries on.
+      const resume = [loadRun(data.date, next), data.runs[next]].reduce<SavedRun | null>((best, run) => (run && (!best || run.at > best.at) ? run : best), null);
+      resumedAt.current = resume?.at ?? 0;
+      const { pieces, target } = data.levels[next];
+      dispatch(resume?.actions.length ? { type: "resume", pieces, actions: resume.actions, target: parseTarget(target) } : { type: "start", pieces });
       setShowResult(false);
     }
   };
@@ -210,8 +216,12 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
         }
         setPuzzle(data);
         const now = levelRef.current;
-        // Solved elsewhere since the cache was saved (or the puzzle changed): start that level over from the server's copy.
-        if (!!cached.results[now] !== !!data.results[now] || JSON.stringify(cached.levels[now]) !== JSON.stringify(data.levels[now])) {
+        // Solved or played on elsewhere since the cache was saved (or the puzzle changed): open that level from the server's copy.
+        if (
+          !!cached.results[now] !== !!data.results[now] ||
+          JSON.stringify(cached.levels[now]) !== JSON.stringify(data.levels[now]) ||
+          (data.runs[now]?.at ?? 0) > resumedAt.current
+        ) {
           openLevel(data, now);
         } else {
           setStats(data.stats[now]);
@@ -234,10 +244,10 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   const switchLevel = (next: DailyLevel) => {
     if (!puzzle || next === level) return;
     sfx.play("click");
-    // Leaving mid-run keeps the clock; coming back starts a fresh run, which counts as a restart.
+    // Leaving mid-run keeps the clock and the run; coming back carries on.
     if (!result) {
       saveClock(puzzle.date, level, clockMs);
-      if (puzzle.username) recordClock(puzzle.date, level, clockMs);
+      if (reportsProgress) recordProgress(puzzle.date, level, clockMs, { at: Date.now(), actions: run.actions });
     }
     openLevel(puzzle, next);
   };
@@ -261,16 +271,27 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     if (puzzle && !result && clockMs > 0) saveClock(puzzle.date, level, clockMs);
   }, [puzzle, result, level, clockMs]);
 
-  // The server keeps the clock too (this device's storage can be cleared, or not kept at all), so
-  // reloading can't start it over: every few seconds while it runs, and as the page goes away.
+  // The server keeps the clock and the run too (this device's storage can be cleared, or not kept
+  // at all), so reloading picks up where the player was: on every placement and undo, every few
+  // seconds while the clock runs, and as the page goes away.
   const clockRef = useRef(clockMs);
   clockRef.current = clockMs;
-  const reportsClock = !!puzzle?.username && !puzzle.local && !result && !tutorial;
+  const actionsRef = useRef(run.actions);
+  actionsRef.current = run.actions;
+  const savesRun = !!puzzle && !result && !tutorial && !practice;
+  const reportsProgress = savesRun && !!puzzle?.username && !puzzle.local;
   const puzzleDate = puzzle?.date;
   useEffect(() => {
-    if (!puzzleDate || !reportsClock) return;
+    if (!puzzleDate || !savesRun) return;
+    const saved = { at: Date.now(), actions: run.actions };
+    saveRun(puzzleDate, level, saved);
+    if (reportsProgress) recordProgress(puzzleDate, level, clockRef.current, saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run.actions]);
+  useEffect(() => {
+    if (!puzzleDate || !reportsProgress) return;
     const report = () => {
-      if (clockRef.current > 0) recordClock(puzzleDate, level, clockRef.current);
+      if (clockRef.current > 0) recordProgress(puzzleDate, level, clockRef.current, { at: Date.now(), actions: actionsRef.current });
     };
     const onHide = () => {
       if (document.visibilityState === "hidden") report();
@@ -283,7 +304,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", report);
     };
-  }, [puzzleDate, level, reportsClock, clockRunning]);
+  }, [puzzleDate, level, reportsProgress, clockRunning]);
 
   // ---------- turn flow ----------
 
@@ -448,7 +469,8 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
       return;
     }
     startClock();
-    const firstPlacement = countedRun.current !== runNumber;
+    // A run picked up after a reload was counted when its first piece went down.
+    const firstPlacement = countedRun.current !== runNumber && run.actions.length === 0;
     countedRun.current = runNumber;
     if (firstPlacement && practice) setPracticeAttempts((n) => n + 1);
     else if (firstPlacement) {
@@ -485,6 +507,8 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     sfx.play("hold");
     setShowResult(false);
     dispatch({ type: "undo" });
+    // This run had a piece down, so it's counted, even if it was picked up after a reload.
+    countedRun.current = runNumber;
     // The undos a hint asks for are part of that hint, which already counts.
     if (tutorial || undosForHint > 0) return;
     if (practice) return setPracticeUndos((n) => n + 1);

@@ -43,7 +43,9 @@ type RunEvent =
   /** Take back the last placement (not once the target is matched). */
   | { type: "undo" }
   /** Put back a run set aside (for the tutorial), exactly as it was. */
-  | { type: "restore"; run: RunState };
+  | { type: "restore"; run: RunState }
+  /** Rebuild a saved run from its actions, undo history and all, stopping at any that no longer fit. */
+  | { type: "resume"; pieces: TetrominoType[]; actions: RunAction[]; target: GridType };
 
 let animationId = 0;
 
@@ -135,6 +137,16 @@ function reduce(state: RunState, event: RunEvent): RunState {
       return { ...state, scoreAnimations: state.scoreAnimations.filter((a) => a.id !== event.id) };
     case "restore":
       return { ...event.run, scoreAnimations: [] };
+    case "resume": {
+      let run = fresh(event.pieces);
+      for (const action of event.actions) {
+        if (action.type !== "place" || !run.current || run.outcome) break;
+        const piece = { ...run.current, rotation: action.rotation, position: { x: action.x, y: action.y } };
+        if (!isValidPosition(run.grid, piece)) break;
+        run = reduce(reduce({ ...run, current: piece }, { type: "place" }), { type: "clear", target: event.target });
+      }
+      return { ...run, scoreAnimations: [] };
+    }
   }
 }
 

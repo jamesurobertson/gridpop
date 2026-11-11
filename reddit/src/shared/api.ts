@@ -30,7 +30,12 @@ export type PuzzleResponse = {
   comments: Record<DailyLevel, string | null>;
   /** Time on each unsolved level so far, so a reload can't restart the clock. */
   clocks: Record<DailyLevel, number>;
+  /** The unsolved run on each level, so a reload picks up where it was. */
+  runs: Record<DailyLevel, SavedRun | null>;
 };
+
+/** A run's actions, stamped with when they were saved so the newest copy wins. */
+export type SavedRun = { at: number; actions: RunAction[] };
 
 export type LeaderboardEntry = { rank: number; username: string; moves: number; undos: number; hints: number; timeMs: number };
 
@@ -49,7 +54,7 @@ export type HintResponse = { ok: true; hint: HintAdvice | null; hints: number } 
 export type CountRequest = { date: string; level: DailyLevel };
 export type AttemptResponse = { attempts: number };
 export type UndoResponse = { undos: number };
-export type ClockRequest = { date: string; level: DailyLevel; timeMs: number };
+export type ProgressRequest = { date: string; level: DailyLevel; timeMs: number; run: SavedRun };
 
 export type SubmitRequest = { date: string; level: DailyLevel; actions: RunAction[]; timeMs: number };
 export type SubmitResponse =

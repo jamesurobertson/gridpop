@@ -53,8 +53,9 @@ export async function fetchPuzzle(): Promise<PuzzleResponse> {
     attempts: perLevel((level) => readCount(attemptsKey(date, level))),
     undos: perLevel((level) => readCount(undosKey(date, level))),
     comments: perLevel(() => null),
-    // This device's storage already keeps the clock.
+    // This device's storage already keeps the clock and the run.
     clocks: perLevel(() => 0),
+    runs: perLevel(() => null),
   };
 }
 
@@ -62,7 +63,7 @@ export async function recordAttempt(date: string, level: DailyLevel): Promise<At
   return { attempts: bumpCount(attemptsKey(date, level)) };
 }
 
-export const recordClock = () => undefined;
+export const recordProgress = () => undefined;
 
 export async function recordUndo(date: string, level: DailyLevel): Promise<UndoResponse> {
   return { undos: bumpCount(undosKey(date, level)) };
