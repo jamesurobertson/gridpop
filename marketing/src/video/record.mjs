@@ -1,6 +1,7 @@
 // Records marketing/src/video.html driving the real game (the vite dev server, run with
-// `npx vite --port 5185`) into out/frames (JPEGs with timestamps) and out/events.json (every sound
-// the game played, and when). Then `node assemble.mjs && node mix.mjs` make marketing/gridpop-video.mp4.
+// `npx vite --port 5185`) into out/frames (JPEGs with timestamps), out/events.json (every sound the
+// game played, and when) and out/timeline.json (the bars the music has to hit). Everything lands on
+// a 120 BPM beat clock, so `node music.mjs` can write a track that fits. `npm run video` does it all.
 import fs from "node:fs";
 import path from "node:path";
 import puppeteer from "puppeteer-core";
@@ -11,6 +12,7 @@ const STAGE = path.join(HERE, "../video.html");
 const GAME = "http://localhost:5185/gridpop/";
 // Yesterday's Hard (Daily #6): already played, and its fourth piece pops a row.
 const PUZZLE_TIME = Date.parse("2026-11-10T17:00:00Z");
+const BEAT = 500;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 fs.rmSync(OUT, { recursive: true, force: true });
@@ -46,40 +48,16 @@ await page.evaluateOnNewDocument((puzzleTime) => {
 
 await page.goto(`file://${STAGE}`, { waitUntil: "load" });
 await page.evaluate(() => document.fonts.ready);
-
-// ---------- recording ----------
-const client = await page.createCDPSession();
-const frames = [];
-let firstFrameAt = 0;
-client.on("Page.screencastFrame", async ({ data, metadata, sessionId }) => {
-  if (!firstFrameAt) firstFrameAt = Date.now();
-  const file = `frames/${String(frames.length).padStart(5, "0")}.jpg`;
-  fs.writeFileSync(path.join(OUT, file), Buffer.from(data, "base64"));
-  frames.push({ file, ts: metadata.timestamp });
-  await client.send("Page.screencastFrameAck", { sessionId }).catch(() => {});
-});
-await client.send("Page.startScreencast", { format: "jpeg", quality: 92, maxWidth: 1920, maxHeight: 1080, everyNthFrame: 1 });
-while (!firstFrameAt) await sleep(10);
-const events = [];
-const sound = (name, delay = 0) => events.push({ t: Date.now() - firstFrameAt + delay, name });
-
-const say = (eyebrow, line) => page.evaluate((e, l) => window.stage.say(e, l), eyebrow, line);
-
-// ---------- intro ----------
-await page.evaluate((url) => {
-  document.getElementById("game").src = url;
-  window.stage.intro();
-}, GAME);
-sound("levelup", 150);
-await sleep(3400);
-await page.evaluate(() => window.stage.toPlay());
-await sleep(1000);
-
-const game = page.frames().find((frame) => frame.url().startsWith(GAME));
+// The game loads under the intro, so it's ready when the intro clears.
+await page.evaluate((url) => (document.getElementById("game").src = url), GAME);
+const game = await (async () => {
+  for (;;) {
+    const frame = page.frames().find((f) => f.url().startsWith(GAME));
+    if (frame) return frame;
+    await sleep(50);
+  }
+})();
 await game.waitForSelector("[data-next-panel]");
-await page.evaluate(() => document.getElementById("game").focus());
-await game.evaluate(() => window.focus());
-// Every sound the game plays, logged with real time so the soundtrack lines up exactly.
 await game.evaluate(async () => {
   const { sfx } = await import("/gridpop/src/audio/sfx.ts");
   window.__sounds = [];
@@ -147,54 +125,132 @@ const plan = await game.evaluate(async () => {
 });
 console.log(`Daily #${plan.number}`, plan.pieces.join(" "), plan.steps.map((s) => s.keys.join(",")));
 
+const stage = (method, ...args) => page.evaluate((m, a) => window.stage[m](...a), method, args);
+const rectOf = (selector) =>
+  game.evaluate((sel) => {
+    const element = typeof sel === "string" ? document.querySelector(sel) : null;
+    const r = element?.getBoundingClientRect();
+    return r && { x: r.x, y: r.y, w: r.width, h: r.height };
+  }, selector);
+const union = (a, b) => {
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+};
+/** Frames a rect: centered, as big as fits with some room around it. */
+const frame = (r, most = 1.6) => [Math.min(most, 1700 / r.w, 980 / r.h), r.x + r.w / 2, r.y + r.h / 2];
+
+// ---------- recording, on a beat clock ----------
+const client = await page.createCDPSession();
+const frames = [];
+let firstFrameAt = 0;
+client.on("Page.screencastFrame", async ({ data, metadata, sessionId }) => {
+  if (!firstFrameAt) firstFrameAt = Date.now();
+  const file = `frames/${String(frames.length).padStart(5, "0")}.jpg`;
+  fs.writeFileSync(path.join(OUT, file), Buffer.from(data, "base64"));
+  frames.push({ file, ts: metadata.timestamp });
+  await client.send("Page.screencastFrameAck", { sessionId }).catch(() => {});
+});
+await client.send("Page.startScreencast", { format: "jpeg", quality: 92, maxWidth: 1920, maxHeight: 1080, everyNthFrame: 1 });
+while (!firstFrameAt) await sleep(10);
+const at = async (beat) => {
+  const wait = firstFrameAt + beat * BEAT - Date.now();
+  if (wait > 0) await sleep(wait);
+};
+/** The first downbeat at least `lead` beats from now. */
+const nextBar = (lead = 0.5) => Math.ceil(((Date.now() - firstFrameAt) / BEAT + lead) / 4) * 4;
+const timeline = { bpm: 120, cards: [], end: 0 };
+const card = async (beat, text, hot) => {
+  await at(beat);
+  await stage("card", text, hot);
+  timeline.cards.push(beat / 4);
+  await at(beat + 3);
+  await stage("cardOut");
+};
+
 const press = async (keys) => {
   for (const key of keys) {
     await page.keyboard.press(key);
-    await sleep(key === "a" || key === "d" ? 230 : 170);
+    await sleep(key === "a" || key === "d" ? 210 : 150);
   }
 };
 const place = async (keys) => {
   await press(keys);
-  await sleep(320);
+  await sleep(260);
   await page.keyboard.press("Space");
 };
 
-// ---------- the solve ----------
-await say("The goal", "Build the <em>target</em> board.");
-await sleep(2600);
+// ---------- intro ----------
+await stage("intro");
+await at(7.2);
+await stage("introOut");
+await page.evaluate(() => document.getElementById("game").focus());
+await game.evaluate(() => window.focus());
 
-await say("The rule", "Every piece adds <em>+1</em> to the tiles under it.");
-await sleep(900);
+const board = await rectOf(".gp-board-wrap");
+const next = await game.evaluate(() => {
+  const r = document.querySelector("[data-next-panel]").parentElement.getBoundingClientRect();
+  return { x: r.x, y: r.y, w: r.width, h: r.height };
+});
+const target = await game.evaluate(() => {
+  const label = [...document.querySelectorAll(".gp-label")].find((el) => el.textContent.trim() === "Target");
+  const r = label.parentElement.getBoundingClientRect();
+  return { x: r.x, y: r.y, w: r.width, h: r.height };
+});
+const play = frame(union(board, next), 1.18);
+
+// ---------- the goal ----------
+await card(8, "Match the target", ["target"]);
+await at(12);
+await stage("camera", ...frame(target, 1.9));
+await at(15);
+await stage("camera", 1);
+
+// ---------- +1 ----------
+await card(16, "Every piece adds +1", ["+1"]);
+await stage("camera", ...play);
+await sleep(500);
 await place(plan.steps[0].keys);
-await sleep(1500);
-
-await say("Undo", "Wrong spot? <em>Undo</em> it.");
-await sleep(500);
+await sleep(900);
 await place(plan.steps[1].wrongKeys);
-await sleep(900);
-await page.keyboard.press("z");
-await sleep(900);
-
-await say("Plan ahead", "The <em>Next</em> column shows every piece you get.");
-await sleep(500);
-await place(plan.steps[1].keys);
-await sleep(1100);
-await place(plan.steps[2].keys);
-await sleep(1300);
-
-await say("Pop", "Fill a row with one number and it <em>pops</em>.");
-await sleep(1200);
-await place(plan.steps[3].keys);
-await sleep(1700);
-
-await place(plan.steps[4].keys);
-await sleep(300);
-await say(`Daily #${plan.number} · Hard`, "Same puzzle for everyone. <em>Fastest time</em> wins.");
-await sleep(4300);
-
-// ---------- the replay ----------
-await say("Replay", "Watch your solve back, <em>undos</em> and all.");
 await sleep(700);
+await page.keyboard.press("z");
+await sleep(600);
+await place(plan.steps[1].keys);
+await sleep(700);
+
+// ---------- pop ----------
+let beat = nextBar();
+await card(beat, "Fill a row. Pop!", ["Pop!"]);
+await sleep(400);
+await place(plan.steps[2].keys);
+await sleep(800);
+await place(plan.steps[3].keys);
+await sleep(230);
+{
+  const [scale, cx, cy] = play;
+  const bx = board.x + board.w / 2, by = board.y + board.h / 2;
+  await stage("pop", 960 + (bx - cx) * scale, 540 + (by - cy) * scale);
+  await stage("shake");
+}
+await sleep(1100);
+await place(plan.steps[4].keys);
+await sleep(600);
+await stage("camera", 1);
+
+// ---------- result ----------
+beat = nextBar(1.5);
+await card(beat, "Fastest time wins", ["Fastest"]);
+await game.waitForSelector('[role="dialog"]');
+const result = await rectOf('[role="dialog"]');
+await stage("camera", ...frame(result, 1.5));
+await at(beat + 8);
+
+// ---------- replay ----------
+beat += 8;
+await at(beat);
+await stage("card", "Watch it back", ["back"]);
+timeline.cards.push(beat / 4);
+await sleep(250);
 const clickButton = (label, inDialog) =>
   game.evaluate(
     (text, dialogOnly) => {
@@ -208,21 +264,29 @@ const clickButton = (label, inDialog) =>
     label,
     inDialog
   );
+await stage("camera", 1);
 if (!(await clickButton("Watch replay"))) throw new Error("No Watch replay button");
-await sleep(400);
+await sleep(150);
 await clickButton("Normal", true);
-await sleep(6600);
+await sleep(200);
+const replay = await rectOf('[role="dialog"]');
+await stage("camera", ...frame(replay, 1.55));
+await at(beat + 3);
+await stage("cardOut");
 
-// ---------- end card ----------
-await page.evaluate(() => window.stage.end());
-sound("levelup", 150);
-await sleep(4200);
+// ---------- end ----------
+beat = Math.max(nextBar(), beat + 16);
+await at(beat);
+await stage("end");
+timeline.end = beat / 4;
+await at(beat + 9);
 
 const gameSounds = await game.evaluate(() => window.__sounds);
-for (const { name, at } of gameSounds) events.push({ t: at - firstFrameAt, name });
+const events = gameSounds.map(({ name, at: when }) => ({ t: when - firstFrameAt, name })).filter((e) => e.t >= 0 && e.t < timeline.end * 4 * BEAT);
 await client.send("Page.stopScreencast");
 await sleep(200);
 fs.writeFileSync(path.join(OUT, "frames.json"), JSON.stringify(frames));
 fs.writeFileSync(path.join(OUT, "events.json"), JSON.stringify(events));
-console.log(`${frames.length} frames over ${(frames.at(-1).ts - frames[0].ts).toFixed(1)}s, ${events.length} sounds`);
+fs.writeFileSync(path.join(OUT, "timeline.json"), JSON.stringify(timeline));
+console.log(`${frames.length} frames over ${(frames.at(-1).ts - frames[0].ts).toFixed(1)}s, ${events.length} sounds`, timeline);
 await browser.close();

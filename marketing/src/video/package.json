@@ -3,7 +3,7 @@
   "type": "module",
   "description": "Records the GridPop marketing video. Run the dev server first: npx vite --port 5185",
   "scripts": {
-    "video": "node record.mjs && node assemble.mjs && node mix.mjs"
+    "video": "node record.mjs && node assemble.mjs && node music.mjs && node mix.mjs"
   },
   "devDependencies": {
     "puppeteer-core": "23.11.1"
