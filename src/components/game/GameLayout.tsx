@@ -153,8 +153,11 @@ export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Te
   const shownPieces = queue.slice(0, slots + 1).flatMap((piece, slot) =>
     piece ? [{ piece, slot, key: showAll ? pieces - queue.length + slot : pieceId(piece) }] : []
   );
-  const lastSlot = Math.min(slots, remaining - 1);
-  const tailTop = boxes && lastSlot >= 0 ? boxes.slots[lastSlot].bottom + (boxes.slots[1].top - boxes.slots[0].bottom) : 0;
+  // Once the last piece goes, the count stays under the panel showing its last number and fades out.
+  const lastSlot = Math.max(0, Math.min(slots, remaining - 1));
+  const tailTop = boxes ? boxes.slots[lastSlot].bottom + (boxes.slots[1].top - boxes.slots[0].bottom) : 0;
+  const lastCount = useRef(remaining);
+  if (remaining > 0) lastCount.current = remaining;
   const frameClass = cn("aspect-[2/1] shrink-0", packed ? "mt-0.5" : "mt-1", landscape ? "w-[76%]" : "w-[82%]");
 
   return (
@@ -181,7 +184,17 @@ export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Te
         >
           <div ref={(element) => (frameRefs.current[0] = element)} className="aspect-[2/1] w-full" />
         </div>
-        {showAll && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">No more pieces</div>}
+        {showAll && !queue[0] && (
+          // Waits for the last piece's pop to clear the panel.
+          <motion.div
+            className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ ...FADE, delay: 0.15 }}
+          >
+            No more pieces
+          </motion.div>
+        )}
         {Array.from({ length: slots }, (_, i) => (
           <div key={i} ref={(element) => (frameRefs.current[i + 1] = element)} className={frameClass} />
         ))}
@@ -214,9 +227,9 @@ export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Te
                 style={{ left: boxes.tail.left, width: boxes.tail.width }}
                 initial={false}
                 animate={{ y: tailTop, opacity: remaining > 0 ? 1 : 0 }}
-                transition={{ y: { ...SLIDE, delay: Math.max(0, lastSlot + 1) * 0.025 }, opacity: FADE }}
+                transition={{ y: { ...SLIDE, delay: (lastSlot + 1) * 0.025 }, opacity: { duration: 0.15, ease: "easeOut" } }}
               >
-                <TailCount remaining={remaining} />
+                <TailCount remaining={lastCount.current} />
               </motion.div>
             )}
           </>
