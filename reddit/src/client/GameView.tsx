@@ -223,7 +223,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
         if (
           !!cached.results[now] !== !!data.results[now] ||
           JSON.stringify(cached.levels[now]) !== JSON.stringify(data.levels[now]) ||
-          (data.runs[now]?.at ?? 0) > resumedAt.current
+          ((data.runs[now]?.at ?? 0) > resumedAt.current && JSON.stringify(data.runs[now]?.actions) !== JSON.stringify(actionsRef.current))
         ) {
           openLevel(data, now);
         } else {
@@ -250,7 +250,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
     // Leaving mid-run keeps the clock and the run; coming back carries on.
     if (!result) {
       saveClock(puzzle.date, level, clockMs);
-      if (reportsProgress) recordProgress(puzzle.date, level, clockMs, { at: Date.now(), actions: run.actions });
+      if (reportsProgress) recordProgress(puzzle.date, level, clockMs, savedRun.current);
     }
     openLevel(puzzle, next);
   };
@@ -281,12 +281,16 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   clockRef.current = clockMs;
   const actionsRef = useRef(run.actions);
   actionsRef.current = run.actions;
+  // Stamped when the actions last changed, not when they're reported, so a later report of the same
+  // run doesn't look like a newer one.
+  const savedRun = useRef<SavedRun>({ at: 0, actions: [] });
   const savesRun = !!puzzle && !result && !tutorial && !practice;
   const reportsProgress = savesRun && !!puzzle?.username && !puzzle.local;
   const puzzleDate = puzzle?.date;
   useEffect(() => {
     if (!puzzleDate || !savesRun) return;
     const saved = { at: Date.now(), actions: run.actions };
+    savedRun.current = saved;
     saveRun(puzzleDate, level, saved);
     if (reportsProgress) recordProgress(puzzleDate, level, clockRef.current, saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -294,7 +298,7 @@ export const Game = ({ modeTabs }: { modeTabs?: ReactNode }) => {
   useEffect(() => {
     if (!puzzleDate || !reportsProgress) return;
     const report = () => {
-      if (clockRef.current > 0) recordProgress(puzzleDate, level, clockRef.current, { at: Date.now(), actions: actionsRef.current });
+      if (clockRef.current > 0) recordProgress(puzzleDate, level, clockRef.current, savedRun.current);
     };
     const onHide = () => {
       if (document.visibilityState === "hidden") report();
