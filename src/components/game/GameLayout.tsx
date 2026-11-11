@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { forwardRef, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import PieceDisplay from "@/components/game/PieceDisplay";
 import TargetGrid from "@/components/game/TargetGrid";
 import { RotateCcw, RotateCw } from "lucide-react";
@@ -70,58 +71,168 @@ export const TargetCard = ({
   </div>
 );
 
-// Each piece after the first is a little smaller and fainter than the one before.
+// Each piece after the one on the panel is a little fainter than the one before.
 const QUEUE_OPACITY = [0.9, 0.65, 0.45, 0.38, 0.32];
+
+// Pieces glide between slots; a touch of stagger down the column makes the queue move as one line.
+const SLIDE = { type: "spring", stiffness: 380, damping: 32, mass: 0.9 } as const;
+const FADE = { duration: 0.25, ease: "easeOut" } as const;
+
+// Unlimited deals new pieces onto the end, so its pieces are told apart by identity.
+const pieceIds = new WeakMap<Tetromino, number>();
+let lastPieceId = 0;
+function pieceId(piece: Tetromino) {
+  let id = pieceIds.get(piece);
+  if (id === undefined) {
+    id = ++lastPieceId;
+    pieceIds.set(piece, id);
+  }
+  return id;
+}
+
+type SlotBox = { top: number; left: number; width: number; bottom: number };
+
+/** Position inside `ancestor` from layout offsets, which (unlike screen rects) ignore the desktop stage's scale. */
+function offsetWithin(element: HTMLElement, ancestor: HTMLElement) {
+  let top = 0;
+  let left = 0;
+  for (let node: HTMLElement | null = element; node && node !== ancestor; node = node.offsetParent as HTMLElement | null) {
+    top += node.offsetTop;
+    left += node.offsetLeft;
+  }
+  return { top, left };
+}
 
 // The next piece on its own little board, ringed white like the piece in play; the ones after it
 // below, the same size and fainter. Unlimited shows three after it. A daily passes `pieces`, its
 // whole run, and shows every one (up to a Hard day's seven) with a count where the line ends, so
 // the space below doesn't look like more to come. It's sized for the whole run so the card doesn't
 // shrink as pieces are used, and packed tighter past three.
+// The slots are fixed, empty frames; the pieces float over them, so placing one pops it off the
+// panel and slides the rest up, and an undo plays it backwards.
 export const NextColumn = ({ queue, landscape, highlight, pieces }: { queue: (Tetromino | null)[]; landscape: boolean; highlight?: boolean; pieces?: number }) => {
   const showAll = pieces !== undefined;
   // The piece in play and the one in the panel aren't in these slots.
   const slots = showAll ? Math.min(QUEUE_OPACITY.length, Math.max(3, pieces - 2)) : 3;
   const packed = slots > 3;
   const remaining = queue.filter(Boolean).length;
-  // Slots holding a piece, after the one on the panel; the empty ones only hold the card's height.
-  const shown = Math.min(slots, Math.max(0, remaining - 1));
-  const queueSlots = QUEUE_OPACITY.slice(0, slots).map((opacity, i) => (
-    // As wide as the piece on the panel above, so every tile is the same size.
-    <div key={i} className={cn(packed ? "mt-0.5" : "mt-1", landscape ? "w-[76%]" : "w-[82%]")} style={{ opacity }}>
-      <PieceDisplay piece={queue[i + 1] ?? null} frame="wide" />
-    </div>
-  ));
+
+  const cardRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const frameRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const tailRef = useRef<HTMLDivElement>(null);
+  const [measured, setMeasured] = useState<{ slots: SlotBox[]; tail: { left: number; width: number } | null } | null>(null);
+
+  const measure = () => {
+    const card = cardRef.current;
+    const panel = panelRef.current;
+    const frames = frameRefs.current.slice(0, slots + 1);
+    if (!card || !panel || frames.some((frame) => !frame)) return;
+    const next = {
+      slots: frames.map((frame, i) => {
+        const at = offsetWithin(frame!, card);
+        // The panel's piece sits inside its padding; the line ends below the panel itself.
+        const bottom = i === 0 ? offsetWithin(panel, card).top + panel.offsetHeight : at.top + frame!.offsetHeight;
+        return { top: at.top, left: at.left, width: frame!.offsetWidth, bottom };
+      }),
+      tail: tailRef.current ? { left: offsetWithin(tailRef.current, card).left, width: tailRef.current.offsetWidth } : null,
+    };
+    setMeasured((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
+  };
+  const measureRef = useRef(measure);
+  measureRef.current = measure;
+  useLayoutEffect(measure);
+  useEffect(() => {
+    const observer = new ResizeObserver(() => measureRef.current());
+    if (cardRef.current) observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Measured for another slot count (the column was just switched): wait for this layout's.
+  const boxes = measured && measured.slots.length === slots + 1 ? measured : null;
+  const shownPieces = queue.slice(0, slots + 1).flatMap((piece, slot) =>
+    piece ? [{ piece, slot, key: showAll ? pieces - queue.length + slot : pieceId(piece) }] : []
+  );
+  const lastSlot = Math.min(slots, remaining - 1);
+  const tailTop = boxes && lastSlot >= 0 ? boxes.slots[lastSlot].bottom + (boxes.slots[1].top - boxes.slots[0].bottom) : 0;
+  const frameClass = cn("aspect-[2/1] shrink-0", packed ? "mt-0.5" : "mt-1", landscape ? "w-[76%]" : "w-[82%]");
+
   return (
-    <div
-      className={cn(
-        "gp-card flex shrink-0 flex-col items-center transition-shadow",
-        packed ? "gap-1.5" : "gap-2",
-        landscape ? "w-[100px] p-2 pb-3" : "w-[72px] p-1.5 pb-2.5",
-        highlight && "ring-4 ring-[#7C5CFF]/40"
-      )}
-    >
-      <div className={cn("gp-label pt-0.5", highlight && "text-[#7C5CFF]")}>Next</div>
-      <div data-next-panel className={cn("w-full rounded-[14px] transition-colors", queue[0] ? "bg-[color:var(--gp-board)]" : "bg-transparent", landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]", highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2")}>
-        <PieceDisplay piece={queue[0] ?? null} frame="wide" ring />
+    <MotionConfig reducedMotion="user">
+      <div
+        ref={cardRef}
+        className={cn(
+          "gp-card relative flex shrink-0 flex-col items-center transition-shadow",
+          packed ? "gap-1.5" : "gap-2",
+          landscape ? "w-[100px] p-2 pb-3" : "w-[72px] p-1.5 pb-2.5",
+          highlight && "ring-4 ring-[#7C5CFF]/40"
+        )}
+      >
+        <div className={cn("gp-label pt-0.5", highlight && "text-[#7C5CFF]")}>Next</div>
+        <div
+          ref={panelRef}
+          data-next-panel
+          className={cn(
+            "w-full rounded-[14px] transition-colors duration-300",
+            queue[0] ? "bg-[color:var(--gp-board)]" : "bg-transparent",
+            landscape ? "px-[12%] py-[14%]" : "px-[9%] py-[11%]",
+            highlight && "ring-[3px] ring-[#7C5CFF] ring-offset-2"
+          )}
+        >
+          <div ref={(element) => (frameRefs.current[0] = element)} className="aspect-[2/1] w-full" />
+        </div>
+        {showAll && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">No more pieces</div>}
+        {Array.from({ length: slots }, (_, i) => (
+          <div key={i} ref={(element) => (frameRefs.current[i + 1] = element)} className={frameClass} />
+        ))}
+        {/* Holds the count's room at the foot of the card; the count itself rides below the last piece. */}
+        {showAll && <TailCount ref={tailRef} remaining={remaining} className={cn("invisible", packed ? "mt-0.5" : "mt-1")} />}
+
+        {boxes && (
+          <>
+            <AnimatePresence initial={false}>
+              {shownPieces.map(({ piece, slot, key }) => {
+                const box = boxes.slots[slot];
+                return (
+                  <motion.div
+                    key={key}
+                    className="pointer-events-none absolute left-0 top-0"
+                    style={{ left: box.left, width: box.width }}
+                    initial={{ y: box.top, scale: 0.6, opacity: 0 }}
+                    animate={{ y: box.top, scale: 1, opacity: slot === 0 ? 1 : QUEUE_OPACITY[slot - 1] }}
+                    exit={{ scale: 1.25, opacity: 0, transition: { duration: 0.2, ease: "easeOut" } }}
+                    transition={{ y: { ...SLIDE, delay: slot * 0.025 }, scale: SLIDE, opacity: FADE }}
+                  >
+                    <PieceDisplay piece={piece} frame="wide" ring={slot === 0} />
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+            {showAll && boxes.tail && (
+              <motion.div
+                className="pointer-events-none absolute left-0 top-0"
+                style={{ left: boxes.tail.left, width: boxes.tail.width }}
+                initial={false}
+                animate={{ y: tailTop, opacity: remaining > 0 ? 1 : 0 }}
+                transition={{ y: { ...SLIDE, delay: Math.max(0, lastSlot + 1) * 0.025 }, opacity: FADE }}
+              >
+                <TailCount remaining={remaining} />
+              </motion.div>
+            )}
+          </>
+        )}
       </div>
-      {showAll && !queue[0] && <div className="-mt-[40%] text-center text-[11px] font-extrabold leading-tight text-[color:var(--gp-muted)]">No more pieces</div>}
-      {showAll ? (
-        <>
-          {queueSlots.slice(0, shown)}
-          {/* Always laid out, so the card keeps its height once the queue is empty. */}
-          <div className={cn("flex w-full flex-col items-center gap-1", packed ? "mt-0.5" : "mt-1", !queue[0] && "invisible")}>
-            <div className="w-[60%] border-t-2 border-dashed border-[color:var(--gp-line)]" />
-            <div className="gp-label !text-[color:var(--gp-ink)]">{remaining} left</div>
-          </div>
-          {queueSlots.slice(shown)}
-        </>
-      ) : (
-        queueSlots
-      )}
-    </div>
+    </MotionConfig>
   );
 };
+
+const TailCount = forwardRef<HTMLDivElement, { remaining: number; className?: string }>(({ remaining, className }, ref) => (
+  <div ref={ref} className={cn("flex w-full flex-col items-center gap-1", className)}>
+    <div className="w-[60%] border-t-2 border-dashed border-[color:var(--gp-line)]" />
+    <div className="gp-label !text-[color:var(--gp-ink)]">{remaining} left</div>
+  </div>
+));
+TailCount.displayName = "TailCount";
 
 const KeyChip = ({ children }: { children: ReactNode }) => (
   <span className="font-display inline-grid h-7 min-w-[28px] place-items-center rounded-[7px] border-2 border-[#1F1633] bg-white px-1.5 text-[13px] font-bold text-[color:var(--gp-ink)] shadow-[0_2px_0_#1F1633]">{children}</span>
