@@ -10,9 +10,10 @@ import { cn } from "@/lib/utils";
 import { useDailyRun } from "./useDailyRun";
 import type { ReplayStep } from "./replayLog";
 
-// At normal speed a placement takes under a second: the piece glides to its spot, lands, and the
-// board settles before the next one.
-const PACE = { intro: 600, aim: 380, land: 200, settle: 260, undo: 520, restart: 900, caption: 700 };
+// At normal speed a placement takes about a second and a half: the piece glides to its spot,
+// lands, and the board settles before the next one. Fast runs it 1.7 times quicker.
+const PACE = { intro: 900, aim: 650, land: 300, settle: 500, undo: 900, restart: 1400, caption: 1100 };
+const FAST = 1.7;
 
 const noop = () => undefined;
 
@@ -26,7 +27,7 @@ export const Replay = ({ open, onClose, pieces, target, steps }: { open: boolean
   const [caption, setCaption] = useState<{ id: number; text: string } | null>(null);
   const [fast, setFast] = useState(false);
   const speed = useRef(1);
-  speed.current = fast ? 2.5 : 1;
+  speed.current = fast ? FAST : 1;
   const done = stepIndex >= steps.length && run.outcome === "solved";
 
   useEffect(() => {
