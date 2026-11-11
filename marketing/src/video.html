@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>GridPop video stage</title>
+<link rel="stylesheet" href="brand.css">
+<script src="fontcheck.js"></script>
+<style>
+  /* One 1920x1080 stage recorded start to finish: an intro card, the real game (an iframe of the
+     dev server) beside a caption that changes with each beat, then an end card. record-video.mjs
+     drives it through window.stage. */
+  html, body { width: 1920px; height: 1080px; margin: 0; overflow: hidden; }
+  body {
+    position: relative;
+    --warm-peach: 1400px 900px;
+    --warm-lilac: 1300px 1000px;
+    --warm-sky: 1500px 600px;
+  }
+  .layer { position: absolute; inset: 0; transition: opacity 600ms ease, transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .hidden { opacity: 0; pointer-events: none; }
+
+  /* ---------- intro and end cards ---------- */
+  .card-layer { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; }
+  .card-layer .logo { font-size: 190px; }
+  .card-layer .logo-tile { opacity: 0; transform: translateY(40px) rotate(var(--r)) scale(0.6); }
+  .shown .logo-tile { animation: drop 700ms cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+  .shown .logo-tile.lp2 { animation-delay: 140ms; }
+  .shown .logo-tile.lp3 { animation-delay: 280ms; }
+  @keyframes drop { to { opacity: 1; transform: translateY(0) rotate(var(--r)) scale(1); } }
+  .big-line {
+    font-family: "Fredoka", sans-serif; font-weight: 700; font-size: 76px; color: var(--gp-ink);
+    opacity: 0; transform: translateY(24px);
+  }
+  .shown .big-line { animation: rise 600ms 500ms ease-out forwards; }
+  .chips { display: flex; gap: 18px; opacity: 0; transform: translateY(24px); }
+  .shown .chips { animation: rise 600ms 800ms ease-out forwards; }
+  .chip {
+    font-family: "Nunito", sans-serif; font-weight: 900; font-size: 32px;
+    padding: 12px 30px; border-radius: 999px; border: 4px solid var(--gp-stroke);
+    background: #fff; color: var(--gp-ink); box-shadow: 0 6px 0 var(--gp-stroke);
+  }
+  .chip.on { background: var(--gp-accent); color: #fff; }
+  @keyframes rise { to { opacity: 1; transform: translateY(0); } }
+  #end { background: inherit; }
+  #end .cta {
+    font-family: "Fredoka", sans-serif; font-weight: 700; font-size: 54px; color: #fff;
+    background: #ff4500; border: 5px solid var(--gp-stroke); border-radius: 999px; padding: 14px 54px 18px;
+    box-shadow: 0 8px 0 var(--gp-stroke); opacity: 0; transform: translateY(24px);
+  }
+  #end.shown .cta { animation: rise 600ms 1100ms ease-out forwards; }
+
+  /* ---------- the game beside its caption ---------- */
+  #play .mini-logo { position: absolute; left: 120px; top: 92px; font-size: 64px; }
+  .caption {
+    position: absolute; left: 120px; top: 50%; width: 600px; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .eyebrow {
+    font-family: "Nunito", sans-serif; font-weight: 900; font-size: 26px;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--gp-accent);
+  }
+  .line {
+    font-family: "Fredoka", sans-serif; font-weight: 700; font-size: 74px; line-height: 1.06; color: var(--gp-ink);
+    text-wrap: balance;
+  }
+  .line em { font-style: normal; color: var(--gp-accent); }
+  .caption.swap > * { animation: rise-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .caption.swap > .line { animation-delay: 60ms; }
+  @keyframes rise-in { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+
+  .frame {
+    position: absolute; left: 770px; top: 180px; width: 1060px; height: 720px;
+    border: 5px solid var(--gp-stroke); border-radius: 44px; overflow: hidden;
+    box-shadow: 0 18px 0 rgba(31, 22, 51, 0.14);
+    background: var(--gp-bg);
+  }
+  #play.hidden .frame { transform: translateX(160px); }
+  .frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body class="gp-warm">
+  <div id="play" class="layer hidden">
+    <div class="logo mini-logo">
+      <span class="logo-mark"><i style="background:#FFD45E"></i><i style="background:#7CCBFF"></i><i style="background:#7BDEA3"></i><i style="background:#FF5A6E"></i></span>
+      <span class="logo-word">Grid</span>
+      <span class="logo-pop"><span class="logo-tile lp1"><b>P</b></span><span class="logo-tile lp2"><b>O</b></span><span class="logo-tile lp3"><b>P</b></span></span>
+    </div>
+    <div class="caption" id="caption"><div class="eyebrow"></div><div class="line"></div></div>
+    <div class="frame layer"><iframe id="game" src="about:blank"></iframe></div>
+  </div>
+
+  <div id="intro" class="layer card-layer">
+    <div class="logo">
+      <span class="logo-mark"><i style="background:#FFD45E"></i><i style="background:#7CCBFF"></i><i style="background:#7BDEA3"></i><i style="background:#FF5A6E"></i></span>
+      <span class="logo-word">Grid</span>
+      <span class="logo-pop"><span class="logo-tile lp1"><b>P</b></span><span class="logo-tile lp2"><b>O</b></span><span class="logo-tile lp3"><b>P</b></span></span>
+    </div>
+    <div class="big-line">A Daily Number Puzzle</div>
+  </div>
+
+  <div id="end" class="layer card-layer hidden">
+    <div class="logo">
+      <span class="logo-mark"><i style="background:#FFD45E"></i><i style="background:#7CCBFF"></i><i style="background:#7BDEA3"></i><i style="background:#FF5A6E"></i></span>
+      <span class="logo-word">Grid</span>
+      <span class="logo-pop"><span class="logo-tile lp1"><b>P</b></span><span class="logo-tile lp2"><b>O</b></span><span class="logo-tile lp3"><b>P</b></span></span>
+    </div>
+    <div class="big-line">A new puzzle every day</div>
+    <div class="chips"><span class="chip">Easy</span><span class="chip">Normal</span><span class="chip on">Hard</span></div>
+    <div class="cta">Play on r/gridpop</div>
+  </div>
+
+  <script>
+    const caption = document.getElementById("caption");
+    window.stage = {
+      intro() { document.getElementById("intro").classList.add("shown"); },
+      toPlay() {
+        document.getElementById("intro").classList.add("hidden");
+        document.getElementById("play").classList.remove("hidden");
+      },
+      say(eyebrow, line) {
+        caption.classList.remove("swap");
+        caption.querySelector(".eyebrow").textContent = eyebrow;
+        caption.querySelector(".line").innerHTML = line;
+        void caption.offsetWidth;
+        caption.classList.add("swap");
+      },
+      end() {
+        const end = document.getElementById("end");
+        end.classList.remove("hidden");
+        end.classList.add("shown");
+      },
+    };
+  </script>
+</body>
+</html>
