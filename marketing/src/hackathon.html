@@ -32,15 +32,6 @@
     line-height: 1.1;
     color: var(--gp-ink);
   }
-  .tagline {
-    font-family: "Nunito", sans-serif;
-    font-weight: 900;
-    font-size: 26px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--gp-muted);
-  }
-  .tagline em { font-style: normal; color: var(--gp-accent); }
   .levels { display: flex; gap: 12px; }
   .chip {
     font-family: "Nunito", sans-serif;
@@ -56,12 +47,8 @@
   .chip.on { background: var(--gp-accent); color: #fff; }
 
   .board-main { --w: 520px; left: 862px; top: 214px; transform: rotate(5deg); box-shadow: 0 30px 0 rgba(31, 22, 51, 0.12); }
-  /* The piece in play: ringed white and lifted, about to land and finish the row of 3s. */
-  .board .tile.live {
-    box-shadow: 0 0 0 calc(var(--w) * 0.009) #fff, 0 calc(var(--w) * 0.02) 0 rgba(15, 8, 32, 0.35);
-    transform: translateY(calc(var(--w) * -0.016));
-    z-index: 2;
-  }
+  /* The piece in play, ringed white like in the game, about to finish the row of 3s. */
+  .board .tile.live { box-shadow: 0 0 0 calc(var(--w) * 0.009) #fff; z-index: 2; }
 
   .card {
     background: #fff;
@@ -99,9 +86,8 @@
       <span class="logo-word">Grid</span>
       <span class="logo-pop"><span class="logo-tile lp1"><b>P</b></span><span class="logo-tile lp2"><b>O</b></span><span class="logo-tile lp3"><b>P</b></span></span>
     </div>
-    <div class="headline">Match the target.<br>Beat the clock.</div>
+    <div class="headline">A Daily Number Puzzle</div>
     <div class="levels"><span class="chip">Easy</span><span class="chip">Normal</span><span class="chip on">Hard</span></div>
-    <div class="tagline">A new puzzle <em>every day</em></div>
   </div>
 
   <div class="abs card clock-card">
@@ -130,7 +116,6 @@
     <div class="socket"><div class="tile v2"><span>2</span></div></div>
     <div class="socket"></div>
 
-    <div class="will-clear" style="grid-area: 2 / 1 / 3 / 5; inset: -8px"></div>
   </div>
 
   <div class="abs card target-card">
